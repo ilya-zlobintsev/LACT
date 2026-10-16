@@ -5,10 +5,11 @@ use crate::{
     app::{msg::AppMsg, pages::oc_page::OcPageMsg},
 };
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
+use amdgpu_sysfs::gpu_handle::PerformanceLevel;
 use gtk::StringObject;
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
+use lact_schema::PowerProfileModesInfo;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, css};
 
@@ -25,7 +26,7 @@ const PERFORMANCE_LEVELS: [PerformanceLevel; 8] = [
 
 pub struct PerformanceFrame {
     performance_level: Option<PerformanceLevel>,
-    power_profile_modes_table: Option<PowerProfileModesTable>,
+    power_profile_modes_table: Option<PowerProfileModesInfo>,
     power_profile_modes: gtk::StringList,
     active_power_mizer_mode: Option<PowerMizerMode>,
     supported_power_mizer_modes: Vec<PowerMizerMode>,
@@ -53,7 +54,7 @@ impl PerformanceRows {
 #[derive(Debug)]
 pub enum PerformanceFrameMsg {
     PerformanceLevel(Option<PerformanceLevel>),
-    PowerProfileModes(Option<PowerProfileModesTable>),
+    PowerProfileModes(Option<PowerProfileModesInfo>),
     PowerProfileSelected(u16),
     PowerMizerInfo {
         active: Option<PowerMizerMode>,

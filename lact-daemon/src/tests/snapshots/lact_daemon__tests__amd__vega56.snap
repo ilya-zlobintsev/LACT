@@ -80,6 +80,80 @@ expression: device_info
         },
         "kind": "gcn"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "mclk_levels": [
+            {
+              "clockspeed": 167,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 500,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 700,
+              "voltage": 900
+            },
+            {
+              "clockspeed": 920,
+              "voltage": 950
+            }
+          ],
+          "od_range": {
+            "mclk": {
+              "max": 1500,
+              "min": 167
+            },
+            "sclk": {
+              "max": 2400,
+              "min": 852
+            },
+            "vddc": {
+              "max": 1200,
+              "min": 800
+            }
+          },
+          "sclk_levels": [
+            {
+              "clockspeed": 852,
+              "voltage": 800
+            },
+            {
+              "clockspeed": 991,
+              "voltage": 900
+            },
+            {
+              "clockspeed": 1138,
+              "voltage": 950
+            },
+            {
+              "clockspeed": 1269,
+              "voltage": 1000
+            },
+            {
+              "clockspeed": 1312,
+              "voltage": 1050
+            },
+            {
+              "clockspeed": 1474,
+              "voltage": 1100
+            },
+            {
+              "clockspeed": 1538,
+              "voltage": 1150
+            },
+            {
+              "clockspeed": 1590,
+              "voltage": 1200
+            }
+          ]
+        },
+        "kind": "gcn"
+      }
     }
   },
   "info": {
@@ -129,6 +203,17 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": null,
+        "values": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [

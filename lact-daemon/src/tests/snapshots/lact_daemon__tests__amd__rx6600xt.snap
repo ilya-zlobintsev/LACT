@@ -47,6 +47,50 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": "GFXCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          4587520,
+          -65536,
+          0
+        ]
+      },
+      {
+        "clock_type": "SOCCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          1,
+          0,
+          3276800,
+          -6553,
+          -6553
+        ]
+      },
+      {
+        "clock_type": "MEMLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          327680,
+          -65536,
+          0
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [
