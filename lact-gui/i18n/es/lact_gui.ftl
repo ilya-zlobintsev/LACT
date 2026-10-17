@@ -135,21 +135,7 @@ create = Crear
 cancel = Cancelar
 save = Guardar
 default-profile = Predeterminado
-nvidia-oc-info = Información de Overclocking
-nvidia-oc-description =
-    La funcionalidad de overclocking en Nvidia incluye la configuración de compensaciones para las velocidades de reloj de la GPU/VRAM y la limitación del rango potencial de velocidades de reloj mediante la función de "relojes bloqueados".
-
-    En muchas tarjetas, la compensación de la velocidad de reloj de la VRAM solo afecta la velocidad de reloj real de la memoria a la mitad del valor de compensación.
-    Por ejemplo, una compensación de VRAM de +1000 MHz puede aumentar la velocidad de VRAM medida solo en 500 MHz.
-    Esto es normal y es la forma en que Nvidia gestiona las velocidades de datos GDDR. Ajuste su overclock según corresponda.
-
-    Es posible lograr un pseudo-subvoltaje combinando la opción de relojes bloqueados con una compensación positiva de la velocidad de reloj.
-    Esto obligará a la GPU a funcionar a un voltaje limitado por los relojes bloqueados, mientras que alcanzará una velocidad de reloj más alta gracias a la compensación.
-    Esto puede causar inestabilidad en el sistema si se aumenta demasiado.
-oc-warning = Cambiar estos valores puede provocar inestabilidad en el sistema y potencialmente dañar su hardware.
 show-all-pstates = Muestra todos los Estados-P
-enable-gpu-locked-clocks = Habilitar Relojes Bloqueados de GPU
-enable-vram-locked-clocks = Habilita Relojes VRAM Bloqueados
 pstate-list-description = <b>Los siguientes valores son desplazamientos de reloj para cada Estado-P, desde el más alto hasta el más bajo.</b>
 no-clocks-data = No hay datos de relojes disponibles
 reset-oc-tooltip = Advertencia: ¡esto restablece todas las configuraciones del reloj a los valores predeterminados!
@@ -208,20 +194,10 @@ show-historical-charts = Mostrar Gráficos
 show-process-monitor = Mostrar Monitor de Proceso
 generate-debug-snapshot = Generar Capturas Depuradoras
 gpu-clock-offset = Desplazamiento de Reloj GPU (MHz)
-max-gpu-clock = Reloj GPU Máximo (MHz)
-max-vram-clock = Reloj VRAM Máximo (MHz)
 max-gpu-voltage = Voltaje GPU Máximo (mV)
-min-gpu-clock = Reloj GPU Mínimo (MHz)
-min-vram-clock = Reloj VRAM Mínimo (MHz)
 min-gpu-voltage = Voltaje GPU Mínimo (mV)
 gpu-voltage-offset = Desplazamiento de voltaje GPU (mV)
-gpu-pstate-clock-offset = Estado-P de GPU { $pstate } Desplz. Reloj (MHz)
 reset-all-graphs-tooltip = Restablecer Todas las Gráficas a Predeterminado
-vram-pstate-clock-offset = VRAM P-State { $pstate } Desplazamiento de Reloj (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Reloj (MHz)
-mem-pstate-clock = VRAM P-State { $pstate } Reloj (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Voltaje (mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Voltaje (mV)
 gibibyte = GiB
 crash-page-title = Aplicación Colgada
 exit = Salir
