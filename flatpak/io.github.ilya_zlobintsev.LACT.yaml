@@ -1,10 +1,10 @@
 app-id: io.github.ilya_zlobintsev.LACT
 runtime: org.gnome.Platform
-runtime-version: '50'
+runtime-version: '51'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-  - org.freedesktop.Sdk.Extension.llvm20
+  - org.freedesktop.Sdk.Extension.llvm22
 command: startup.sh
 finish-args:
   - --share=ipc
@@ -30,8 +30,8 @@ modules:
       - -DBUILD_VULKANINFO=ON
     sources:
       - type: archive
-        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.334/Vulkan-Tools-1.4.334.tar.gz
-        sha256: ae6c8ec78c6ebe2ec7c3034ac99454eaa2e855fe2b3df0ea858c2ba669b7fd83
+        url: https://github.com/KhronosGroup/Vulkan-Tools/archive/v1.4.361/Vulkan-Tools-1.4.361.tar.gz
+        sha256: 76b6e50b5f2c5eaa653d92fb34491a2ecc30d892d6906277c2cbfc0c4f51a505
         x-checker-data:
           type: anitya
           project-id: 242111
@@ -43,8 +43,8 @@ modules:
           - -DVOLK_INSTALL=ON
         sources:
           - type: archive
-            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.328.1.tar.gz
-            sha256: 8d6a4092d5de62d0c6290394cf81cf7a99e36875934b1b75d595e76d08fcadd1
+            url: https://github.com/zeux/volk/archive/vulkan-sdk-1.4.357.0.tar.gz
+            sha256: 6400c7b23e24d17e4f04bac49b55b06c4e87677d33398e90344743ec73560ca6
             x-checker-data:
               type: anitya
               project-id: 370476
@@ -54,8 +54,8 @@ modules:
             buildsystem: cmake-ninja
             sources:
               - type: archive
-                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.334/Vulkan-Headers-v1.4.334.tar.gz
-                sha256: f6b858ed8ff5747a32e7840ba20c565c6477c5c1c171bfc25195ef1730b349cc
+                url: https://github.com/KhronosGroup/Vulkan-Headers/archive/v1.4.361/Vulkan-Headers-v1.4.361.tar.gz
+                sha256: dbcb3607bd4e2aee006bb92c056453ca4ed2c32fa19d1acd36448618e5516224
                 x-checker-data:
                   type: anitya
                   project-id: 88835
@@ -83,8 +83,8 @@ modules:
           - -DCMAKE_INSTALL_DATADIR=/app/lib
         sources:
           - type: archive
-            url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2025.07.22/OpenCL-Headers-v2025.07.22.tar.gz
-            sha256: 98f0a3ea26b4aec051e533cb1750db2998ab8e82eda97269ed6efe66ec94a240
+            url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2026.05.29/OpenCL-Headers-v2026.05.29.tar.gz
+            sha256: d9e6c48357de5002da11ce45de600e0c3ffe6ab4f628a3b9fe2b38603161658a
             x-checker-data:
               type: anitya
               project-id: 223257
@@ -114,8 +114,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/vcrhonek/hwdata.git
-        tag: v0.408
-        commit: 4456b256a1a5b1d1c1c1a60a9f69c59f7743c522
+        tag: v0.410
+        commit: 8bb6c48dc2e683777e625d1c9ef02c1b25b741cd
         x-checker-data:
           type: git
 
@@ -141,8 +141,8 @@ modules:
           - "target"
           - "target_ra"
     build-options:
-      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
-      prepend-ld-library-path: /usr/lib/sdk/llvm20/lib
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm22/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
       env:
         CARGO_HOME: /run/build/lact/cargo
         PREFIX: /app
@@ -161,8 +161,8 @@ modules:
           - --disable-tools
         sources:
           - type: archive
-            url: https://github.com/v1cont/yad/releases/download/v14.1/yad-14.1.tar.xz
-            sha256: dde047a915cd8d3892c32b6ba031876f5cda673e01882c99613f043867c88133
+            url: https://github.com/v1cont/yad/releases/download/v15.0/yad-15.0.tar.xz
+            sha256: 7cf4dc136a643bf484ceab27d9b28a513624dffe38a08731132c0e4e24073772
             x-checker-data:
               type: anitya
               project-id: 5280
