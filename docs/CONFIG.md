@@ -230,7 +230,7 @@ profiles:
       # Type of the rule. Can be `process`, `gamemode`, `and`, or `or`.
       type: process
       # Process filter. This is not required when using the gamemode rule type.
-      filter:
+      filter: # must be a list when type is `and` or `or`
         # Name of the process.
         name: vkcube
         # Process arguments. Not required.
