@@ -5,7 +5,7 @@ use self::drm::DrmProvider;
 #[cfg(feature = "mock")]
 use self::drm::mock::MockDrmProvider;
 use self::drm::{i915::I915DrmProvider, xe::XeDrmProvider};
-use super::{CommonControllerInfo, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, GpuController};
 use crate::{
     bindings::intel::IntelDrm,
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
@@ -970,6 +970,18 @@ impl GpuController for IntelGpuController {
 
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
         Err(anyhow!("Not supported"))
+    }
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Intel {
+            initial_power_cap: self.initial_power_cap,
+        })
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Intel { initial_power_cap } = state {
+            self.initial_power_cap = initial_power_cap;
+        }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {

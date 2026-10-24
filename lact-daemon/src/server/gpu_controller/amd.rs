@@ -73,14 +73,12 @@ pub struct AmdGpuController {
     last_drm_util: RefCell<Option<DrmUtilMap>>,
     pmfw_options_default: PmfwOptions,
     clocks_table_default: Option<ClocksTableGen>,
-    uma_carveout_default: Option<usize>,
     custom_heuristics_default: Option<Vec<PowerProfileComponent>>,
 }
 
 pub struct AmdRetainedState {
     pmfw_options: PmfwOptions,
     clocks_table: Option<ClocksTableGen>,
-    uma_carveout: Option<usize>,
     custom_heuristics: Option<Vec<PowerProfileComponent>>,
 }
 
@@ -134,7 +132,6 @@ impl AmdGpuController {
                 .map(|info| info.current),
         };
         let clocks_table_default = handle.get_clocks_table().ok();
-        let uma_carveout_default = handle.get_current_uma_carveout().ok();
         let custom_heuristics_default = handle.get_power_profile_modes().ok().and_then(|table| {
             table
                 .modes
@@ -151,7 +148,6 @@ impl AmdGpuController {
             last_drm_util: RefCell::new(None),
             pmfw_options_default,
             clocks_table_default,
-            uma_carveout_default,
             custom_heuristics_default,
         })
     }
@@ -614,15 +610,17 @@ impl AmdGpuController {
                     .ok()
             });
 
-        let uma_carveout = self.uma_carveout_default.and_then(|default| {
-            let options = self.handle.get_uma_carveout_options().ok()?;
-            let current = self.handle.get_current_uma_carveout().ok()?;
-            Some(AmdUmaCarveout {
-                options: options.options,
-                current,
-                default,
+        let uma_carveout = self
+            .handle
+            .get_uma_carveout_options()
+            .and_then(|options| {
+                let current = self.handle.get_current_uma_carveout()?;
+                Ok(AmdUmaCarveout {
+                    options: options.options,
+                    current,
+                })
             })
-        });
+            .ok();
 
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
@@ -1157,7 +1155,6 @@ impl GpuController for AmdGpuController {
         Some(ControllerRetainedState::Amd(Box::new(AmdRetainedState {
             pmfw_options: self.pmfw_options_default,
             clocks_table: self.clocks_table_default.clone(),
-            uma_carveout: self.uma_carveout_default,
             custom_heuristics: self.custom_heuristics_default.clone(),
         })))
     }
@@ -1166,7 +1163,6 @@ impl GpuController for AmdGpuController {
         if let ControllerRetainedState::Amd(state) = state {
             self.pmfw_options_default = state.pmfw_options;
             self.clocks_table_default = state.clocks_table;
-            self.uma_carveout_default = state.uma_carveout;
             self.custom_heuristics_default = state.custom_heuristics;
         }
     }

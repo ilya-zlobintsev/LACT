@@ -71,7 +71,6 @@ expression: device_info
     "drm_info": {
       "amd_uma_carveout": {
         "current": 0,
-        "default": 0,
         "options": [
           {
             "name": "Minimum",

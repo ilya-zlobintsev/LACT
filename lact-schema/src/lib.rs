@@ -427,7 +427,6 @@ pub struct DrmInfo {
 pub struct AmdUmaCarveout {
     pub options: Vec<UmaCarveoutOption>,
     pub current: usize,
-    pub default: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

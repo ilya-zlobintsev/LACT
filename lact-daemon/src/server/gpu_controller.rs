@@ -41,6 +41,7 @@ type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 pub enum ControllerRetainedState {
     Amd(Box<amd::AmdRetainedState>),
     Nvidia { initial_target_temp: Option<u32> },
+    Intel { initial_power_cap: Option<f64> },
 }
 
 pub trait GpuController {
