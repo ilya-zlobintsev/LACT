@@ -1,7 +1,7 @@
 //! # D-Bus interface proxy for: `org.freedesktop.systemd1.Manager`
 use anyhow::{Context, bail};
 use relm4::tokio::process::Command;
-use zbus::{proxy, zvariant::OwnedObjectPath};
+use zbus::{OwnedObjectPath, proxy};
 
 pub const UNIT_NAME: &str = "lactd.service";
 
@@ -24,7 +24,7 @@ pub async fn connect_unit_proxy() -> anyhow::Result<(ManagerProxy<'static>, Unit
         .context("Could not get lact systemd unit")?;
 
     let unit = UnitProxy::builder(&conn)
-        .path(path)?
+        .path(path)
         .build()
         .await
         .context("Could not connect to systemd unit interface")?;

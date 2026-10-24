@@ -19,8 +19,8 @@ i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
 
 serde-error = "=0.1.3"
-clap = { version = "4.6.1", features = ["derive"], optional = true }
+clap = { version = "4.6.7", features = ["derive"], optional = true }
 
 
 [build-dependencies]
-vergen-gitcl = "10.0.1"
+vergen-gitcl = "10.0.3"
