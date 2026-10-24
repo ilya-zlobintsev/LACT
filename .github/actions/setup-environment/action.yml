@@ -4,17 +4,17 @@ runs:
   using: composite
   steps:
     - name: Install dependencies
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: libgtk-4-dev pkg-config libvulkan-dev libdrm-dev curl fuse3 libfuse-dev libadwaita-1-dev libdisplay-info-dev
-        version: 1.1
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-4-dev pkg-config libvulkan-dev libdrm-dev curl fuse3 libfuse-dev libadwaita-1-dev libdisplay-info-dev clang
+      shell: bash
     - name: Update pci.ids
       run: sudo curl -o /usr/share/hwdata/pci.ids https://pci-ids.ucw.cz/v2.2/pci.ids
       shell: bash
-    - uses: Swatinem/rust-cache@v2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       with:
         cache-targets: false
     - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.11
+      uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       with:
         version: "v0.10.0"

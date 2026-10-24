@@ -16,21 +16,21 @@ edition = "2024"
 amdgpu-sysfs = { version = "0.22.0", features = ["serde"] }
 nvml-wrapper = { git = "https://github.com/rust-nvml/nvml-wrapper.git", rev = "eb47417eede43443f139053479618e96ad32893d" }
 serde = { version = "1.0", features = ["derive"] }
-serde_with = { version = "3.21.0", default-features = false, features = [
+serde_with = { version = "3.24.0", default-features = false, features = [
     "macros",
 ] }
-serde_json = "1.0.150"
-anyhow = "1.0.103"
+serde_json = "1.0.154"
+anyhow = "1.0.104"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-futures = { version = "0.3.32", features = [
+futures = { version = "0.3.34", features = [
     "std",
     "async-await",
 ], default-features = false }
-tokio = { version = "1.52.3", default-features = false }
+tokio = { version = "1.54.1", default-features = false }
 nix = { version = "0.31.3", default-features = false }
 jiff = "0.2"
-indexmap = { version = "2.14.0", features = ["serde"] }
+indexmap = { version = "2.14.2", features = ["serde"] }
 pretty_assertions = "1.4.1"
 divan = "0.1"
 serde_norway = "0.9.42"
@@ -39,8 +39,8 @@ i18n-embed = { version = "0.16.0", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.10.1"
-rust-embed = { version = "8.12.0", features = ["debug-embed"] }
-zbus = { version = "5.14.0", default-features = false, features = ["tokio"] }
+rust-embed = { version = "8.13.0", features = ["debug-embed"] }
+zbus = { version = "6.1.0", default-features = false, features = ["tokio"] }
 
 [profile.release]
 strip = "symbols"

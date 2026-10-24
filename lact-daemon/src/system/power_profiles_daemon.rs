@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, anyhow};
 use tracing::{debug, error, info, warn};
-use zbus::{Connection, proxy, zvariant::OwnedValue};
+use zbus::{Connection, OwnedVariant, proxy};
 
 const CONFLICTING_ACTIONS: [&str; 1] = ["amdgpu_dpm"];
 const MIN_PPD_MINOR_VERSION: u32 = 30;
@@ -125,7 +125,7 @@ trait PowerProfilesDaemon {
 
     /// `ActionsInfo` property
     #[zbus(property)]
-    fn actions_info(&self) -> zbus::Result<Vec<std::collections::HashMap<String, OwnedValue>>>;
+    fn actions_info(&self) -> zbus::Result<Vec<std::collections::HashMap<String, OwnedVariant>>>;
 
     /// `ActiveProfile` property
     #[zbus(property)]
@@ -140,5 +140,5 @@ trait PowerProfilesDaemon {
 
     /// Profiles property
     #[zbus(property)]
-    fn profiles(&self) -> zbus::Result<Vec<HashMap<String, OwnedValue>>>;
+    fn profiles(&self) -> zbus::Result<Vec<HashMap<String, OwnedVariant>>>;
 }

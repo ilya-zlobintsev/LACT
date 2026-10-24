@@ -224,13 +224,13 @@ profiles:
     # GPU settings in this profile. 
     # It is the same config format that is used for the top-level `gpus` option.
     gpus: {}
-    # Profile activation rule for when this profile shoule be activated 
+    # Profile activation rule for when this profile should be activated
     # when using automatic profile switching.
     rule:
-      # Type of the rule. Can be either `process or `gamemode`.
+      # Type of the rule. Can be `process`, `gamemode`, `and`, or `or`.
       type: process
       # Process filter. This is not required when using the gamemode rule type.
-      filter:
+      filter: # must be a list when type is `and` or `or`
         # Name of the process.
         name: vkcube
         # Process arguments. Not required.

@@ -40,10 +40,7 @@ use std::{
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
-    os::{
-        fd::AsFd as _,
-        unix::fs::{MetadataExt, PermissionsExt},
-    },
+    os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     rc::Rc,
     sync::LazyLock,
@@ -57,7 +54,6 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
-use zbus::zvariant::Value as ZbusValue;
 use zbus_polkit::policykit1::{self, AuthorityProxy};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
@@ -1290,21 +1286,17 @@ impl<'a> Handler {
         let uid = ctx.uid.context("No client UID available")?;
         let pid = ctx.pid.context("No client PID available")?;
 
-        let mut subject = policykit1::Subject::new_for_owner(pid, None, Some(uid))?;
-
-        if let Some(pid_fd) = &ctx.pid_fd {
-            subject.subject_details.insert(
-                "pidfd".to_owned(),
-                ZbusValue::Fd(pid_fd.as_fd().into()).try_into()?,
-            );
-        }
+        let subject = match &ctx.pid_fd {
+            Some(pid_fd) => policykit1::Subject::new_for_owner(pid_fd, uid)?,
+            None => policykit1::Subject::new_for_pid(pid, None, Some(uid))?,
+        };
 
         let result = polkit_proxy
             .check_authorization(
                 &subject,
                 action,
                 &HashMap::new(),
-                policykit1::CheckAuthorizationFlags::AllowUserInteraction.into(),
+                policykit1::CheckAuthorizationFlags::ALLOW_USER_INTERACTION,
                 "",
             )
             .await
