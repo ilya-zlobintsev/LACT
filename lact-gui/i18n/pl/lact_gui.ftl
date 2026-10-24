@@ -46,35 +46,20 @@ driver-version = Wersja Sterownika
 device-not-found = { $kind } nie odnaleziono urządzenia
 target-temp = Wyznaczona temperatura (°C)
 stats-section = Statystyki
-power-cap = Limit poboru mocy
+power-cap = Limit mocy
 fan-speed = Prędkość Wentylatora
 min-fan-speed = Minimalna Prędkość Wentylatora (%)
-vram-pstate-clock-offset = VRAM P-State { $pstate } Zegar Offset (MHz)
 auto-switch-profiles = Zmień automatycznie
 performance-level-auto = Automatycznie
-min-vram-clock = Minimalne taktowanie VRAM (MHz)
 performance-level-auto-description = Automatycznie dostosuj taktowania GPU I VRAM. (Domyślne)
 reset-oc-tooltip = Ostrzeżenie: to spowoduje zresetowanie wszystkich zegarów do domyślnych!
-max-gpu-clock = Maksymalne Zegary Offset GPU (MHz)
 all-rules-matched = Jeśli spełnione są wszystkie z poniższych warunków:
-pstates-manual-needed = Poziom wydajności musi być ustawiony na „ręczny”, aby można było przełączać stany zasilania
+pstates-manual-needed = Aby włączyć konfigurację P-State, poziom wydajności należy ustawić na "Ręczny".
 settings-profile = Profile Ustawień
 save = Zapisz
 rename-profile-from = Zmień nazwę profilu <b>{ $old_name }</b> na:
-nvidia-oc-description =
-    Zmiany ustawień obejmują przesunięcia taktowania GPU i VRAM, a także ograniczenie maksymalnych wartości zegarów przy użyciu zablokowanych „funkcji”
-
-    Na wielu kartach graficznych przesunięcie dla taktowania VRAM wpływa na rzeczywiste taktowanie pamięci tylko w połowie wartości offsetu.
-    Przykład: Przesunięcie +1000 MHz dla VRAM może zwiększyć rzeczywistą częstotliwość pamięci tylko o 500 MHz..
-    To jest normalne, tak właśnie Nvidia obsługuje prędkości przesyłu danych w pamięci GDDR. Odpowiednio dostosuj swoje podkręcenie.
-
-    Bezpośrednie sterowanie napięciem nie jest obsługiwane, ponieważ taka funkcja nie istnieje w sterowniku Nvidia dla systemu Linux.
-
-    Możliwe jest jednak osiągnięcie pseudo-undervoltu, łącząc zablokowane zegary z dodatnim przesunięciem
-    Wymusza to pracę GPU przy napięciu ograniczonym przez ustawione zegary, ale jednocześnie umożliwia wyższą częstotliwość dzięki offsetowi.
-    Zbyt duża wartość może prowadzić do niestabilności systemu.
 profile-hook-deactivated = Dezaktywowana:
-info-page = Informacje o sprzęcie
+info-page = Dane sprzętowe
 oc-page = Podkręcanie
 fan-control-section = Sterowanie chłodzenia
 nvidia-cache-desc = { $size } L{ $level }
@@ -106,7 +91,7 @@ disable-amd-oc-description = To spowoduje wyłączenie wsparcia AMD Overclocking
 amd-oc-updating-configuration = Aktualizowanie konfiguracji (to może chwile potrwać)
 amd-oc-updating-done = Konfiguracja została zaktualizowana, potrzebny restart aby zastosować zmiany.
 reset-config = Przywróć Konfiguracje
-reset-config-description = Czy na pewno chcesz zresetować ustawienia Karty?
+reset-config-description = Spowoduje to przywrócenie wszystkich ustawień karty graficznej do wartości domyślnych oraz trwałe usunięcie wszystkich profili
 no-throttling = Nie
 unknown-throttling = Nieznane
 missing-stat = Nie dotyczy
@@ -114,31 +99,22 @@ mebibyte = MiB
 performance-level-high = Najwyższe Taktowanie
 performance-level-low = Najniższe Taktowanie
 performance-level-manual = Ręczne
-performance-level-high-description = Zawsze używaj najwyższego taktowania dla GPU i VRAM.
-performance-level-low-description = Zawsze używaj najniższego taktowania dla GPU i VRAM.
-performance-level-manual-description = Ręczne sterowanie wydajnością.
-power-profile-mode = Tryb profilu zasilania:
+performance-level-high-description = Zawsze używaj najwyższego taktowania dla GPU i VRAM
+performance-level-low-description = Zawsze używaj najniższego taktowania dla GPU i VRAM
+performance-level-manual-description = Ręczne sterowanie wydajnością
+power-profile-mode = Tryb profilu zasilania
 manual-level-needed = Poziom wydajności został ustawiony jako Ręczny aby uaktywnić profile mocy
 overclock-section = Taktowanie i napięcie
-nvidia-oc-info = Zarządzanie informacjami OC Nvidia
-show-all-pstates = Pokaż wszystkie P-States
-enable-gpu-locked-clocks = Odblokuj Zablokowane Zegary GPU
-enable-vram-locked-clocks = Włącz zablokowane taktowanie VRAM
+show-all-pstates = Wszystkie P-States
 no-clocks-data = Brak danych o zegarach
-gpu-clock-offset = Przesunięcie taktowania GPU (MHz)
-max-vram-clock = Maksymalne Zegary Offset VRAM (MHz)
-max-gpu-voltage = Maksymalne Napięcie GPU (mV)
-min-gpu-clock = Minimalne taktowanie GPU (MHz)
-min-gpu-voltage = Minimalne Napięcie GPU (mV)
-gpu-voltage-offset = Przesunięcie napięcia GPU (mV)
-gpu-pstate-clock-offset = GPU P-State { $pstate } Zegar Offset (MHz)
-gpu-pstate-clock = GPU P-State { $pstate } Zegar (MHz)
-gpu-pstate-clock-voltage = GPU P-State { $pstate } Napięcie(mV)
-mem-pstate-clock-voltage = VRAM P-State { $pstate } Napięcie (mV)
+gpu-clock-offset = Przesunięcie taktowania
+max-gpu-voltage = Maksymalne napięcie
+min-gpu-voltage = Minimalne napięcie
+gpu-voltage-offset = Przesunięcie napięcia
 pstates = Stany Zasilania
 gpu-pstates = Stany Zasilania GPU
 vram-pstates = Stany Zasilania VRAN
-enable-pstate-config = Aktywuj konfiguracje stanów zasilania
+enable-pstate-config = Konfiguracja P-State
 show-historical-charts = Pokaż wykres
 add-profile = Dodaj nowy profil
 import-profile = Importuj profil z pliku
@@ -161,9 +137,9 @@ profile-hooks = Zaczepy
 profile-activation-desc = Aktywuj profil '{ $name }' kiedy:
 any-rules-matched = Jeśli spełniony jest którykolwiek z poniższych warunków:
 activation-settings-status =
-    Wybrane aktywatory ustawień sa obecnie<b>{ $matched ->
-        [true] zgodne
-       *[false] niezgodne
+    Wybrane ustawienia aktywacji to obecnie <b>{ $matched ->
+        [true] pasuje
+       *[false] nie pasuje
     }</b>
 activation-auto-switching-disabled = Automatyczna zmiana profili jest obecnie zablokowana
 profile-hook-command = Uruchom komendę gdy profil '{ $cmd }' jest:
@@ -174,11 +150,9 @@ profile-rule-gamemode-tab = Try Gamemode jest aktywny
 profile-rule-process-name = Nazwa Procesu:
 profile-rule-args-contain = Argumenty zawierają:
 profile-rule-specific-process = Z określonym procesem:
-pmfw-reset-warning = UWAGA: To zresetuje ustawienia sterownika wentylatora!
+pmfw-reset-warning = Uwaga: to zresetuje ustawienia sterownika wentylatora!
 pstate-list-description = <b>Widoczne wartości są zegarami z offsetem dla każdego P-State, pogrupowane od największych do najniższych.</b>
-amd-oc-disabled =
-    Podkręcanie AMD nie dostępne!
-    W dalszym ciągu może dokonać zmian podstawowych, lecz zaawansowane ustawienia częstotliwości oraz energii nie będą dostępne.
+amd-oc-disabled = Podkręcanie AMD nie jest włączone! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Niektóre funkcje będą niedostępne.</a>
 enable-amd-oc-description = Ta czynność odblokuje zaawansowane ustawienie w sterowniku amdgpu poprzez utworzenie pliku w <b>{ $path }</b> oraz zaktualizowaniu initramfs. Czy jesteś tego pewien?
 amd-oc-description =
     { $config ->
@@ -191,8 +165,6 @@ amd-oc-description =
     }
 
     Sprawdź <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">wiki</a> po więcej informacji.
-oc-warning = Zmiana tych wartości może prowadzić do niestabilności systemu, a nawet potencjalnie uszkodzić sprzęt!
-mem-pstate-clock = VRAM P-State { $pstate } Zegar (MHz)
 profile-activation = Aktywacja
 show-process-monitor = Pokaż monitor procesu
 apply-button = Zastosuj
@@ -216,9 +188,8 @@ kibibyte = KiB
 gibibyte = GiB
 vf-curve-editor = Edytor krzywej VF
 nvidia-vf-curve-warning =
-    Edytor krzywej napięcia i częstotliwości korzysta z nieudokumentowanych funkcji sterownika.
-    Nie ma gwarancji dotyczących jego działania, bezpieczeństwa ani dostępności.
-    <span weight = "heavy" underline = "single">Używasz go na własne ryzyko</span>.
+    Edytor krzywych napięcia i częstotliwości wykorzystuje nieudokumentowane funkcje sterownika.
+    <span weight="heavy" underline="single">Używaj na własną odpowiedzialność</span>.
 voltage = Napięcie
 frequency = Częstotliwość
 vf-active-curve = aktywna krzywa
@@ -261,7 +232,7 @@ version-mismatch-description =
     Jeśli zaktualizowałeś LACT, musisz ponownie uruchomić usługę.
 close = Zamknij
 displays-page = Informacje o ekranach
-gpu-voltage-boost = Zwiększenie napięcia GPU (%)
+gpu-voltage-boost = Zwiększenie napięcia
 gpu-voltage-boost-tooltip = Określa, jaka część dodatkowego zakresu napięcia udostępnionego przez sterownik jest dostępna. 100% oznacza cały ten zakres, a nie 100% całkowitego napięcia GPU. Większy zakres może pozwolić na utrzymanie wyższych częstotliwości taktowania, ale zwiększa pobór energii i temperaturę.
 gtt-usage = Wykorzystanie GTT:
 gui-version = Wersja interfejsu graficznego
@@ -270,7 +241,7 @@ no-fan-detected = Nie znaleziono wentylatorów
 thresholds-section = Progi i limity
 vf-curve-flatten-selection = Spłaszcz zaznaczenie
 power-mizer-mode = Tryb PowerMizera
-power-mizer-mode-auto = Automatycznie
+power-mizer-mode-auto = Automatyczny
 power-mizer-mode-adaptive = Adaptacyjny
 power-mizer-mode-prefer-maximum-performance = Preferuj maksymalną wydajność
 power-mizer-mode-prefer-consistent-performance = Preferuj stałą wydajność
@@ -309,3 +280,36 @@ display-physical-size = Rozmiar fizyczny
 display-connection = Połączenie
 display-manufacture-date = Data produkcji
 displays-missing = Nie wykryto żadnych monitorów
+language = Język
+language-system-default = Ustawienia domyślne systemu
+language-restart-notice = Uruchom ponownie interfejs graficzny LACT, aby zastosować zmiany językowe.
+detach-page = Odłącz { $page }
+page-detached = Ta strona jest otwarta w innym oknie.
+show-page-window = Ustaw fokus na oknie
+reattach-page = Powrót do okna głównego
+reset-now-button = Zresetuj teraz
+default-button = Domyślne
+power-section = Zasilanie
+mv = mV
+core-section = Rdzeń
+vram-section = VRAM
+extra-clocks = Dodatkowe zegary
+performance-level-profile-standard = Standard profilowania
+performance-level-profile-min-sclk = Określanie najniższej częstotliwości taktowania procesora graficznego
+performance-level-profile-min-mclk = Określanie najniższej częstotliwości taktowania pamięci VRAM
+performance-level-profile-peak = Profilowanie wartości szczytowych
+performance-level-profile-standard-description = Tryb stałego profilowania
+performance-level-profile-min-sclk-description = Ustawia taktowanie procesora graficznego na najniższy poziom
+performance-level-profile-min-mclk-description = Ustawia taktowanie pamięci VRAM na najniższy poziom
+performance-level-profile-peak-description = Ustawia częstotliwości taktowania procesora graficznego i pamięci VRAM na najwyższe poziomy
+advanced-features = Funkcje zaawansowane
+enable-locked-clocks = Zablokowane zegary
+enable-vf-curve = Niestandardowa krzywa VF
+vf-curve-editing-disabled = Edytowanie krzywej VF jest wyłączone na stronie OC
+max-clock = Maksymalna częstotliwość taktowania
+min-clock = Minimalna częstotliwość taktowania
+pstate-clock-offset = P-State { $pstate } – przesunięcie taktowania
+pstate-clock = P-State { $pstate } – taktowanie
+pstate-clock-voltage = Napięcie P-State { $pstate }
+service-setup-title = Konfiguracja usługi
+setup-error = Błąd konfiguracji: { $error }

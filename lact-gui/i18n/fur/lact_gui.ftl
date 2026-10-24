@@ -10,7 +10,6 @@ min-fan-speed = Velocitât minime de svintule (%)
 stats-section = Statistichis
 enable-amd-oc = Abilite overclock AMD
 reset-config-description = Ripristinâ pardabon dute la configurazion de GPU?
-gpu-pstate-clock = Frecuence P-State { $pstate } de GPU (MHz)
 driver-version = Version dal driver
 amd-oc-disabled =
     Il supuart pal overclock AMD nol è abilitât!
@@ -83,21 +82,11 @@ performance-level-manual-description = Control prestazions manuâl.
 power-profile-mode = Modalitât profîl energjetic:
 manual-level-needed = Tu scugnis meti il nivel des prestazions a "manuâl" par doprâ i stâts energjetics e lis modalitâts energjetichis
 overclock-section = Frecuencis e voltaçs
-nvidia-oc-info = Informazions di overclock di Nvidia
 show-all-pstates = Mostre ducj i P-States
-enable-vram-locked-clocks = Abilite frecuencis blocadis de VRAM
 no-clocks-data = Nissun dât su lis frecuencis disponibil
 reset-oc-tooltip = Atenzion: cheste operazion e ripristinarà ai valôrs predefinîts lis impostazions des frecuencis!
 gpu-clock-offset = Variazion frecuence GPU (MHz)
-max-vram-clock = Frecuence massime VRAM (MHz)
-min-gpu-clock = Frecuence minime GPU (MHz)
-min-vram-clock = Frecuence minime VRAM (MHz)
 min-gpu-voltage = Voltaç mimin GPU (mV)
-gpu-pstate-clock-offset = Variazion frecuence dal P-State { $pstate } de GPU (MHz)
-vram-pstate-clock-offset = Variazion frecuence dal P-State { $pstate } de VRAM (MHz)
-mem-pstate-clock = Frecuence P-State { $pstate } de VRAM (MHz)
-gpu-pstate-clock-voltage = Voltaç P-State { $pstate } de GPU (mV)
-mem-pstate-clock-voltage = Voltaç P-State { $pstate } de VRAM (mV)
 pstates = Stâts energjetics
 vram-pstates = Stâts energjetics de VRAM
 enable-pstate-config = Abilite la configurazion dai stâts energjetics
@@ -106,7 +95,6 @@ settings-profile = Profîl des impostazions
 auto-switch-profiles = Cambie in automatic
 add-profile = Zonte gnûf profîl
 missing-stat = N/D
-enable-gpu-locked-clocks = Abilite frecuencis blocadis de GPU
 pstates-manual-needed = Note: al covente meti a 'manual' il nivel des prestazions par comutâ i stâts energjetics
 acoustic-target = Obietîf acustic (RPM)
 gpu-pstates = Stâts energjetics de GPU
@@ -114,21 +102,7 @@ gpu-temp = Temperadure GPU
 oc-missing-fan-control-warning = Atenzion: il supuart pal overclock al è disabilitât, il control de svintule nol è disponibil.
 gpu-voltage-offset = Variazion voltaç GPU (mV)
 fan-control-section = Control svintule
-oc-warning = Atenzion: la modifiche di chescj valôrs e podarès puartâ a vê un sisteme instabil e al podarès adiriture ruvinâ l'hardware!
 pstate-list-description = <b>Chescj valôrs a son variazions di frecuence par ogni P-State, lant dal plui alt al plui bas.</b>
-max-gpu-clock = Frecuence massime GPU (MHz)
 max-gpu-voltage = Voltaç massim GPU (mV)
 import-profile = Impuarte di un file il profîl
-nvidia-oc-description =
-    La funzion di overclock su Nvidia e inclût la definizion di variazions pes frecencis di GPU/VRAM e la limitazion dal interval potenziâl des frecuencis doprant la funzionalitât "locked clocks".
-
-    In tantis schedis, la variazion di frecuence de VRAM e larà a modificâ la efetive frecuence de memorie nome di metât dal valôr de variazion.
-    Par esempli: une variazion de VRAM di +1000MHz e podarès incressi la velocitât misurade de VRAM nome di 500MHz.
-    Chest al è normâl e e je la maniere che Nvidia e gjestìs la velocitât di trasferiment dai dâts GDDR. Duncje, regole il to overclock in reson di chel.
-
-    Il control diret dal voltaç nol è supuartât, stant che nol esist tal driver Linux di Nvidia.
-
-    Al è pussibil otignî une pseudo-sottension cumbinant la opzion pes frecuencis blocadis cuntune variazion di frecuence positive.
-    Cheste operazion e sfuarçarà la GPU a zirâ a un voltaç che al è vincolât des frecuencis blocadis, ma tal stes timp otignint une frecuence plui alte par vie de variazion.
-    Cheste operazion e pues puartâ a vê un sisteme instabil se sbruntât masse.
 system-section = Sisteme
