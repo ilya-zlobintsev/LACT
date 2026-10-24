@@ -1247,25 +1247,12 @@ impl AppModel {
             .context("Could not get gpu config")?
             .unwrap_or_else(GpuConfig::default);
 
-        let cap = self.oc_page.model().get_power_cap();
-        if let Some(cap) = cap {
-            gpu_config.power_cap = Some(cap);
-        }
-
-        let performance_level = self.oc_page.model().get_performance_level();
-        if let Some(level) = performance_level {
-            gpu_config.performance_level = Some(level);
-            gpu_config.power_profile_mode_index = self.oc_page.model().get_power_profile_mode();
-
-            gpu_config.custom_power_profile_mode_hueristics = self
-                .oc_page
-                .model()
-                .get_power_profile_mode_custom_heuristics();
-        }
-
-        if let Some(mode) = self.oc_page.model().get_active_power_mizer_mode() {
-            gpu_config.power_mizer_mode = Some(mode);
-        }
+        let oc = self.oc_page.model().serialize();
+        gpu_config.power_cap = oc.power_cap;
+        gpu_config.performance_level = oc.performance_level;
+        gpu_config.power_mizer_mode = oc.power_mizer_mode;
+        gpu_config.power_profile_mode_index = oc.power_profile_mode_index;
+        gpu_config.custom_power_profile_mode_hueristics = oc.custom_power_profile_mode_hueristics;
 
         self.thermals_page.model().apply_config(&mut gpu_config);
 
