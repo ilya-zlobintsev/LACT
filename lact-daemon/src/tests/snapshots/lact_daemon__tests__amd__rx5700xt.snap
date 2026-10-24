@@ -78,6 +78,78 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 875,
+            "min": null
+          },
+          "current_sclk_range": {
+            "max": 2064,
+            "min": 800
+          },
+          "od_range": {
+            "curve_sclk_points": [
+              {
+                "max": 2150,
+                "min": 800
+              },
+              {
+                "max": 2150,
+                "min": 800
+              },
+              {
+                "max": 2150,
+                "min": 800
+              }
+            ],
+            "curve_voltage_points": [
+              {
+                "max": 1200,
+                "min": 750
+              },
+              {
+                "max": 1200,
+                "min": 750
+              },
+              {
+                "max": 1200,
+                "min": 750
+              }
+            ],
+            "mclk": {
+              "max": 950,
+              "min": 625
+            },
+            "sclk": {
+              "max": 2150,
+              "min": 800
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [
+            {
+              "clockspeed": 800,
+              "voltage": 716
+            },
+            {
+              "clockspeed": 1432,
+              "voltage": 811
+            },
+            {
+              "clockspeed": 2064,
+              "voltage": 1190
+            }
+          ],
+          "voltage_offset": null
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
@@ -1244,6 +1316,50 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": "GFXCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          4587520,
+          -65536,
+          0
+        ]
+      },
+      {
+        "clock_type": "SOCCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          3,
+          800,
+          1310720,
+          -6553,
+          0
+        ]
+      },
+      {
+        "clock_type": "MEMCLK",
+        "values": [
+          0,
+          5,
+          1,
+          0,
+          4,
+          800,
+          327680,
+          -65536,
+          0
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [

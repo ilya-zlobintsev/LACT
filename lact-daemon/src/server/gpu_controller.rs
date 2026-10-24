@@ -20,12 +20,12 @@ use crate::config::Config;
 use crate::server::handler::{AMD_DRM, INTEL_DRM};
 use crate::server::opencl::get_opencl_info;
 use crate::server::vulkan::get_vulkan_info;
-use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use anyhow::anyhow;
 use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
+    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerProfileModesInfo, PowerStates,
+    config::GpuConfig,
 };
 use std::io;
 use std::os::fd::OwnedFd;
@@ -37,6 +37,12 @@ use tracing::{error, warn};
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
+
+pub enum ControllerRetainedState {
+    Amd(Box<amd::AmdRetainedState>),
+    Nvidia { initial_target_temp: Option<u32> },
+    Intel { initial_power_cap: Option<f64> },
+}
 
 pub trait GpuController {
     fn controller_type(&self) -> &'static str;
@@ -84,13 +90,19 @@ pub trait GpuController {
 
     fn reset_pmfw_settings(&self) {}
 
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        None
+    }
+
+    fn restore_retained_state(&mut self, _state: ControllerRetainedState) {}
+
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()
     }
 
     fn reset_clocks(&self) -> anyhow::Result<()>;
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 

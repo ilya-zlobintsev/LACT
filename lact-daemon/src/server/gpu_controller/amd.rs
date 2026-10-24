@@ -1,6 +1,6 @@
 mod drm;
 
-use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, FanControlHandle, GpuController};
 use crate::server::gpu_controller::common::{
     fan_control::FanCurveExt,
     fdinfo::{self, DrmUtilMap},
@@ -11,7 +11,7 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
-        power_profile_mode::PowerProfileModesTable,
+        power_profile_mode::PowerProfileComponent,
     },
     hw_mon::{FanControlMethod, HwMon, Temperature},
     sysfs::SysFS,
@@ -24,9 +24,10 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use indexmap::IndexMap;
 use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdUmaCarveout, CacheInfo, CacheType, ClocksInfo,
-    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
-    FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates,
-    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    ClocksTable as SchemaClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo,
+    DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo,
+    PmfwInfo, PmfwOptions, PowerProfileModesInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
 #[cfg(feature = "display-info")]
@@ -70,6 +71,15 @@ pub struct AmdGpuController {
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
+    pmfw_options_default: PmfwOptions,
+    clocks_table_default: Option<ClocksTableGen>,
+    custom_heuristics_default: Option<Vec<PowerProfileComponent>>,
+}
+
+pub struct AmdRetainedState {
+    pmfw_options: PmfwOptions,
+    clocks_table: Option<ClocksTableGen>,
+    custom_heuristics: Option<Vec<PowerProfileComponent>>,
 }
 
 impl AmdGpuController {
@@ -100,12 +110,45 @@ impl AmdGpuController {
             }
         };
 
+        // Save unmodified values which will be used in UI as default
+        let pmfw_options_default = PmfwOptions {
+            acoustic_limit: handle
+                .get_fan_acoustic_limit()
+                .ok()
+                .map(|info| info.current),
+            acoustic_target: handle
+                .get_fan_acoustic_target()
+                .ok()
+                .map(|info| info.current),
+            minimum_pwm: handle.get_fan_minimum_pwm().ok().map(|info| info.current),
+            target_temperature: handle
+                .get_fan_target_temperature()
+                .ok()
+                .map(|info| info.current),
+            zero_rpm: handle.get_fan_zero_rpm_enable().ok(),
+            zero_rpm_threshold: handle
+                .get_fan_zero_rpm_stop_temperature()
+                .ok()
+                .map(|info| info.current),
+        };
+        let clocks_table_default = handle.get_clocks_table().ok();
+        let custom_heuristics_default = handle.get_power_profile_modes().ok().and_then(|table| {
+            table
+                .modes
+                .values()
+                .find(|mode| mode.is_custom())
+                .map(|mode| mode.components.clone())
+        });
+
         Ok(Self {
             handle,
             drm_handle,
             common,
             fan_control_handle: RefCell::new(None),
             last_drm_util: RefCell::new(None),
+            pmfw_options_default,
+            clocks_table_default,
+            custom_heuristics_default,
         })
     }
 
@@ -1000,11 +1043,17 @@ impl GpuController for AmdGpuController {
                     }),
                 pmfw_info: PmfwInfo {
                     acoustic_limit: self.handle.get_fan_acoustic_limit().ok(),
+                    acoustic_limit_default: self.pmfw_options_default.acoustic_limit,
                     acoustic_target: self.handle.get_fan_acoustic_target().ok(),
+                    acoustic_target_default: self.pmfw_options_default.acoustic_target,
                     target_temp: self.handle.get_fan_target_temperature().ok(),
+                    target_temp_default: self.pmfw_options_default.target_temperature,
                     minimum_pwm: self.handle.get_fan_minimum_pwm().ok(),
+                    minimum_pwm_default: self.pmfw_options_default.minimum_pwm,
                     zero_rpm_enable: self.handle.get_fan_zero_rpm_enable().ok(),
+                    zero_rpm_enable_default: self.pmfw_options_default.zero_rpm,
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
+                    zero_rpm_temperature_default: self.pmfw_options_default.zero_rpm_threshold,
                 },
             },
             nvidia_thermal_info: NvidiaThermalInfo::default(),
@@ -1080,7 +1129,13 @@ impl GpuController for AmdGpuController {
             .get_clocks_table()
             .context("Clocks table not available")?;
 
-        Ok(clocks_table.into())
+        Ok(ClocksInfo {
+            table_default: self
+                .clocks_table_default
+                .clone()
+                .map(SchemaClocksTable::Amd),
+            ..clocks_table.into()
+        })
     }
 
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates {
@@ -1089,8 +1144,27 @@ impl GpuController for AmdGpuController {
         PowerStates { core, vram }
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
-        Ok(self.handle.get_power_profile_modes()?)
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
+        Ok(PowerProfileModesInfo {
+            custom_heuristics_default: self.custom_heuristics_default.clone(),
+            ..self.handle.get_power_profile_modes()?.into()
+        })
+    }
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Amd(Box::new(AmdRetainedState {
+            pmfw_options: self.pmfw_options_default,
+            clocks_table: self.clocks_table_default.clone(),
+            custom_heuristics: self.custom_heuristics_default.clone(),
+        })))
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Amd(state) = state {
+            self.pmfw_options_default = state.pmfw_options;
+            self.clocks_table_default = state.clocks_table;
+            self.custom_heuristics_default = state.custom_heuristics;
+        }
     }
 
     fn reset_pmfw_settings(&self) {

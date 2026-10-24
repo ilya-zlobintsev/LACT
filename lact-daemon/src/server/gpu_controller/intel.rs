@@ -5,21 +5,21 @@ use self::drm::DrmProvider;
 #[cfg(feature = "mock")]
 use self::drm::mock::MockDrmProvider;
 use self::drm::{i915::I915DrmProvider, xe::XeDrmProvider};
-use super::{CommonControllerInfo, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, GpuController};
 use crate::{
     bindings::intel::IntelDrm,
     server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
-use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
+use amdgpu_sysfs::hw_mon::Temperature;
 use anyhow::{Context, Error, anyhow, bail, ensure};
 use futures::future::LocalBoxFuture;
 use indexmap::IndexMap;
 use lact_schema::FanControlMode::Static;
 use lact_schema::{
     ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
-    VramStats, config::GpuConfig,
+    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo,
+    PowerProfileModesInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats, config::GpuConfig,
 };
 use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
@@ -968,8 +968,20 @@ impl GpuController for IntelGpuController {
         Ok(())
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
         Err(anyhow!("Not supported"))
+    }
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Intel {
+            initial_power_cap: self.initial_power_cap,
+        })
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Intel { initial_power_cap } = state {
+            self.initial_power_cap = initial_power_cap;
+        }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {

@@ -18,6 +18,7 @@ use amdgpu_sysfs::{
         PerformanceLevel, PowerLevelId, UmaCarveoutOption,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
+        power_profile_mode::{PowerProfile, PowerProfileComponent, PowerProfileModesTable},
     },
     hw_mon::Temperature,
 };
@@ -487,6 +488,27 @@ pub struct ClocksInfo {
     pub max_mclk: Option<i32>,
     pub max_voltage: Option<i32>,
     pub table: Option<ClocksTable>,
+    pub table_default: Option<ClocksTable>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PowerProfileModesInfo {
+    pub modes: BTreeMap<u16, PowerProfile>,
+    pub value_names: Vec<String>,
+    pub active: u16,
+    pub custom_heuristics_default: Option<Vec<PowerProfileComponent>>,
+}
+
+impl From<PowerProfileModesTable> for PowerProfileModesInfo {
+    fn from(table: PowerProfileModesTable) -> Self {
+        Self {
+            modes: table.modes,
+            value_names: table.value_names,
+            active: table.active,
+            custom_heuristics_default: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -567,6 +589,7 @@ impl From<AmdClocksTableGen> for ClocksInfo {
             max_mclk,
             max_voltage,
             table: Some(ClocksTable::Amd(table)),
+            table_default: None,
         }
     }
 }
@@ -699,11 +722,17 @@ impl FanStats {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PmfwInfo {
     pub acoustic_limit: Option<FanInfo>,
+    pub acoustic_limit_default: Option<u32>,
     pub acoustic_target: Option<FanInfo>,
+    pub acoustic_target_default: Option<u32>,
     pub target_temp: Option<FanInfo>,
+    pub target_temp_default: Option<u32>,
     pub minimum_pwm: Option<FanInfo>,
+    pub minimum_pwm_default: Option<u32>,
     pub zero_rpm_enable: Option<bool>,
+    pub zero_rpm_enable_default: Option<bool>,
     pub zero_rpm_temperature: Option<FanInfo>,
+    pub zero_rpm_temperature_default: Option<u32>,
 }
 
 #[skip_serializing_none]

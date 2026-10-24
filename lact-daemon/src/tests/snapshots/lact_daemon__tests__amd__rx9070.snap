@@ -40,6 +40,42 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 1259,
+            "min": 97
+          },
+          "current_sclk_range": {
+            "max": null,
+            "min": null
+          },
+          "od_range": {
+            "curve_sclk_points": [],
+            "curve_voltage_points": [],
+            "mclk": {
+              "max": 1500,
+              "min": 97
+            },
+            "sclk": null,
+            "sclk_offset": {
+              "max": 1000,
+              "min": -500
+            },
+            "voltage_offset": {
+              "max": 0,
+              "min": -200
+            }
+          },
+          "sclk_offset": 0,
+          "vddc_curve": [],
+          "voltage_offset": 0
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
@@ -87,6 +123,34 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 1,
+    "custom_heuristics_default": [
+      {
+        "clock_type": "GFXCLK",
+        "values": [
+          0,
+          1,
+          0,
+          4,
+          800,
+          4587520,
+          -65536,
+          0
+        ]
+      },
+      {
+        "clock_type": "FCLK",
+        "values": [
+          0,
+          3,
+          0,
+          1,
+          0,
+          5898240,
+          -6553,
+          -6553
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [
@@ -451,6 +515,7 @@ expression: device_info
           ],
           "current": 6000
         },
+        "acoustic_limit_default": 6000,
         "acoustic_target": {
           "allowed_range": [
             500,
@@ -458,6 +523,7 @@ expression: device_info
           ],
           "current": 1700
         },
+        "acoustic_target_default": 1700,
         "minimum_pwm": {
           "allowed_range": [
             15,
@@ -465,6 +531,7 @@ expression: device_info
           ],
           "current": 15
         },
+        "minimum_pwm_default": 15,
         "target_temp": {
           "allowed_range": [
             25,
@@ -472,7 +539,9 @@ expression: device_info
           ],
           "current": 70
         },
-        "zero_rpm_enable": true
+        "target_temp_default": 70,
+        "zero_rpm_enable": true,
+        "zero_rpm_enable_default": true
       },
       "pwm_current": 117,
       "pwm_max": 254,

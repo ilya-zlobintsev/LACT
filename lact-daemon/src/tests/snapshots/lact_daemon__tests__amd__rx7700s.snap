@@ -995,6 +995,27 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 0,
+    "custom_heuristics_default": [
+      {
+        "clock_type": null,
+        "values": [
+          0,
+          0,
+          0,
+          1,
+          4,
+          0,
+          800,
+          0,
+          0,
+          0,
+          3,
+          1,
+          0,
+          0
+        ]
+      }
+    ],
     "modes": {
       "0": {
         "components": [
