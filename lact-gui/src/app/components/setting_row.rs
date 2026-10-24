@@ -100,10 +100,6 @@ impl SettingRowValue {
 }
 
 impl<Key> SettingRow<Key> {
-    pub fn widget(&self) -> &gtk::Box {
-        self.control.widget()
-    }
-
     /// Serialize the current value, omitting unset values and defaults.
     pub fn serialize(&self) -> Option<SettingRowValue> {
         match &self.control {

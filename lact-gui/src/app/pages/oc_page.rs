@@ -196,14 +196,7 @@ impl relm4::Component for OcPage {
                         .emit(VfCurveEditorMsg::Stats(stats.clone()));
 
                     if initial {
-                        self.power_frame
-                            .emit(PowerFrameMsg::PowerStats(stats.power.clone()));
-                        self.power_frame
-                            .emit(PowerFrameMsg::PerformanceLevel(stats.performance_level));
-                        self.power_frame.emit(PowerFrameMsg::PowerMizerInfo {
-                            active: stats.active_power_mizer_mode,
-                            supported: stats.supported_power_mizer_modes.clone(),
-                        });
+                        self.power_frame.emit(PowerFrameMsg::Stats(stats.clone()));
                     }
                 }
                 PageUpdate::Info(info) => {

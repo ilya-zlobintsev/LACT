@@ -20,11 +20,12 @@ use crate::{
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use i18n_embed_fl::fl;
-use lact_schema::{PowerStats, config::GpuConfig};
+use lact_schema::{DeviceStats, config::GpuConfig};
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, WidgetTemplate, factory::FactoryHashMap,
 };
+use std::sync::Arc;
 
 const PERFORMANCE_LEVELS: [PerformanceLevel; 8] = [
     PerformanceLevel::Auto,
@@ -53,14 +54,9 @@ pub struct PowerFrame {
 
 #[derive(Debug)]
 pub enum PowerFrameMsg {
-    PowerStats(PowerStats),
-    PerformanceLevel(Option<PerformanceLevel>),
+    Stats(Arc<DeviceStats>),
     SetPerformanceLevel(PerformanceLevel),
     PowerProfileModes(Option<PowerProfileModesTable>),
-    PowerMizerInfo {
-        active: Option<PowerMizerMode>,
-        supported: Option<Vec<PowerMizerMode>>,
-    },
     SettingsChanged,
     RefreshVisibility,
     Reset,
@@ -109,6 +105,11 @@ impl relm4::Component for PowerFrame {
         };
         let row = &model.performance_frame.widget().power_profile;
         model.rows.widget().append(row);
+        let profile_row = row.clone();
+        model.rows.widget().set_sort_func(move |left, right| {
+            // Keep the power profile row after the dynamically inserted setting rows.
+            (left == &profile_row).cmp(&(right == &profile_row)).into()
+        });
         let visibility_sender = sender.clone();
         row.connect_visible_notify(move |_| {
             visibility_sender.input(PowerFrameMsg::RefreshVisibility);
@@ -125,8 +126,9 @@ impl relm4::Component for PowerFrame {
         _root: &Self::Root,
     ) {
         match msg {
-            PowerFrameMsg::PowerStats(power) => {
-                self.rows.remove(&PowerSetting::PowerCap);
+            PowerFrameMsg::Stats(stats) => {
+                self.rows.clear();
+                let power = &stats.power;
                 if let Some(value) = power.cap_current {
                     self.rows.insert(
                         PowerSetting::PowerCap,
@@ -145,11 +147,9 @@ impl relm4::Component for PowerFrame {
                         },
                     );
                 }
-            }
-            PowerFrameMsg::PerformanceLevel(level) => {
-                self.rows.remove(&PowerSetting::PerformanceLevel);
+
                 self.performance_levels = PERFORMANCE_LEVELS.to_vec();
-                if let Some(level) = level {
+                if let Some(level) = stats.performance_level {
                     if !self.performance_levels.contains(&level) {
                         self.performance_levels.push(level);
                     }
@@ -181,29 +181,15 @@ impl relm4::Component for PowerFrame {
                     );
                 }
                 self.performance_frame
-                    .emit(PerformanceFrameMsg::PerformanceLevel(level));
-            }
-            PowerFrameMsg::SetPerformanceLevel(level) => {
-                if self.rows.get(&PowerSetting::PerformanceLevel).is_some()
-                    && let Some(index) = self
-                        .performance_levels
-                        .iter()
-                        .position(|candidate| *candidate == level)
-                {
-                    self.rows.send(
-                        &PowerSetting::PerformanceLevel,
-                        SettingRowMsg::SetValue(SettingRowValue::Selected(index as u32)),
-                    );
-                }
-            }
-            PowerFrameMsg::PowerProfileModes(table) => {
-                self.performance_frame
-                    .emit(PerformanceFrameMsg::PowerProfileModes(table));
-            }
-            PowerFrameMsg::PowerMizerInfo { active, supported } => {
-                self.rows.remove(&PowerSetting::PowerMizer);
-                self.supported_power_mizer_modes = supported.unwrap_or_default();
-                if let Some(active) = active {
+                    .emit(PerformanceFrameMsg::PerformanceLevel(
+                        stats.performance_level,
+                    ));
+
+                self.supported_power_mizer_modes = stats
+                    .supported_power_mizer_modes
+                    .clone()
+                    .unwrap_or_default();
+                if let Some(active) = stats.active_power_mizer_mode {
                     if !self.supported_power_mizer_modes.contains(&active) {
                         self.supported_power_mizer_modes.push(active);
                     }
@@ -235,6 +221,23 @@ impl relm4::Component for PowerFrame {
                     );
                 }
             }
+            PowerFrameMsg::SetPerformanceLevel(level) => {
+                if self.rows.get(&PowerSetting::PerformanceLevel).is_some()
+                    && let Some(index) = self
+                        .performance_levels
+                        .iter()
+                        .position(|candidate| *candidate == level)
+                {
+                    self.rows.send(
+                        &PowerSetting::PerformanceLevel,
+                        SettingRowMsg::SetValue(SettingRowValue::Selected(index as u32)),
+                    );
+                }
+            }
+            PowerFrameMsg::PowerProfileModes(table) => {
+                self.performance_frame
+                    .emit(PerformanceFrameMsg::PowerProfileModes(table));
+            }
             PowerFrameMsg::SettingsChanged => {
                 APP_BROKER.send(AppMsg::SettingsChanged);
                 self.performance_frame
@@ -250,33 +253,6 @@ impl relm4::Component for PowerFrame {
             }
         }
 
-        // Hash-map factories append replacements; keep the card in setting order.
-        let order = self
-            .rows
-            .iter()
-            .map(|(key, row)| {
-                let order = match key {
-                    PowerSetting::PowerCap => 0,
-                    PowerSetting::PerformanceLevel => 1,
-                    PowerSetting::PowerMizer => 3,
-                };
-                (order, row.widget().clone())
-            })
-            .collect::<Vec<_>>();
-        let profile_row = self.performance_frame.widget().power_profile.clone();
-        self.rows.widget().set_sort_func(move |left, right| {
-            let position = |row: &gtk::ListBoxRow| {
-                if row == &profile_row {
-                    return 2;
-                }
-                order
-                    .iter()
-                    .find(|(_, widget)| row.child().as_ref() == Some(widget.upcast_ref()))
-                    .map(|(order, _)| *order)
-                    .unwrap_or(usize::MAX)
-            };
-            position(left).cmp(&position(right)).into()
-        });
         self.update_view(widgets, sender);
     }
 }
