@@ -1,7 +1,7 @@
 mod driver;
 pub mod nvapi;
 
-use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use amdgpu_sysfs::{
-    gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
+    gpu_handle::{PowerLevelId, fan_control::FanInfo},
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail, ensure};
@@ -25,8 +25,9 @@ use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
-    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
+    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerProfileModesInfo, PowerState, PowerStates,
+    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats,
     config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
@@ -1210,8 +1211,23 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
         Err(anyhow!("Not supported on Nvidia"))
+    }
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Nvidia {
+            initial_target_temp: self.initial_target_temp,
+        })
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Nvidia {
+            initial_target_temp,
+        } = state
+        {
+            self.initial_target_temp = initial_target_temp;
+        }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
