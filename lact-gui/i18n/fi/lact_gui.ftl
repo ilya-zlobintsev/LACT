@@ -106,7 +106,7 @@ disable-amd-oc-description = Tämä poistaa AMD-ylikellotustuen (yliajo) käytö
 amd-oc-updating-configuration = Päivitetään kokoonpanoa (tämä voi kestää jonkin aikaa)
 amd-oc-updating-done = Kokoonpano päivitetty. Ota muutokset käyttöön käynnistämällä uudelleen.
 reset-config = Nollaa kokoonpano
-reset-config-description = Oletko varma, että haluat nollata koko GPU:n kokoonpanon?
+reset-config-description = Tämä palauttaa kaikki näytönohjaimen asetukset oletusarvoihin ja poistaa kaikki profiilit pysyvästi
 power-cap = Virrankulutusrajoitus
 stats-section = Tilastot
 gpu-clock = GPU-ytimen kellotaajuus
@@ -122,36 +122,22 @@ vram-usage = VRAM:n käyttö:
 performance-level-high = Korkeimmat kellotaajuudet
 performance-level-low = Alhaisimmat kellotaajuudet
 performance-level-auto-description = Säädä automaattisesti GPU:n ja VRAM:n kellotaajuuksia. (Oletus)
-performance-level-high-description = Käytä aina GPU:n ja VRAM:n korkeimpia kellotaajuuksia.
-performance-level-low-description = Käytä aina GPU:n ja VRAM:n alhaisimpia kellotaajuuksia.
-performance-level-manual-description = Manuaalinen suorituskyvyn hallinta.
+performance-level-high-description = Käytä aina korkeimpia mahdollisia kellotaajuuksia GPU:lle ja VRAM:ille
+performance-level-low-description = Käytä aina alhaisimpia kellotaajuuksia GPU:lle ja VRAM:ille
+performance-level-manual-description = Manuaalinen suorituskyvyn hallinta
 performance-level = Suorituskykytaso
 power-profile-mode = Virtaprofiilitila:
 manual-level-needed = Suorituskykytaso on asetettava "käsin":ksi, virrankäyttötilojen ja -tilojen käyttämiseksi
 overclock-section = Kellotaajuus ja jännite
-nvidia-oc-info = Ylikellotustiedot
-nvidia-oc-description =
-    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellot" -ominaisuutta käyttäen.
-
-    Monilla näytönohjaimilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
-    Esimerkiksi +1000 MHz:n VRAM-poikkeama voi lisätä mitattua VRAM-nopeutta vain 500 MHz:llä.
-    Tämä on normaalia, ja näin Nvidia käsittelee GDDR-tiedonsiirtonopeuksia. Säädä ylikellotusta vastaavasti.
-
-    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukitut kellot -vaihtoehto positiiviseen kellotaajuuspoikkeamaan.
-    Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
-    Tämä voi aiheuttaa järjestelmän epävakautta, jos sen asetusarvoa nostetaan liian korkealle.
-oc-warning = Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
-show-all-pstates = Näytä kaikki P-tilat
-enable-gpu-locked-clocks = Ota GPU:n lukitut kellotaajuudet käyttöön
-enable-vram-locked-clocks = Ota VRAM:n lukitut kellotaajuudet käyttöön
+show-all-pstates = Kaikki P-tilat
 pstate-list-description = <b>Seuraavat arvot ovat kellon siirtymiä kullekin P-tilalle korkeimmasta alhaisempaan.</b>
 no-clocks-data = Ei kellotietoja saatavilla
 reset-oc-tooltip = Varoitus: tämä palauttaa kaikki kellojen asetukset oletusasetuksiin!
 pstates = Virtatilat
 gpu-pstates = GPU:n virtatilat
 vram-pstates = VRAM:n virtatilat
-pstates-manual-needed = Suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
-enable-pstate-config = Ota virtatilan määritys käyttöön
+pstates-manual-needed = P-tilan määritysten ottaminen käyttöön edellyttää, että suorituskykytasoksi asetetaan Manuaalinen:ksi.
+enable-pstate-config = P-tilan määritys
 show-historical-charts = Näytä kaaviot
 show-process-monitor = Näytä prosessien valvonta
 generate-debug-snapshot = Luo viankorjaustilannevedos
@@ -165,7 +151,7 @@ add-graph = Lisää kaavio
 delete-graph = Poista kaavio
 export-csv = Vie CSV:na
 edit-graph-sensors = Muokkaa kaavioiden antureita
-reconnecting-to-daemon = Yhteys daemoniin katkesi; yhdistetään uudelleen...
+reconnecting-to-daemon = Yhteys palveluun katkesi; yhdistetään uudelleen...
 daemon-connection-lost = Yhteys katkennut
 plot-show-detailed-info = Näytä yksityiskohtaiset tiedot
 settings-profile = Asetusprofiili
@@ -202,20 +188,10 @@ profile-rule-process-name = Prosessin nimi:
 profile-rule-args-contain = Argumentit sisältävät:
 profile-rule-specific-process = Tietyn prosessin kanssa:
 throttling = Ylikuumenemisen estotoimi
-max-gpu-clock = GPU:n enimmäiskellotaajuus (MHz)
-max-vram-clock = VRAM:n enimmäiskellotaajuus (MHz)
-max-gpu-voltage = GPU:n enimmäisjännite (mV)
-min-gpu-clock = GPU:n vähimmäiskellotaajuus (MHz)
-min-vram-clock = VRAM:n vähimmäiskellotaajuus (MHz)
-min-gpu-voltage = GPU:n vähimmäisjännite (mV)
-gpu-clock-offset = GPU-kellotaajuuspoikkeama (MHz)
-gpu-voltage-offset = GPU-jännitepoikkeama (mV)
-gpu-pstate-clock-offset = GPU:n P-tila { $pstate } kellopoikkeama (MHz)
-vram-pstate-clock-offset = VRAM:n P-tila { $pstate } kellopoikkeama (MHz)
-gpu-pstate-clock = GPU:n P-tila { $pstate } kellotaajuus (MHz)
-mem-pstate-clock = VRAM:n P-tila { $pstate } kellotaajuus (MHz)
-gpu-pstate-clock-voltage = GPU:n P-tila { $pstate } jännite (mV)
-mem-pstate-clock-voltage = VRAM:n P-tila { $pstate } jännite (mV)
+max-gpu-voltage = Enimmäisjännite (mV)
+min-gpu-voltage = Vähimmäisjännite (mV)
+gpu-clock-offset = Kellotaajuuspoikkeama (MHz)
+gpu-voltage-offset = Jännitepoikkeama (mV)
 cache-data = Data
 cache-instruction = Data
 watt = W
@@ -233,9 +209,8 @@ hw-queues = Jonot
 theme = Teema
 vf-curve-editor = VF-käyrän muokkain
 nvidia-vf-curve-warning =
-    Jännite-taajuuskäyrän muokkain perustuu dokumentoimattomaan ajuritoimintoon.
-    Sen toiminnasta, turvallisuudesta tai saatavuudesta ei ole takeita.
-    <span weight = "heavy" underline = "single">Käytä omalla vastuullasi</span>.
+    Jännite-taajuus-käyrän muokkain hyödyntää ajurin dokumentoimatonta toiminnallisuutta.
+    <span weight = "heavy" underline = "single">Käytä omalla vastuulla</span>.
 voltage = Jännite
 frequency = Taajuus
 vf-active-curve = Aktiivinen käyrä
@@ -253,8 +228,80 @@ error-heading = Virhe
 daemon-info-heading = Daemonin tiedot
 version-mismatch-description =
     Käyttöliittymän ja daemonin välinen versioristiriita ({ $gui_version }-{ $gui_commit } vastaan { $daemon_version }-{ $daemon_commit })!
-    Jos olet päivittänyt LACT:n, sinun on käynnistettävä palvelu uudelleen näin:
+    Jos olet päivittänyt LACT:n, sinun on käynnistettävä palvelu uudelleen.
 close = Sulje
 ui = Käyttöliittymä
 daemon = Daemoni
 displays-page = Näytä info
+display-title = Näyttö { $identifier }
+power-mizer-mode-prefer-consistent-performance-description = Lukitse GPU:n peruskellotaajuuksiin.
+display-product-code = Tuotekoodi
+reset-now-button = Nollaa nyt
+power-mizer-mode = PowerMizer-tila
+service-logs = Palvelulokit
+setup-error = Käyttöönottovirhe: { $error }
+power-mizer-mode-adaptive-description = Säädä GPU:n kellotaajuuksia GPU:n käytön perusteella.
+power-mizer-mode-auto-description = Anna ajurin valita suorituskykykäytäntö.
+service-version = Palveluversio
+extra-clocks = Lisäkellotaajuukset
+enable-locked-clocks = Lukitut kellotaajuudet
+performance-level-profile-min-sclk = Näytönohjaimen alimman kellotaajuuden profilointi
+vram-section = VRAM
+service-status = Palvelun tila
+power-mizer-mode-auto = Automaattinen
+service-explanation =
+    GPU-asetusten käyttäminen edellyttää LACT-järjestelmäpalvelua.
+    Ilman sitä, LACT toimii itsenäisessä tilassa, jossa saatavilla ovat vain tiedot ja seuranta.
+service-connection-status = Yhteyden tila
+core-section = Ydin
+thresholds-section = Kynnysarvot ja rajat
+display-physical-size = Fyysinen koko
+performance-level-profile-standard = Profilointistandardi
+service-autostart = Suorita automaattisesti käynnistyksen yhteydessä
+service-autostart-disable = Poista myös automaattinen käynnistys käytöstä
+displays-missing = Näyttöjä ei havaittu
+enable-vf-curve = Mukautettu jännite-taajuuskäyrä
+power-mizer-mode-prefer-maximum-performance-description = Suosi maksimisuorituskykyä ajurin rajojen puitteissa.
+service-setup-title = Palvelun käyttöönotto
+service-restart = Käynnistä uudelleen
+display-manufacturer = Valmistaja
+service-start = Käynnistä
+service-disconnected = ei yhdistetty
+performance-level-profile-peak = Profilointihuippu
+service-permission-denied =
+    Käyttö evätty; palvelua ei ole määritetty sallimaan yhteyksiä käyttäjältäsi.
+    Lisätietoja <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHubissa</a>
+gpu-voltage-boost-tooltip = Määrittää, kuinka suuri osa ajurin määrittelemästä ylimääräisestä jännitevarasta on käytettävissä. 100 % tarkoittaa koko tätä jännitevaraa, ei 100 %:a näytönohjaimen kokonaisjännitteestä. Suurempi jännitevara voi mahdollistaa korkeammat kellotaajuudet, mutta lisää virrankulutusta ja lämmöntuottoa.
+performance-level-profile-min-mclk = VRAM:n alimman kellotaajuuden profilointi
+gtt-usage = GTT:n käyttö:
+no-sensors-found = Antureita ei löytynyt
+no-fan-detected = Tuuletinta ei havaittu
+service-version-mismatch = yhteensopimaton
+performance-level-profile-min-mclk-description = Pakottaa VRAM:n kellotaajuuden alimmalle tasolle
+service-connected = yhdistetty
+performance-level-profile-min-sclk-description = Pakottaa GPU:n kellotaajuuden alimmalle tasolle
+service-stop = Pysäytä
+vf-curve-flatten-selection = Litistä valinta
+default-button = Oletus
+power-section = Virta
+color-scheme = Väriteema
+color-scheme-dark = Tumma
+performance-level-profile-standard-description = Kiinteä profilointitila
+display-manufacture-date = Valmistuspäivämäärä
+power-mizer-mode-prefer-maximum-performance = Suosi parasta suorituskykyä
+power-mizer-mode-adaptive = Mukautuva
+power-mizer-mode-prefer-consistent-performance = Suosi tasaista suorituskykyä
+vf-curve-editing-disabled = Jännite-taajuuskäyrän muokkaus on poistettu käytöstä OC-sivulla
+display-model = Malli
+color-scheme-auto = Järjestelmä
+advanced-features = Edistyneet ominaisuudet
+color-scheme-light = Vaalea
+performance-level-profile-peak-description = Pakottaa GPU:n ja VRAM:n kellotaajuudet korkeimmille tasoille
+display-connection = Yhteys
+gui-version = GUI -versio
+gpu-voltage-boost = Jännitteen nosto (%)
+max-clock = Enimmäiskellotaajuus (MHz)
+pstate-clock-offset = P-tilan { $pstate } kellotaajuuden poikkeama (MHz)
+pstate-clock-voltage = P-tilan { $pstate } jännite (mV)
+min-clock = Vähimmäiskellotaajuus (MHz)
+pstate-clock = P-tila { $pstate } – kellotaajuus (MHz)
