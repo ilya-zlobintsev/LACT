@@ -42,6 +42,7 @@ pub struct AdjustmentControl {
 pub enum AdjustmentControlMsg {
     Changed,
     /// Change numeric display units, retaining the value.
+    #[expect(dead_code, reason = "setting-row-migration")]
     SetValueRatio(f64),
 }
 
