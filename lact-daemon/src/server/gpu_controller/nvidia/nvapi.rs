@@ -18,6 +18,9 @@ use std::{
 };
 use tracing::error;
 
+mod thermal_policy;
+pub use thermal_policy::ThermalPolicies;
+
 const LIBARY_NAME: &str = "libnvidia-api.so.1";
 const QUERY_INTERFACE_FN: &[u8] = b"nvapi_QueryInterface\0";
 
