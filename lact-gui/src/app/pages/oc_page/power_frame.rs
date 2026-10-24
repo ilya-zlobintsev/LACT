@@ -12,9 +12,8 @@ use crate::{
         msg::AppMsg,
         pages::oc_page::{
             OcPageMsg,
-            power_profile_mode::{PerformanceFrame, PerformanceFrameMsg},
+            power_profile_mode::{AmdPowerProfileMode, AmdPowerProfileModeMsg},
         },
-        utils::ext::RelmDefaultLauchable,
     },
 };
 use adw::prelude::*;
@@ -23,7 +22,8 @@ use i18n_embed_fl::fl;
 use lact_schema::{DeviceStats, config::GpuConfig};
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, WidgetTemplate, factory::FactoryHashMap,
+    ComponentController, ComponentParts, ComponentSender, Controller, WidgetTemplate,
+    factory::FactoryHashMap,
 };
 use std::sync::Arc;
 
@@ -48,8 +48,8 @@ pub enum PowerSetting {
 pub struct PowerFrame {
     rows: FactoryHashMap<PowerSetting, SettingRow<PowerSetting>>,
     performance_levels: Vec<PerformanceLevel>,
-    performance_frame: relm4::Controller<PerformanceFrame>,
     supported_power_mizer_modes: Vec<PowerMizerMode>,
+    power_profile_mode: Option<Controller<AmdPowerProfileMode>>,
 }
 
 #[derive(Debug)]
@@ -58,7 +58,6 @@ pub enum PowerFrameMsg {
     SetPerformanceLevel(PerformanceLevel),
     PowerProfileModes(Option<PowerProfileModesTable>),
     SettingsChanged,
-    RefreshVisibility,
     Reset,
 }
 
@@ -75,7 +74,7 @@ impl relm4::Component for PowerFrame {
             set_name: fl!(I18N, "power-section"),
             set_hide_visible_container: true,
             #[watch]
-            set_visible: !model.rows.is_empty() || model.performance_frame.widget().power_profile.get_visible(),
+            set_visible: !model.rows.is_empty() || model.power_profile_mode.is_some(),
 
             append_header = &gtk::Button {
                 set_label: &fl!(I18N, "default-button"),
@@ -99,22 +98,18 @@ impl relm4::Component for PowerFrame {
                 .launch(AdjustmentCard::init(()).content.clone())
                 .forward(sender.input_sender(), |()| PowerFrameMsg::SettingsChanged),
             performance_levels: PERFORMANCE_LEVELS.to_vec(),
-            performance_frame: PerformanceFrame::launch_default()
-                .forward(sender.output_sender(), |msg| msg),
             supported_power_mizer_modes: Vec::new(),
+            power_profile_mode: None,
         };
-        let row = &model.performance_frame.widget().power_profile;
-        model.rows.widget().append(row);
-        let profile_row = row.clone();
-        model.rows.widget().set_sort_func(move |left, right| {
-            // Keep the power profile row after the dynamically inserted setting rows.
-            (left == &profile_row).cmp(&(right == &profile_row)).into()
-        });
-        let visibility_sender = sender.clone();
-        row.connect_visible_notify(move |_| {
-            visibility_sender.input(PowerFrameMsg::RefreshVisibility);
-        });
         let widgets = view_output!();
+
+        model.rows.widget().set_sort_func(|left, right| {
+            // Keep the power profile mode row after dynamically inserted setting rows.
+            left.has_css_class("power-profile-mode")
+                .cmp(&right.has_css_class("power-profile-mode"))
+                .into()
+        });
+
         ComponentParts { model, widgets }
     }
 
@@ -180,10 +175,6 @@ impl relm4::Component for PowerFrame {
                         },
                     );
                 }
-                self.performance_frame
-                    .emit(PerformanceFrameMsg::PerformanceLevel(
-                        stats.performance_level,
-                    ));
 
                 self.supported_power_mizer_modes = stats
                     .supported_power_mizer_modes
@@ -220,6 +211,8 @@ impl relm4::Component for PowerFrame {
                         },
                     );
                 }
+
+                self.performance_level_changed(&sender);
             }
             PowerFrameMsg::SetPerformanceLevel(level) => {
                 if self.rows.get(&PowerSetting::PerformanceLevel).is_some()
@@ -235,17 +228,20 @@ impl relm4::Component for PowerFrame {
                 }
             }
             PowerFrameMsg::PowerProfileModes(table) => {
-                self.performance_frame
-                    .emit(PerformanceFrameMsg::PowerProfileModes(table));
+                if let Some(power_profile_mode) = self.power_profile_mode.take() {
+                    self.rows.widget().remove(power_profile_mode.widget());
+                }
+                self.power_profile_mode = table.map(|table| {
+                    AmdPowerProfileMode::builder()
+                        .attach_to(self.rows.widget())
+                        .launch((table, self.performance_level()))
+                        .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged)
+                });
             }
             PowerFrameMsg::SettingsChanged => {
                 APP_BROKER.send(AppMsg::SettingsChanged);
-                self.performance_frame
-                    .emit(PerformanceFrameMsg::PerformanceLevel(
-                        self.performance_level(),
-                    ));
+                self.performance_level_changed(&sender);
             }
-            PowerFrameMsg::RefreshVisibility => (),
             PowerFrameMsg::Reset => {
                 for setting in self.rows.keys() {
                     self.rows.send(setting, SettingRowMsg::Reset);
@@ -261,7 +257,11 @@ impl PowerFrame {
     pub fn serialize(&self) -> GpuConfig {
         let value = |setting| self.rows.get(&setting).and_then(SettingRow::serialize);
         let selected = |setting| value(setting).and_then(SettingRowValue::as_selected);
-        let power_profile_mode_index = self.performance_frame.model().power_profile_mode();
+        let (power_profile_mode_index, custom_power_profile_mode_hueristics) = self
+            .power_profile_mode
+            .as_ref()
+            .and_then(|power_profile_mode| power_profile_mode.model().serialize())
+            .unzip();
         GpuConfig {
             power_cap: value(PowerSetting::PowerCap).and_then(SettingRowValue::as_numeric),
             performance_level: selected(PowerSetting::PerformanceLevel)
@@ -272,13 +272,8 @@ impl PowerFrame {
                     .copied()
             }),
             power_profile_mode_index,
-            custom_power_profile_mode_hueristics: if power_profile_mode_index.is_some() {
-                self.performance_frame
-                    .model()
-                    .power_profile_mode_custom_heuristics()
-            } else {
-                Vec::new()
-            },
+            custom_power_profile_mode_hueristics: custom_power_profile_mode_hueristics
+                .unwrap_or_default(),
             ..Default::default()
         }
     }
@@ -291,6 +286,15 @@ impl PowerFrame {
         self.performance_levels
             .get(self.selected(PowerSetting::PerformanceLevel)? as usize)
             .copied()
+    }
+
+    fn performance_level_changed(&self, sender: &ComponentSender<Self>) {
+        if let Some(power_profile_mode) = &self.power_profile_mode {
+            power_profile_mode.emit(AmdPowerProfileModeMsg::PerformanceLevel(
+                self.performance_level(),
+            ));
+        }
+        sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
     }
 }
 
