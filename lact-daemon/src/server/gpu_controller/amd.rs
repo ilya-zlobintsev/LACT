@@ -1367,7 +1367,8 @@ impl GpuController for AmdGpuController {
                 }
             } else if let Ok(hw_mon) = self.first_hw_mon()
                 && let Ok(default_cap) = hw_mon.get_power_cap_default()
-                && Ok(default_cap) != hw_mon.get_power_cap()
+                && let Ok(current_cap) = hw_mon.get_power_cap()
+                && current_cap != default_cap
             {
                 hw_mon.set_power_cap(default_cap).with_context(|| {
                     format!("Failed to set power cap to default cap: {default_cap}")
