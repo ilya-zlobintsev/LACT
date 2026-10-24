@@ -65,11 +65,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-environment
-      - name: Install clang
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: clang clang++
-          version: 1.0
       - name: Install cargo-llvm-cov from crates.io
         uses: baptiste0928/cargo-install@v3
         with:
