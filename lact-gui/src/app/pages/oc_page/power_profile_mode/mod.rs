@@ -103,7 +103,7 @@ impl Component for AmdPowerProfileMode {
                             #[name = "heuristics_notebook"]
                             gtk::Notebook {
                                 #[watch]
-                                set_show_tabs: model.heuristics_components.len() > 1,
+                                set_show_tabs: model.table.modes.get(&model.table.active).is_some_and(|mode| mode.components.len() > 1),
                             },
                         }
                     },
