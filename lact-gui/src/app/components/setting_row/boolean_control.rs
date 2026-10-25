@@ -1,4 +1,4 @@
-use super::boolean_value::BooleanValue;
+use super::{boolean_value::BooleanValue, setting_value::SettingValue};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, binding::ConnectBinding};
 
@@ -28,7 +28,7 @@ impl Component for BooleanControl {
         Option<gtk::SizeGroup>,
     );
     type Input = BooleanControlMsg;
-    type Output = ();
+    type Output = bool;
     type CommandOutput = ();
 
     view! {
@@ -74,7 +74,7 @@ impl Component for BooleanControl {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             BooleanControlMsg::Changed => {
-                let _ = sender.output(());
+                let _ = sender.output(self.value.get_value());
             }
         }
     }

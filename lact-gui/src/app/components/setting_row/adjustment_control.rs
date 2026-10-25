@@ -1,4 +1,4 @@
-use super::adjustment_value::AdjustmentValue;
+use super::{adjustment_value::AdjustmentValue, setting_value::SettingValue};
 use crate::app::utils::{ext::make_event_controller_no_scroll, formatting::fmt_value_with_unit};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, css};
@@ -55,7 +55,7 @@ impl Component for AdjustmentControl {
         Option<gtk::SizeGroup>,
     );
     type Input = AdjustmentControlMsg;
-    type Output = ();
+    type Output = f64;
     type CommandOutput = ();
 
     view! {
@@ -72,7 +72,6 @@ impl Component for AdjustmentControl {
                     set_adjustment: &*model.value,
                     set_valign: gtk::Align::Center,
                     add_controller = make_event_controller_no_scroll(),
-                    connect_changed => AdjustmentControlMsg::Changed @ text_change_signal,
                 },
             },
 
@@ -105,7 +104,6 @@ impl Component for AdjustmentControl {
             },
         },
 
-        // Both uncommitted text edits and committed numeric edits notify the parent.
         #[local_ref]
         adjustment -> gtk::Adjustment {
             connect_value_changed => AdjustmentControlMsg::Changed @ value_change_signal,
@@ -155,11 +153,10 @@ impl Component for AdjustmentControl {
     ) {
         match msg {
             AdjustmentControlMsg::Changed => {
-                let _ = sender.output(());
+                let _ = sender.output(self.value.get_value());
             }
             AdjustmentControlMsg::SetValueRatio(ratio) => {
                 self.value.block_signal(&widgets.value_change_signal);
-                widgets.spinbutton.block_signal(&widgets.text_change_signal);
                 self.value.set_value_ratio(ratio);
                 widgets
                     .lower_label
@@ -167,9 +164,6 @@ impl Component for AdjustmentControl {
                 widgets
                     .upper_label
                     .set_label(&fmt_value_with_unit(self.value.upper(), &self.unit));
-                widgets
-                    .spinbutton
-                    .unblock_signal(&widgets.text_change_signal);
                 self.value.unblock_signal(&widgets.value_change_signal);
             }
         }

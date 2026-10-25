@@ -21,7 +21,7 @@ use relm4::{
     Component, ComponentController, Controller, FactorySender, RelmWidgetExt, WidgetTemplate, css,
     factory::FactoryComponent,
 };
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 pub struct SettingRow<Key> {
     pub control: SettingControl,
@@ -158,7 +158,11 @@ pub enum SettingControl {
 }
 
 impl SettingControl {
-    fn new(init: SettingRowInit, output: &relm4::Sender<()>) -> Self {
+    fn new<Key: Clone + 'static>(
+        init: SettingRowInit,
+        key: Key,
+        output: &relm4::Sender<(Key, SettingRowValue)>,
+    ) -> Self {
         let title = SettingTitle::init(SettingTitleInit {
             title: init.title,
             tooltip: init.title_tooltip,
@@ -171,17 +175,23 @@ impl SettingControl {
             SettingControlInit::Adjustment(init) => Self::Adjustment(
                 AdjustmentControl::builder()
                     .launch((init, title, label_group, input_group))
-                    .forward(output, |()| ()),
+                    .forward(output, move |value| {
+                        (key.clone(), SettingRowValue::Numeric(value))
+                    }),
             ),
             SettingControlInit::Boolean(init) => Self::Boolean(
                 BooleanControl::builder()
                     .launch((init, title, label_group, input_group))
-                    .forward(output, |()| ()),
+                    .forward(output, move |value| {
+                        (key.clone(), SettingRowValue::Boolean(value))
+                    }),
             ),
             SettingControlInit::Select(init) => Self::Select(
                 SelectControl::builder()
                     .launch((init, title, label_group, input_group))
-                    .forward(output, |()| ()),
+                    .forward(output, move |value| {
+                        (key.clone(), SettingRowValue::Selected(value))
+                    }),
             ),
         }
     }
@@ -230,12 +240,12 @@ pub enum SettingRowMsg {
 }
 
 #[relm4::factory(pub)]
-impl<Key: 'static> FactoryComponent for SettingRow<Key> {
+impl<Key: Clone + Debug + 'static> FactoryComponent for SettingRow<Key> {
     type ParentWidget = gtk::ListBox;
     type Index = Key;
     type Init = SettingRowInit;
     type Input = SettingRowMsg;
-    type Output = ();
+    type Output = (Key, SettingRowValue);
     type CommandOutput = ();
 
     view! {
@@ -253,9 +263,9 @@ impl<Key: 'static> FactoryComponent for SettingRow<Key> {
         },
     }
 
-    fn init_model(init: Self::Init, _index: &Self::Index, sender: FactorySender<Self>) -> Self {
+    fn init_model(init: Self::Init, index: &Self::Index, sender: FactorySender<Self>) -> Self {
         Self {
-            control: SettingControl::new(init, sender.output_sender()),
+            control: SettingControl::new(init, index.clone(), sender.output_sender()),
             _key: PhantomData,
         }
     }

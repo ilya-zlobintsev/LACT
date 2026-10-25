@@ -47,7 +47,7 @@ impl Component for SelectControl {
         Option<gtk::SizeGroup>,
     );
     type Input = SelectControlMsg;
-    type Output = ();
+    type Output = u32;
     type CommandOutput = ();
 
     view! {
@@ -113,7 +113,7 @@ impl Component for SelectControl {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             SelectControlMsg::Changed => {
-                let _ = sender.output(());
+                let _ = sender.output(self.value.get_value());
             }
         }
     }

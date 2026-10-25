@@ -57,7 +57,7 @@ pub enum PowerFrameMsg {
     Stats(Arc<DeviceStats>),
     SetPerformanceLevel(PerformanceLevel),
     PowerProfileModes(Option<PowerProfileModesTable>),
-    SettingsChanged,
+    SettingChanged(PowerSetting),
     Reset,
 }
 
@@ -96,7 +96,9 @@ impl relm4::Component for PowerFrame {
         let model = Self {
             rows: FactoryHashMap::builder()
                 .launch(AdjustmentCard::init(()).content.clone())
-                .forward(sender.input_sender(), |()| PowerFrameMsg::SettingsChanged),
+                .forward(sender.input_sender(), |(setting, _)| {
+                    PowerFrameMsg::SettingChanged(setting)
+                }),
             performance_levels: PERFORMANCE_LEVELS.to_vec(),
             supported_power_mizer_modes: Vec::new(),
             power_profile_mode: None,
@@ -241,9 +243,11 @@ impl relm4::Component for PowerFrame {
                         .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged)
                 });
             }
-            PowerFrameMsg::SettingsChanged => {
+            PowerFrameMsg::SettingChanged(setting) => {
                 APP_BROKER.send(AppMsg::SettingsChanged);
-                self.performance_level_changed(&sender);
+                if setting == PowerSetting::PerformanceLevel {
+                    self.performance_level_changed(&sender);
+                }
             }
             PowerFrameMsg::Reset => {
                 for setting in self.rows.keys() {
