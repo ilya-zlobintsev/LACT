@@ -1240,42 +1240,27 @@ impl AppModel {
     ) -> anyhow::Result<()> {
         debug!("applying settings on gpu {gpu_id}");
 
-        let mut gpu_config = self
+        let stored_config = self
             .daemon_client
             .get_gpu_config(&gpu_id)
             .await
             .context("Could not get gpu config")?
             .unwrap_or_else(GpuConfig::default);
+        let oc = self.oc_page.model().serialize(&stored_config);
+        let mut gpu_config = GpuConfig {
+            power_cap: oc.power.power_cap,
+            performance_level: oc.power.performance_level,
+            power_mizer_mode: oc.power.power_mizer_mode,
+            power_profile_mode_index: oc.power.power_profile_mode_index,
+            custom_power_profile_mode_hueristics: oc.power.custom_power_profile_mode_hueristics,
+            clocks_configuration: oc.clocks_configuration,
+            power_states: oc.power_states,
+            uma_carveout: oc.uma_carveout,
+            ..stored_config
+        };
 
-        let oc = self.oc_page.model().serialize();
-        gpu_config.power_cap = oc.power_cap;
-        gpu_config.performance_level = oc.performance_level;
-        gpu_config.power_mizer_mode = oc.power_mizer_mode;
-        gpu_config.power_profile_mode_index = oc.power_profile_mode_index;
-        gpu_config.custom_power_profile_mode_hueristics = oc.custom_power_profile_mode_hueristics;
-
+        // fixme: switch to serialize()
         self.thermals_page.model().apply_config(&mut gpu_config);
-
-        self.oc_page
-            .model()
-            .apply_clocks_config(&mut gpu_config.clocks_configuration);
-
-        if self.device_driver == "nvidia" && !CONFIG.read().experimental_nvidia_pstate_offsets {
-            let clocks = &mut gpu_config.clocks_configuration;
-            clocks.gpu_clock_offsets.retain(|pstate, _| *pstate == 0);
-            clocks.mem_clock_offsets.retain(|pstate, _| *pstate == 0);
-        }
-
-        let enabled_power_states = self.oc_page.model().get_enabled_power_states();
-        gpu_config.power_states = enabled_power_states;
-
-        // Avoids applying the setting if it's the default but doesn't wipe it if it's unchanged in the UI
-        gpu_config.uma_carveout = self
-            .oc_page
-            .model()
-            .get_uma_carveout()
-            .map(|value| value as usize)
-            .or(gpu_config.uma_carveout);
 
         let delay = self
             .daemon_client

@@ -19,7 +19,7 @@ use crate::{
 use adw::prelude::*;
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceStats, config::GpuConfig};
+use lact_schema::DeviceStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, Controller, WidgetTemplate,
@@ -43,6 +43,14 @@ pub enum PowerSetting {
     PowerCap,
     PerformanceLevel,
     PowerMizer,
+}
+
+pub struct PowerFrameSerialized {
+    pub power_cap: Option<f64>,
+    pub performance_level: Option<PerformanceLevel>,
+    pub power_mizer_mode: Option<PowerMizerMode>,
+    pub power_profile_mode_index: Option<u16>,
+    pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
 }
 
 pub struct PowerFrame {
@@ -261,7 +269,7 @@ impl relm4::Component for PowerFrame {
 }
 
 impl PowerFrame {
-    pub fn serialize(&self) -> GpuConfig {
+    pub fn serialize(&self) -> PowerFrameSerialized {
         let value = |setting| self.rows.get(&setting).and_then(SettingRow::serialize);
         let selected = |setting| value(setting).and_then(SettingRowValue::as_selected);
         let (power_profile_mode_index, custom_power_profile_mode_hueristics) = self
@@ -269,7 +277,7 @@ impl PowerFrame {
             .as_ref()
             .and_then(|power_profile_mode| power_profile_mode.model().serialize())
             .unzip();
-        GpuConfig {
+        PowerFrameSerialized {
             power_cap: value(PowerSetting::PowerCap).and_then(SettingRowValue::as_numeric),
             performance_level: selected(PowerSetting::PerformanceLevel)
                 .and_then(|index| self.performance_levels.get(index as usize).copied()),
@@ -281,7 +289,6 @@ impl PowerFrame {
             power_profile_mode_index,
             custom_power_profile_mode_hueristics: custom_power_profile_mode_hueristics
                 .unwrap_or_default(),
-            ..Default::default()
         }
     }
 
