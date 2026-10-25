@@ -12,7 +12,7 @@ use crate::{
         msg::AppMsg,
         pages::oc_page::{
             OcPageMsg,
-            performance_frame::{PerformanceFrame, PerformanceFrameMsg},
+            power_profile_mode::{PerformanceFrame, PerformanceFrameMsg},
         },
         utils::ext::RelmDefaultLauchable,
     },
