@@ -473,6 +473,11 @@ impl IntelGpuController {
             .map(|value| value as f64)
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn set_power_cap(&self, cap: f64) -> anyhow::Result<()> {
+        self.write_hwmon_file(POWER_CAP_NAMES, &((cap * 1_000_000.0) as u64).to_string())
+    }
+
     #[allow(clippy::cast_precision_loss)]
     fn get_power_cap_max(&self) -> Option<f64> {
         self.read_hwmon_file(MAX_POWER_CAP_NAMES, true)
@@ -799,14 +804,16 @@ impl GpuController for IntelGpuController {
                         bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
                     }
 
-                    self.write_hwmon_file(
-                        POWER_CAP_NAMES,
-                        &((cap * 1_000_000.0) as u64).to_string(),
-                    )
-                    .context("Could not set power cap")?;
+                    self.set_power_cap(cap).context("Could not set power cap")?;
                 } else {
                     error!("could not apply power cap, no power limit functionality available");
                 }
+            } else if let Some(default_cap) = self.initial_power_cap
+                && self.get_power_cap() != Some(default_cap)
+            {
+                self.set_power_cap(default_cap).with_context(|| {
+                    format!("Failed to set power cap to default cap: {default_cap}")
+                })?;
             }
 
             if config.fan_control_enabled {
