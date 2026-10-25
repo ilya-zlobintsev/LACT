@@ -76,10 +76,9 @@ impl Component for SelectControl {
             #[name = "dropdown"]
             gtk::DropDown {
                 set_valign: gtk::Align::Center,
-                set_model: Some(&options),
+                set_model: Some(&model.options.iter().map(|option| option.label.clone()).collect::<gtk::StringList>()),
                 add_binding: (model.value.binding(), "selected"),
             },
-
         },
     }
 
@@ -88,13 +87,6 @@ impl Component for SelectControl {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let options = gtk::StringList::new(
-            &init
-                .options
-                .iter()
-                .map(|option| option.label.as_str())
-                .collect::<Vec<_>>(),
-        );
         let mut model = Self {
             value: SelectValue::new(init.selected, init.default_value, init.options.len() as u32),
             options: init.options,

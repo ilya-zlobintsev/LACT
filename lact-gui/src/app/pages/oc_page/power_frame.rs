@@ -124,7 +124,10 @@ impl relm4::Component for PowerFrame {
             PowerFrameMsg::Stats(stats) => {
                 self.rows.clear();
                 let power = &stats.power;
-                if let Some(value) = power.cap_current {
+                if let Some(value) = power.cap_current
+                    && let Some(lower) = power.cap_min
+                    && let Some(upper) = power.cap_max
+                {
                     self.rows.insert(
                         PowerSetting::PowerCap,
                         SettingRowInit {
@@ -133,8 +136,8 @@ impl relm4::Component for PowerFrame {
                                 unit: fl!(I18N, "watt"),
                                 value,
                                 default_value: power.cap_default,
-                                lower: power.cap_min.unwrap_or_default(),
-                                upper: power.cap_max.unwrap_or_default(),
+                                lower,
+                                upper,
                                 ..Default::default()
                             }
                             .into(),
