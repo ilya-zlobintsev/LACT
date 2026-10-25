@@ -317,6 +317,7 @@ impl OcPage {
         self.power_frame.model().performance_level()
     }
 
+    // stored_config is temporary here, long term serialization should be derevied from SettingRow values
     pub fn serialize(&self, stored_config: &config::GpuConfig) -> OcPageSerialized {
         OcPageSerialized {
             power: self.power_frame.model().serialize(),
