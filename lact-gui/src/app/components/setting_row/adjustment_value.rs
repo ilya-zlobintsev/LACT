@@ -1,20 +1,11 @@
 use super::setting_value::SettingValue;
 use adw::prelude::*;
-use std::ops::Deref;
 
 /// A numeric setting stored in a shared GTK adjustment, with raw/display unit conversion.
 pub struct AdjustmentValue {
     value: gtk::Adjustment,
     default_value: Option<f64>,
     value_ratio: f64,
-}
-
-impl Deref for AdjustmentValue {
-    type Target = gtk::Adjustment;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
 }
 
 impl AdjustmentValue {
@@ -31,6 +22,10 @@ impl AdjustmentValue {
             default_value,
             value_ratio: 1.0,
         }
+    }
+
+    pub fn adjustment(&self) -> &gtk::Adjustment {
+        &self.value
     }
 
     /// Changes display units, retaining the raw value.

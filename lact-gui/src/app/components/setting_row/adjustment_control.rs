@@ -69,7 +69,7 @@ impl Component for AdjustmentControl {
 
                 #[name = "spinbutton"]
                 gtk::SpinButton {
-                    set_adjustment: &*model.value,
+                    set_adjustment: model.value.adjustment(),
                     set_valign: gtk::Align::Center,
                     add_controller = make_event_controller_no_scroll(),
                 },
@@ -80,13 +80,13 @@ impl Component for AdjustmentControl {
 
                 #[name = "lower_label"]
                 gtk::Label {
-                    set_label: &fmt_value_with_unit(model.value.lower(), &model.unit),
+                    set_label: &fmt_value_with_unit(model.value.adjustment().lower(), &model.unit),
                     add_css_class: css::CAPTION,
                     add_css_class: css::DIM_LABEL,
                 },
                 #[name = "scale"]
                 gtk::Scale {
-                    set_adjustment: &*model.value,
+                    set_adjustment: model.value.adjustment(),
                     set_orientation: gtk::Orientation::Horizontal,
                     set_hexpand: true,
                     set_digits: 0,
@@ -97,7 +97,7 @@ impl Component for AdjustmentControl {
                 },
                 #[name = "upper_label"]
                 gtk::Label {
-                    set_label: &fmt_value_with_unit(model.value.upper(), &model.unit),
+                    set_label: &fmt_value_with_unit(model.value.adjustment().upper(), &model.unit),
                     add_css_class: css::CAPTION,
                     add_css_class: css::DIM_LABEL,
                 },
@@ -128,7 +128,7 @@ impl Component for AdjustmentControl {
             unit: init.unit,
             size_group_widgets: Vec::new(),
         };
-        let adjustment = &*model.value;
+        let adjustment = model.value.adjustment();
         let widgets = view_output!();
         for (group, widget) in [
             (label_group, model.title.clone().upcast::<gtk::Widget>()),
@@ -156,15 +156,21 @@ impl Component for AdjustmentControl {
                 let _ = sender.output(self.value.get_value());
             }
             AdjustmentControlMsg::SetValueRatio(ratio) => {
-                self.value.block_signal(&widgets.value_change_signal);
+                self.value
+                    .adjustment()
+                    .block_signal(&widgets.value_change_signal);
                 self.value.set_value_ratio(ratio);
-                widgets
-                    .lower_label
-                    .set_label(&fmt_value_with_unit(self.value.lower(), &self.unit));
-                widgets
-                    .upper_label
-                    .set_label(&fmt_value_with_unit(self.value.upper(), &self.unit));
-                self.value.unblock_signal(&widgets.value_change_signal);
+                widgets.lower_label.set_label(&fmt_value_with_unit(
+                    self.value.adjustment().lower(),
+                    &self.unit,
+                ));
+                widgets.upper_label.set_label(&fmt_value_with_unit(
+                    self.value.adjustment().upper(),
+                    &self.unit,
+                ));
+                self.value
+                    .adjustment()
+                    .unblock_signal(&widgets.value_change_signal);
             }
         }
     }
