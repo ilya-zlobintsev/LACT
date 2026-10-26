@@ -194,9 +194,6 @@ impl relm4::Component for PowerFrame {
                     .clone()
                     .unwrap_or_default();
                 if let Some(active) = stats.active_power_mizer_mode {
-                    if !self.supported_power_mizer_modes.contains(&active) {
-                        self.supported_power_mizer_modes.push(active);
-                    }
                     self.rows.insert(
                         PowerSetting::PowerMizer,
                         SettingRowInit {
