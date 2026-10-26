@@ -55,7 +55,6 @@ pub struct PowerFrameSerialized {
 
 pub struct PowerFrame {
     rows: FactoryHashMap<PowerSetting, SettingRow<PowerSetting>>,
-    performance_levels: Vec<PerformanceLevel>,
     supported_power_mizer_modes: Vec<PowerMizerMode>,
     power_profile_mode: Option<Controller<AmdPowerProfileMode>>,
 }
@@ -107,7 +106,6 @@ impl relm4::Component for PowerFrame {
                 .forward(sender.input_sender(), |(setting, _)| {
                     PowerFrameMsg::SettingChanged(setting)
                 }),
-            performance_levels: PERFORMANCE_LEVELS.to_vec(),
             supported_power_mizer_modes: Vec::new(),
             power_profile_mode: None,
         };
@@ -156,29 +154,22 @@ impl relm4::Component for PowerFrame {
                     );
                 }
 
-                self.performance_levels = PERFORMANCE_LEVELS.to_vec();
                 if let Some(level) = stats.performance_level {
-                    if !self.performance_levels.contains(&level) {
-                        self.performance_levels.push(level);
-                    }
                     self.rows.insert(
                         PowerSetting::PerformanceLevel,
                         SettingRowInit {
                             title: fl!(I18N, "performance-level"),
                             control: SelectInit {
-                                default_value: self
-                                    .performance_levels
+                                default_value: PERFORMANCE_LEVELS
                                     .iter()
                                     .position(|level| *level == PerformanceLevel::Auto)
                                     .map(|index| index as u32),
-                                options: self
-                                    .performance_levels
+                                options: PERFORMANCE_LEVELS
                                     .iter()
                                     .copied()
                                     .map(performance_option)
                                     .collect(),
-                                selected: self
-                                    .performance_levels
+                                selected: PERFORMANCE_LEVELS
                                     .iter()
                                     .position(|candidate| *candidate == level)
                                     .map(|index| index as u32),
@@ -226,8 +217,7 @@ impl relm4::Component for PowerFrame {
             }
             PowerFrameMsg::SetPerformanceLevel(level) => {
                 if self.rows.get(&PowerSetting::PerformanceLevel).is_some()
-                    && let Some(index) = self
-                        .performance_levels
+                    && let Some(index) = PERFORMANCE_LEVELS
                         .iter()
                         .position(|candidate| *candidate == level)
                 {
@@ -277,7 +267,7 @@ impl PowerFrame {
         PowerFrameSerialized {
             power_cap: value(PowerSetting::PowerCap).and_then(SettingRowValue::as_numeric),
             performance_level: selected(PowerSetting::PerformanceLevel)
-                .and_then(|index| self.performance_levels.get(index as usize).copied()),
+                .and_then(|index| PERFORMANCE_LEVELS.get(index as usize).copied()),
             power_mizer_mode: selected(PowerSetting::PowerMizer).and_then(|index| {
                 self.supported_power_mizer_modes
                     .get(index as usize)
@@ -294,7 +284,7 @@ impl PowerFrame {
     }
 
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
-        self.performance_levels
+        PERFORMANCE_LEVELS
             .get(self.selected(PowerSetting::PerformanceLevel)? as usize)
             .copied()
     }
