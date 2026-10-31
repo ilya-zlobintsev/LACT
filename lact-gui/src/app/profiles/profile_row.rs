@@ -15,11 +15,6 @@ pub struct ProfileRow {
     pub(super) activatable: bool,
 }
 
-#[derive(Debug)]
-pub enum ProfileRowMsg {
-    Selected(bool),
-}
-
 #[derive(Clone, glib::Boxed)]
 #[boxed_type(name = "ProfileIndexValue")]
 struct DynamicIndexValue(DynamicIndex);
@@ -46,7 +41,7 @@ impl ProfileRowType {
 #[relm4::factory(pub)]
 impl FactoryComponent for ProfileRow {
     type Init = Self;
-    type Input = ProfileRowMsg;
+    type Input = ();
     type Output = ProfileSelectorMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
@@ -182,11 +177,5 @@ impl FactoryComponent for ProfileRow {
 
     fn init_model(row: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
         row
-    }
-
-    fn update(&mut self, msg: Self::Input, _sender: FactorySender<Self>) {
-        match msg {
-            ProfileRowMsg::Selected(selected) => self.selected = selected,
-        }
     }
 }
