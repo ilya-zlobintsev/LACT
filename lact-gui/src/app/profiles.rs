@@ -13,12 +13,10 @@ use crate::app::profiles::profile_row::ProfileRowType;
 use crate::app::profiles::profile_rule_window::ProfileEditParams;
 use crate::app::profiles::profile_rule_window::ProfileRuleWindow;
 use crate::app::utils::ext::RelmLaunchable as _;
-use gtk::glib::clone;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use lact_schema::ProfilesInfo;
 use relm4::Component;
-use relm4::RelmIterChildrenExt as _;
 use relm4::RelmWidgetExt as _;
 use relm4::css;
 use relm4::prelude::DynamicIndex;
@@ -42,7 +40,7 @@ pub enum ProfileSelectorMsg {
     ShowProfileEditor(DynamicIndex),
     ExportProfile(DynamicIndex),
     RenameProfile(DynamicIndex),
-    SelectProfile,
+    SelectProfile(usize),
     CreateProfile,
     ImportProfile,
 }
@@ -109,9 +107,12 @@ impl Component for ProfileSelector {
 
                             #[local_ref]
                             profile_selector -> gtk::ListBox {
-                                set_selection_mode: gtk::SelectionMode::Single,
+                                set_selection_mode: gtk::SelectionMode::None,
                                 add_css_class: css::BOXED_LIST,
                                 set_margin_all: 3, // fixes shadow
+                                connect_row_activated[sender] => move |_, row| {
+                                    sender.input(ProfileSelectorMsg::SelectProfile(row.index() as usize));
+                                },
                             }
                         },
 
@@ -148,16 +149,6 @@ impl Component for ProfileSelector {
         let profile_selector = FactoryVecDeque::<ProfileRow>::builder()
             .launch_default()
             .forward(sender.input_sender(), |msg| msg);
-        profile_selector.widget().connect_row_selected(clone!(
-            #[strong]
-            sender,
-            move |_, _| {
-                let _ = sender
-                    .input_sender()
-                    .send(ProfileSelectorMsg::SelectProfile);
-            }
-        ));
-
         let model = Self {
             profiles_info: Arc::new(ProfilesInfo::default()),
             profile_selector,
@@ -210,21 +201,19 @@ impl Component for ProfileSelector {
                 };
                 sender.output(msg).unwrap();
             }
-            ProfileSelectorMsg::SelectProfile => {
-                let profile = self.selected_profile();
+            ProfileSelectorMsg::SelectProfile(index) => {
+                let profile = self
+                    .profile_selector
+                    .get(index)
+                    .and_then(|item| item.row.name());
 
-                if self.profiles_info.current_profile.as_deref() != profile {
-                    if self.profiles_info.auto_switch {
-                        // Revert to the previous profile
-                        self.update_selected_profile();
-                    } else {
-                        sender
-                            .output(AppMsg::SelectProfile {
-                                profile: profile.map(str::to_owned),
-                                auto_switch: false,
-                            })
-                            .unwrap();
-                    }
+                if self.profiles_info.current_profile != profile {
+                    sender
+                        .output(AppMsg::SelectProfile {
+                            profile,
+                            auto_switch: false,
+                        })
+                        .unwrap();
                 }
             }
             ProfileSelectorMsg::ExportProfile(index) => {
@@ -289,18 +278,14 @@ impl Component for ProfileSelector {
 
                 let sender = sender.clone();
                 if let ProfileRowType::Profile {
-                    name,
-                    rule,
-                    hooks,
-                    auto,
-                    ..
+                    name, rule, hooks, ..
                 } = &profile.row
                 {
                     let params = ProfileEditParams {
                         name: name.clone(),
                         rule: rule.clone().unwrap_or_default(),
                         hooks: hooks.clone(),
-                        auto_switch: *auto,
+                        auto_switch: self.profiles_info.auto_switch,
                         parent: root.clone().upcast::<gtk::Widget>(),
                     };
                     let rule_window = ProfileRuleWindow::launch(params).into_stream();
@@ -352,52 +337,26 @@ impl ProfileSelector {
                 .cloned()
                 .unwrap_or_default();
 
-            let profile = ProfileRowType::Profile {
-                name: name.to_string(),
-                first: i == 0,
-                last: i == last,
-                auto: profiles_info.auto_switch,
-                rule: rule.clone(),
-                hooks,
-            };
-            profiles.push_back(profile);
+            profiles.push_back(ProfileRow {
+                row: ProfileRowType::Profile {
+                    name: name.to_string(),
+                    first: i == 0,
+                    last: i == last,
+                    rule: rule.clone(),
+                    hooks,
+                },
+                selected: profiles_info.current_profile.as_ref() == Some(name),
+                activatable: !profiles_info.auto_switch,
+            });
         }
-        profiles.push_back(ProfileRowType::Default);
+        profiles.push_back(ProfileRow {
+            row: ProfileRowType::Default,
+            selected: profiles_info.current_profile.is_none(),
+            activatable: !profiles_info.auto_switch,
+        });
         drop(profiles);
 
         self.profiles_info = profiles_info;
-
-        self.update_selected_profile();
-
-        if self.auto_switch_profiles() {
-            let profiles_listbox = self.profile_selector.widget();
-            for row in profiles_listbox.iter_children() {
-                row.remove_css_class("activatable");
-            }
-        }
-    }
-
-    fn update_selected_profile(&self) {
-        let selected_profile_index = self.profiles_info.current_profile.as_ref().map(|profile| {
-            self.profiles_info
-                .profiles
-                .iter()
-                .position(|(value, _)| value == profile)
-                .expect("Active profile is not in the list")
-        });
-
-        let new_selected_index =
-            selected_profile_index.unwrap_or_else(|| self.profile_selector.len() - 1);
-
-        let new_selected_row = self
-            .profile_selector
-            .widget()
-            .row_at_index(new_selected_index as i32)
-            .unwrap();
-
-        self.profile_selector
-            .widget()
-            .select_row(Some(&new_selected_row));
     }
 
     fn custom_profiles(&self) -> Vec<String> {
@@ -412,13 +371,6 @@ impl ProfileSelector {
     }
 
     fn selected_profile(&self) -> Option<&str> {
-        self.profile_selector
-            .widget()
-            .selected_row()
-            .and_then(|row| self.profile_selector.get(row.index() as usize))
-            .and_then(|item| match &item.row {
-                ProfileRowType::Default => None,
-                ProfileRowType::Profile { name, .. } => Some(name.as_str()),
-            })
+        self.profiles_info.current_profile.as_deref()
     }
 }

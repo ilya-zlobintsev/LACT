@@ -11,6 +11,8 @@ use relm4::{
 
 pub struct ProfileRow {
     pub(super) row: ProfileRowType,
+    pub(super) selected: bool,
+    pub(super) activatable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -20,7 +22,6 @@ pub enum ProfileRowType {
         name: String,
         first: bool,
         last: bool,
-        auto: bool,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
     },
@@ -37,13 +38,14 @@ impl ProfileRowType {
 
 #[relm4::factory(pub)]
 impl FactoryComponent for ProfileRow {
-    type Init = ProfileRowType;
+    type Init = Self;
     type Input = ();
     type Output = ProfileSelectorMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
 
     view! {
+        #[root]
         gtk::Box {
             set_spacing: 5,
             set_margin_all: 5,
@@ -72,7 +74,6 @@ impl FactoryComponent for ProfileRow {
                         set_spacing: 5,
 
                         gtk::Button {
-                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "rename-profile"),
                             set_visible: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[sender, index] => move |_| {
@@ -82,7 +83,6 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
-                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "delete-profile"),
                             set_visible: matches!(self.row, ProfileRowType::Profile { .. }),
                             connect_clicked[profile = self.row.clone()] => move |_| {
@@ -94,7 +94,6 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
-                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "edit-rules"),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(ProfileSelectorMsg::ShowProfileEditor(index.clone())).unwrap();
@@ -103,7 +102,6 @@ impl FactoryComponent for ProfileRow {
                         },
 
                         gtk::Button {
-                            inline_css: "color: @theme_text_color",
                             set_label: &fl!(I18N, "export-to-file"),
                             connect_clicked[sender, index] => move |_| {
                                 sender.output(ProfileSelectorMsg::ExportProfile(index.clone())).unwrap();
@@ -139,11 +137,20 @@ impl FactoryComponent for ProfileRow {
                     APP_BROKER.send(move_profile_msg(&profile, &index, 1));
                 },
             },
+        },
+
+        #[local_ref]
+        returned_widget -> gtk::ListBoxRow {
+            set_activatable: self.activatable,
+            set_state_flags: (
+                if self.selected { gtk::StateFlags::SELECTED } else { gtk::StateFlags::empty() },
+                false,
+            ),
         }
     }
 
     fn init_model(row: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
-        Self { row }
+        row
     }
 }
 
