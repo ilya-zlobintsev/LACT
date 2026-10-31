@@ -1027,7 +1027,7 @@ impl<'a> Handler {
                 bail!("Provided index is out of bounds");
             }
 
-            config.profiles.swap_indices(current_index, new_position);
+            config.profiles.move_index(current_index, new_position);
             config.save(&self.config_last_saved)?;
         }
 

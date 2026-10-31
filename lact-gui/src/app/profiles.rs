@@ -42,6 +42,10 @@ pub enum ProfileSelectorMsg {
     ExportProfile(DynamicIndex),
     RenameProfile(DynamicIndex),
     SelectProfile(usize),
+    MoveProfile {
+        from: DynamicIndex,
+        to: DynamicIndex,
+    },
     CreateProfile,
     ImportProfile,
 }
@@ -224,6 +228,23 @@ impl Component for ProfileSelector {
                         .unwrap();
                 }
             }
+            ProfileSelectorMsg::MoveProfile { from, to } => {
+                let (from, to) = (from.current_index(), to.current_index());
+
+                if from != to {
+                    let name = self
+                        .profile_selector
+                        .get(from)
+                        .expect("No profile with given index")
+                        .row
+                        .name()
+                        .expect("Default profile cannot be moved");
+
+                    // moves the row optimistically before daemon replies
+                    self.profile_selector.guard().move_to(from, to);
+                    sender.output(AppMsg::MoveProfile(name, to)).unwrap();
+                }
+            }
             ProfileSelectorMsg::ExportProfile(index) => {
                 sender.input(ProfileSelectorMsg::ClosePopover);
 
@@ -337,8 +358,7 @@ impl ProfileSelector {
         let mut profiles = self.profile_selector.guard();
         profiles.clear();
 
-        let last = profiles_info.profiles.len().saturating_sub(1);
-        for (i, (name, rule)) in profiles_info.profiles.iter().enumerate() {
+        for (name, rule) in &profiles_info.profiles {
             let hooks = profiles_info
                 .profile_hooks
                 .get(name)
@@ -348,8 +368,6 @@ impl ProfileSelector {
             profiles.push_back(ProfileRow {
                 row: ProfileRowType::Profile {
                     name: name.to_string(),
-                    first: i == 0,
-                    last: i == last,
                     rule: rule.clone(),
                     hooks,
                 },

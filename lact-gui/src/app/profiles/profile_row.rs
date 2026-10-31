@@ -1,7 +1,7 @@
 use crate::I18N;
 use crate::app::profiles::ProfileSelectorMsg;
 use crate::app::{APP_BROKER, msg::AppMsg};
-use gtk::{pango, prelude::*};
+use gtk::{gdk, glib, graphene, pango, prelude::*};
 use i18n_embed_fl::fl;
 use lact_schema::{ProfileRule, config::ProfileHooks};
 use relm4::{
@@ -20,13 +20,15 @@ pub enum ProfileRowMsg {
     Selected(bool),
 }
 
+#[derive(Clone, glib::Boxed)]
+#[boxed_type(name = "ProfileIndexValue")]
+struct DynamicIndexValue(DynamicIndex);
+
 #[derive(Debug, Clone)]
 pub enum ProfileRowType {
     Default,
     Profile {
         name: String,
-        first: bool,
-        last: bool,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
     },
@@ -54,6 +56,36 @@ impl FactoryComponent for ProfileRow {
         gtk::Box {
             set_spacing: 5,
             set_margin_all: 5,
+
+            gtk::Image {
+                set_icon_name: Some("list-drag-handle-symbolic"),
+                set_opacity: if matches!(self.row, ProfileRowType::Profile { .. }) { 1.0 } else { 0.0 },
+                add_css_class: css::DIM_LABEL,
+
+                add_controller = gtk::DragSource {
+                    set_actions: gdk::DragAction::MOVE,
+                    connect_prepare[index, movable = matches!(self.row, ProfileRowType::Profile { .. })] => move |_, _, _| {
+                        movable.then(|| gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
+                    },
+                    connect_drag_begin[row = returned_widget.clone()] => move |source, drag| {
+                        relm4::view! {
+                            icon = gtk::ListBox {
+                                add_css_class: css::BOXED_LIST,
+                                gtk::Picture {
+                                    set_paintable: Some(&gtk::WidgetPaintable::new(Some(&row))),
+                                },
+                            }
+                        }
+                        gtk::DragIcon::for_drag(drag).set_child(Some(&icon));
+
+                        if let Some(hotspot) = source.widget().and_then(|handle| {
+                            handle.compute_point(&row, &graphene::Point::new(handle.width() as f32 / 2.0, handle.height() as f32 / 2.0))
+                        }) {
+                            drag.set_hotspot(hotspot.x() as i32, hotspot.y() as i32);
+                        }
+                    },
+                },
+            },
 
             #[name = "name_label"]
             gtk::Label {
@@ -116,37 +148,24 @@ impl FactoryComponent for ProfileRow {
                     },
                 }
             },
-
-            gtk::Button {
-                set_icon_name: "go-up",
-                set_tooltip: &fl!(I18N, "move-up"),
-                set_sensitive: match &self.row {
-                    ProfileRowType::Profile { first, .. } => !*first,
-                    _ => false,
-
-                },
-                connect_clicked[index, profile = self.row.clone()] => move |_| {
-                    APP_BROKER.send(move_profile_msg(&profile, &index, -1));
-                },
-            },
-
-            gtk::Button {
-                set_icon_name: "go-down",
-                set_tooltip: &fl!(I18N, "move-down"),
-                set_sensitive: match &self.row {
-                    ProfileRowType::Profile { last, .. } => !*last,
-                    _ => false,
-
-                },
-                connect_clicked[index, profile = self.row.clone()] => move |_| {
-                    APP_BROKER.send(move_profile_msg(&profile, &index, 1));
-                },
-            },
         },
 
         #[local_ref]
         returned_widget -> gtk::ListBoxRow {
             set_activatable: self.activatable,
+
+            add_controller = gtk::DropTarget {
+                set_actions: if matches!(self.row, ProfileRowType::Profile { .. }) { gdk::DragAction::MOVE } else { gdk::DragAction::empty() },
+                set_types: &[DynamicIndexValue::static_type()],
+
+                connect_drop[sender, index] => move |_, value, _, _| {
+                    if let Ok(DynamicIndexValue(from)) = value.get::<DynamicIndexValue>() {
+                        sender.output(ProfileSelectorMsg::MoveProfile { from, to: index.clone() }).unwrap();
+                    }
+                    true
+                },
+            },
+
             #[watch]
             set_state_flags: (
                 if self.selected { gtk::StateFlags::SELECTED } else { gtk::StateFlags::empty() },
@@ -166,10 +185,4 @@ impl FactoryComponent for ProfileRow {
             ProfileRowMsg::Selected(selected) => self.selected = selected,
         }
     }
-}
-
-fn move_profile_msg(profile: &ProfileRowType, index: &DynamicIndex, offset: i64) -> AppMsg {
-    let name = profile.name().expect("Default profile cannot be moved");
-    let new_index = (index.current_index() as i64).saturating_add(offset);
-    AppMsg::MoveProfile(name, new_index as usize)
 }
