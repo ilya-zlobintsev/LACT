@@ -67,21 +67,25 @@ impl FactoryComponent for ProfileRow {
                     connect_prepare[index, movable = matches!(self.row, ProfileRowType::Profile { .. })] => move |_, _, _| {
                         movable.then(|| gdk::ContentProvider::for_value(&DynamicIndexValue(index.clone()).to_value()))
                     },
-                    connect_drag_begin[row = returned_widget.clone()] => move |source, drag| {
-                        relm4::view! {
-                            icon = gtk::ListBox {
-                                add_css_class: css::BOXED_LIST,
-                                gtk::Picture {
-                                    set_paintable: Some(&gtk::WidgetPaintable::new(Some(&row))),
-                                },
+                    connect_drag_begin[root = root.downgrade()] => move |source, drag| {
+                        if let (Some(root), Some(handle)) = (root.upgrade(), source.widget()) {
+                            relm4::view! {
+                                icon = gtk::ListBox {
+                                    gtk::ListBoxRow {
+                                        set_state_flags: (gtk::StateFlags::DROP_ACTIVE, false),
+                                        #[wrap(Some)]
+                                        set_child = &gtk::Picture {
+                                            set_paintable: Some(&gtk::WidgetPaintable::new(Some(&root))),
+                                            set_margin_all: root.margin_top(),
+                                        },
+                                    },
+                                }
                             }
-                        }
-                        gtk::DragIcon::for_drag(drag).set_child(Some(&icon));
+                            gtk::DragIcon::for_drag(drag).set_child(Some(&icon));
 
-                        if let Some(hotspot) = source.widget().and_then(|handle| {
-                            handle.compute_point(&row, &graphene::Point::new(handle.width() as f32 / 2.0, handle.height() as f32 / 2.0))
-                        }) {
-                            drag.set_hotspot(hotspot.x() as i32, hotspot.y() as i32);
+                            if let Some(hotspot) = handle.compute_point(&root, &graphene::Point::new(handle.width() as f32 / 2.0, handle.height() as f32 / 2.0)) {
+                                drag.set_hotspot(hotspot.x() as i32 + root.margin_start(), hotspot.y() as i32 + root.margin_top());
+                            }
                         }
                     },
                 },
