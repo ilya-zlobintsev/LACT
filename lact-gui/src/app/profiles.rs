@@ -9,6 +9,7 @@ use crate::app::msg::AppMsg;
 use crate::app::profiles::new_profile_dialog::NewProfileDialog;
 use crate::app::profiles::profile_rename_dialog::ProfileRenameDialog;
 use crate::app::profiles::profile_row::ProfileRow;
+use crate::app::profiles::profile_row::ProfileRowMsg;
 use crate::app::profiles::profile_row::ProfileRowType;
 use crate::app::profiles::profile_rule_window::ProfileEditParams;
 use crate::app::profiles::profile_rule_window::ProfileRuleWindow;
@@ -205,9 +206,16 @@ impl Component for ProfileSelector {
                 let profile = self
                     .profile_selector
                     .get(index)
-                    .and_then(|item| item.row.name());
+                    .expect("No profile with given index");
 
-                if self.profiles_info.current_profile != profile {
+                if !profile.selected {
+                    let profile = profile.row.name();
+
+                    // updates rows selected status optimistically before daemon replies
+                    for i in 0..self.profile_selector.len() {
+                        self.profile_selector
+                            .send(i, ProfileRowMsg::Selected(i == index));
+                    }
                     sender
                         .output(AppMsg::SelectProfile {
                             profile,

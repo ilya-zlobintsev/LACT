@@ -15,6 +15,11 @@ pub struct ProfileRow {
     pub(super) activatable: bool,
 }
 
+#[derive(Debug)]
+pub enum ProfileRowMsg {
+    Selected(bool),
+}
+
 #[derive(Debug, Clone)]
 pub enum ProfileRowType {
     Default,
@@ -39,7 +44,7 @@ impl ProfileRowType {
 #[relm4::factory(pub)]
 impl FactoryComponent for ProfileRow {
     type Init = Self;
-    type Input = ();
+    type Input = ProfileRowMsg;
     type Output = ProfileSelectorMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
@@ -142,15 +147,24 @@ impl FactoryComponent for ProfileRow {
         #[local_ref]
         returned_widget -> gtk::ListBoxRow {
             set_activatable: self.activatable,
+            #[watch]
             set_state_flags: (
                 if self.selected { gtk::StateFlags::SELECTED } else { gtk::StateFlags::empty() },
                 false,
             ),
+            #[watch]
+            unset_state_flags: if self.selected { gtk::StateFlags::empty() } else { gtk::StateFlags::SELECTED },
         }
     }
 
     fn init_model(row: Self::Init, _index: &DynamicIndex, _sender: FactorySender<Self>) -> Self {
         row
+    }
+
+    fn update(&mut self, msg: Self::Input, _sender: FactorySender<Self>) {
+        match msg {
+            ProfileRowMsg::Selected(selected) => self.selected = selected,
+        }
     }
 }
 
