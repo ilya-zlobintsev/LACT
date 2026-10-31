@@ -78,6 +78,7 @@ impl Component for ProfileSelector {
                 #[wrap(Some)]
                 set_popover = &gtk::Popover {
                     add_css_class: "gpu-profile-popover",
+                    set_width_request: 230,
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
