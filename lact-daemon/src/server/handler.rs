@@ -1039,6 +1039,48 @@ impl<'a> Handler {
         Ok(())
     }
 
+    pub async fn rename_profile(&self, name: &str, new_name: String) -> anyhow::Result<()> {
+        if self
+            .profile_holds
+            .borrow()
+            .iter()
+            .any(|(_, n, _)| n.as_ref() == name)
+        {
+            bail!("Cannot rename profile '{name}' while it is held");
+        }
+
+        {
+            let mut config = self.config.write().await;
+
+            if config.profiles.contains_key(new_name.as_str()) {
+                bail!("Profile {new_name} already exists");
+            }
+
+            let (index, _, profile) = config
+                .profiles
+                .shift_remove_full(name)
+                .with_context(|| format!("Profile {name} not found"))?;
+
+            let new_name = Rc::<str>::from(new_name);
+            config
+                .profiles
+                .shift_insert(index, new_name.clone(), profile);
+
+            if config.current_profile.as_deref() == Some(name) {
+                config.current_profile = Some(new_name);
+            }
+
+            config.save(&self.config_last_saved)?;
+        }
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
+        Ok(())
+    }
+
     pub async fn set_profile_rule(
         &self,
         name: &str,

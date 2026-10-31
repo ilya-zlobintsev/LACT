@@ -22,7 +22,6 @@ impl Component for NewProfileDialog {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::Dialog {
             set_content_width: 420,
             set_title: &fl!(I18N, "create-profile"),
