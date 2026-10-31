@@ -4,6 +4,7 @@ mod profile_row;
 pub mod profile_rule_window;
 
 use crate::I18N;
+use crate::app::components::checkbox_button::CheckboxButton;
 use crate::app::msg::AppMsg;
 use crate::app::profiles::new_profile_dialog::NewProfileDialog;
 use crate::app::profiles::profile_rename_dialog::ProfileRenameDialog;
@@ -90,8 +91,10 @@ impl Component for ProfileSelector {
                         set_orientation: gtk::Orientation::Vertical,
                         set_spacing: 10,
 
-                        gtk::CheckButton {
+                        #[template]
+                        CheckboxButton {
                             set_label: Some(&fl!(I18N, "auto-switch-profiles")),
+
                             #[watch]
                             #[block_signal(toggle_auto_profile_handler)]
                             set_active: model.profiles_info.auto_switch,
