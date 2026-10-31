@@ -1,4 +1,4 @@
-use super::{boolean_value::BooleanValue, setting_value::SettingValue};
+use super::{ControlInit, boolean_value::BooleanValue, setting_value::SettingValue};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, binding::ConnectBinding};
 
@@ -21,12 +21,7 @@ pub enum BooleanControlMsg {
 
 #[relm4::component(pub)]
 impl Component for BooleanControl {
-    type Init = (
-        BooleanInit,
-        gtk::Box,
-        Option<gtk::SizeGroup>,
-        Option<gtk::SizeGroup>,
-    );
+    type Init = ControlInit<BooleanInit>;
     type Input = BooleanControlMsg;
     type Output = bool;
     type CommandOutput = ();
@@ -46,7 +41,12 @@ impl Component for BooleanControl {
     }
 
     fn init(
-        (init, title, label_group, input_group): Self::Init,
+        ControlInit {
+            init,
+            title,
+            label_group,
+            input_group,
+        }: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {

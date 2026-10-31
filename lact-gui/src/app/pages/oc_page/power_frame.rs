@@ -259,11 +259,10 @@ impl PowerFrame {
     pub fn serialize(&self) -> PowerFrameSerialized {
         let value = |setting| self.rows.get(&setting).and_then(SettingRow::serialize);
         let selected = |setting| value(setting).and_then(SettingRowValue::as_selected);
-        let (power_profile_mode_index, custom_power_profile_mode_hueristics) = self
+        let power_profile_mode = self
             .power_profile_mode
             .as_ref()
-            .and_then(|power_profile_mode| power_profile_mode.model().serialize())
-            .unzip();
+            .and_then(|power_profile_mode| power_profile_mode.model().serialize());
         PowerFrameSerialized {
             power_cap: value(PowerSetting::PowerCap).and_then(SettingRowValue::as_numeric),
             performance_level: selected(PowerSetting::PerformanceLevel)
@@ -273,8 +272,9 @@ impl PowerFrame {
                     .get(index as usize)
                     .copied()
             }),
-            power_profile_mode_index,
-            custom_power_profile_mode_hueristics: custom_power_profile_mode_hueristics
+            power_profile_mode_index: power_profile_mode.as_ref().map(|mode| mode.index),
+            custom_power_profile_mode_hueristics: power_profile_mode
+                .map(|mode| mode.custom_heuristics)
                 .unwrap_or_default(),
         }
     }

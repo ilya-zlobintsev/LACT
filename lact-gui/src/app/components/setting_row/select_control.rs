@@ -1,4 +1,4 @@
-use super::{select_value::SelectValue, setting_value::SettingValue};
+use super::{ControlInit, select_value::SelectValue, setting_value::SettingValue};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, RelmObjectExt, css};
 
@@ -40,12 +40,7 @@ pub enum SelectControlMsg {
 
 #[relm4::component(pub)]
 impl Component for SelectControl {
-    type Init = (
-        SelectInit,
-        gtk::Box,
-        Option<gtk::SizeGroup>,
-        Option<gtk::SizeGroup>,
-    );
+    type Init = ControlInit<SelectInit>;
     type Input = SelectControlMsg;
     type Output = u32;
     type CommandOutput = ();
@@ -83,7 +78,12 @@ impl Component for SelectControl {
     }
 
     fn init(
-        (init, title, label_group, input_group): Self::Init,
+        ControlInit {
+            init,
+            title,
+            label_group,
+            input_group,
+        }: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {

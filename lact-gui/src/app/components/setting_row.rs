@@ -151,6 +151,13 @@ impl<Key> SettingRow<Key> {
     }
 }
 
+pub struct ControlInit<T> {
+    pub init: T,
+    pub title: gtk::Box,
+    pub label_group: Option<gtk::SizeGroup>,
+    pub input_group: Option<gtk::SizeGroup>,
+}
+
 pub enum SettingControl {
     Adjustment(Controller<AdjustmentControl>),
     Boolean(Controller<BooleanControl>),
@@ -174,21 +181,36 @@ impl SettingControl {
         match init.control {
             SettingControlInit::Adjustment(init) => Self::Adjustment(
                 AdjustmentControl::builder()
-                    .launch((init, title, label_group, input_group))
+                    .launch(ControlInit {
+                        init,
+                        title,
+                        label_group,
+                        input_group,
+                    })
                     .forward(output, move |value| {
                         (key.clone(), SettingRowValue::Numeric(value))
                     }),
             ),
             SettingControlInit::Boolean(init) => Self::Boolean(
                 BooleanControl::builder()
-                    .launch((init, title, label_group, input_group))
+                    .launch(ControlInit {
+                        init,
+                        title,
+                        label_group,
+                        input_group,
+                    })
                     .forward(output, move |value| {
                         (key.clone(), SettingRowValue::Boolean(value))
                     }),
             ),
             SettingControlInit::Select(init) => Self::Select(
                 SelectControl::builder()
-                    .launch((init, title, label_group, input_group))
+                    .launch(ControlInit {
+                        init,
+                        title,
+                        label_group,
+                        input_group,
+                    })
                     .forward(output, move |value| {
                         (key.clone(), SettingRowValue::Selected(value))
                     }),

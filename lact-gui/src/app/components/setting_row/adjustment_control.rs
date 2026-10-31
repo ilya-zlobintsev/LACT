@@ -1,4 +1,4 @@
-use super::{adjustment_value::AdjustmentValue, setting_value::SettingValue};
+use super::{ControlInit, adjustment_value::AdjustmentValue, setting_value::SettingValue};
 use crate::app::utils::{ext::make_event_controller_no_scroll, formatting::fmt_value_with_unit};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, css};
@@ -48,12 +48,7 @@ pub enum AdjustmentControlMsg {
 
 #[relm4::component(pub)]
 impl Component for AdjustmentControl {
-    type Init = (
-        AdjustmentInit,
-        gtk::Box,
-        Option<gtk::SizeGroup>,
-        Option<gtk::SizeGroup>,
-    );
+    type Init = ControlInit<AdjustmentInit>;
     type Input = AdjustmentControlMsg;
     type Output = f64;
     type CommandOutput = ();
@@ -111,7 +106,12 @@ impl Component for AdjustmentControl {
     }
 
     fn init(
-        (init, title, label_group, input_group): Self::Init,
+        ControlInit {
+            init,
+            title,
+            label_group,
+            input_group,
+        }: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {

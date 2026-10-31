@@ -14,6 +14,11 @@ pub struct AmdPowerProfileMode {
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
+pub struct AmdPowerProfileModeSerialized {
+    pub index: u16,
+    pub custom_heuristics: Vec<Vec<Option<i32>>>,
+}
+
 #[derive(Debug)]
 pub enum AmdPowerProfileModeMsg {
     PerformanceLevel(Option<PerformanceLevel>),
@@ -181,11 +186,11 @@ impl AmdPowerProfileMode {
     }
 
     /// Serialize the active mode with its custom heuristics; modes only apply at the manual level.
-    pub fn serialize(&self) -> Option<(u16, Vec<Vec<Option<i32>>>)> {
+    pub fn serialize(&self) -> Option<AmdPowerProfileModeSerialized> {
         if self.performance_level != Some(PerformanceLevel::Manual) {
             return None;
         }
-        let heuristics = match self.table.modes.get(&self.table.active) {
+        let custom_heuristics = match self.table.modes.get(&self.table.active) {
             Some(mode) if mode.is_custom() => self
                 .heuristics_components
                 .iter()
@@ -193,6 +198,9 @@ impl AmdPowerProfileMode {
                 .collect(),
             _ => Vec::new(),
         };
-        Some((self.table.active, heuristics))
+        Some(AmdPowerProfileModeSerialized {
+            index: self.table.active,
+            custom_heuristics,
+        })
     }
 }
