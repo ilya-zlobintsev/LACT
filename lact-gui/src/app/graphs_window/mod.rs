@@ -5,7 +5,7 @@ pub mod stat;
 use crate::app::{APP_BROKER, msg::AppMsg};
 use crate::{CONFIG, I18N};
 use anyhow::Context;
-use gtk::{glib, prelude::*};
+use gtk::prelude::*;
 use i18n_embed_fl::fl;
 use jiff::Zoned;
 use lact_schema::DeviceStats;
@@ -339,10 +339,6 @@ impl GraphsWindow {
         self.plots.broadcast(PlotComponentMsg::Redraw);
     }
 }
-
-#[derive(Clone, glib::Boxed)]
-#[boxed_type(name = "DynamicIndexValue")]
-pub struct DynamicIndexValue(DynamicIndex);
 
 fn default_plots() -> Vec<Vec<StatType>> {
     vec![

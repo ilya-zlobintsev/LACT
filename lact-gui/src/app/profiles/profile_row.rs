@@ -1,7 +1,8 @@
 use crate::I18N;
 use crate::app::profiles::ProfileSelectorMsg;
+use crate::app::utils::dnd::DynamicIndexValue;
 use crate::app::{APP_BROKER, msg::AppMsg};
-use gtk::{gdk, glib, graphene, pango, prelude::*};
+use gtk::{gdk, graphene, pango, prelude::*};
 use i18n_embed_fl::fl;
 use lact_schema::{ProfileRule, config::ProfileHooks};
 use relm4::{
@@ -14,10 +15,6 @@ pub struct ProfileRow {
     pub(super) selected: bool,
     pub(super) activatable: bool,
 }
-
-#[derive(Clone, glib::Boxed)]
-#[boxed_type(name = "ProfileIndexValue")]
-struct DynamicIndexValue(DynamicIndex);
 
 #[derive(Debug, Clone)]
 pub enum ProfileRowType {
