@@ -35,7 +35,6 @@ pub struct SelectControl {
     options: Vec<SelectOption>,
     title: gtk::Box,
     pub(super) size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
-    change_signal: Option<gtk::glib::SignalHandlerId>,
 }
 
 #[derive(Debug)]
@@ -102,7 +101,6 @@ impl Component for SelectControl {
             options: init.options,
             title,
             size_group_widgets: Vec::new(),
-            change_signal: None,
         };
         let widgets = view_output!();
         for (group, widget) in [
@@ -114,9 +112,9 @@ impl Component for SelectControl {
                 model.size_group_widgets.push((group, widget));
             }
         }
-        model.change_signal = Some(model.value.connect_value_notify(move |_| {
+        model.value.connect_value_notify(move |_| {
             sender.input(SelectControlMsg::Changed);
-        }));
+        });
         ComponentParts { model, widgets }
     }
 
@@ -125,12 +123,6 @@ impl Component for SelectControl {
             SelectControlMsg::Changed => {
                 let _ = sender.output(self.get_value());
             }
-        }
-    }
-
-    fn shutdown(&mut self, _widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
-        if let Some(signal) = self.change_signal.take() {
-            self.value.disconnect(signal);
         }
     }
 }
