@@ -349,6 +349,7 @@ impl AsyncComponent for AppModel {
             .expect("Failed to get application from root window");
 
         relm4::set_global_css_with_priority(styles::COMBINED_CSS, styles::APPLICATION_CSS_PRIORITY);
+        root.settings().set_gtk_icon_theme_name(Some("Adwaita"));
 
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
