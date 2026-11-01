@@ -4,7 +4,7 @@ use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
-use gtk::{glib, prelude::*, subclass::prelude::*};
+use gtk::{glib, pango, prelude::*, subclass::prelude::*};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -70,6 +70,7 @@ impl WidgetImpl for Plot {
                 width,
                 height,
                 scale_factor,
+                base_font_size: self.font_size(),
                 colors,
                 title: self.title.borrow().clone(),
                 print_extra_info: self.print_extra_info.get(),
@@ -89,6 +90,22 @@ impl WidgetImpl for Plot {
 impl Plot {
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
         self.render_thread.get_last_texture()
+    }
+
+    /// Font size of the UI, in pixels.
+    fn font_size(&self) -> f64 {
+        let description = self
+            .obj()
+            .create_pango_context()
+            .font_description()
+            .unwrap_or_default();
+        let size = f64::from(description.size()) / f64::from(pango::SCALE);
+
+        if description.is_size_absolute() {
+            size
+        } else {
+            size * 96.0 / 72.0
+        }
     }
 }
 #[cfg(feature = "bench")]
@@ -131,6 +148,7 @@ mod benches {
                     width: 1920,
                     height: 1080,
                     scale_factor: 1,
+                    base_font_size: 13.0,
                     time_period_seconds: 60,
                     print_extra_info: false,
                     stats: vec![

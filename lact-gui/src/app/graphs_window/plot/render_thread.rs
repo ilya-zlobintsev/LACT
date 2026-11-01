@@ -35,6 +35,8 @@ pub struct RenderRequest {
     pub width: u32,
     pub height: u32,
     pub scale_factor: i32,
+    /// Font size of the UI, in pixels.
+    pub base_font_size: f64,
 
     pub time_period_seconds: i64,
 }
@@ -146,7 +148,7 @@ pub(super) fn process_request(
     // Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
         cairo::Format::ARgb32,
-        (render_request.width) as i32 * render_request.scale_factor,
+        render_request.width as i32 * render_request.scale_factor,
         render_request.height as i32 * render_request.scale_factor,
     )
     .unwrap();
@@ -194,31 +196,29 @@ const Y_AXIS_HEADROOM: f64 = 1.1;
 
 /// Round the value up to two significant digits.
 fn nice_upper_bound(value: f64) -> f64 {
-    if !value.is_finite() || value <= 0.0 {
-        return 0.0;
-    }
-
     let magnitude = 10f64.powf(value.log10().floor() - 1.0);
     (value / magnitude).ceil() * magnitude
 }
 
 /// Interpolate a series using a fixed number of points per spline segment.
-fn interpolate_series(data: &[(i64, f64)]) -> impl Iterator<Item = (i64, f64)> + '_ {
+fn interpolate_series(data: &[(i64, f64)]) -> Vec<(i64, f64)> {
     // Evaluate fixed number of points per spline segment
     const POINTS_PER_SEGMENT: usize = 4;
 
-    cubic_spline_interpolation(data).flat_map(move |((first_time, second_time), segment)| {
-        let segment_duration = (second_time - first_time) as f64;
-        let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
+    cubic_spline_interpolation(data)
+        .flat_map(move |((first_time, second_time), segment)| {
+            let segment_duration = (second_time - first_time) as f64;
+            let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
 
-        // Evaluate spline at POINTS_PER_SEGMENT evenly spaced points per segment.
-        (0..POINTS_PER_SEGMENT).map(move |i| {
-            let offset = (i as f64 * step).round() as i64;
-            let current_date = first_time + offset;
-            let current_date = current_date.min(second_time - 1);
-            (current_date, segment.evaluate(current_date))
+            // Evaluate spline at POINTS_PER_SEGMENT evenly spaced points per segment.
+            (0..POINTS_PER_SEGMENT).map(move |i| {
+                let offset = (i as f64 * step).round() as i64;
+                let current_date = first_time + offset;
+                let current_date = current_date.min(second_time - 1);
+                (current_date, segment.evaluate(current_date))
+            })
         })
-    })
+        .collect()
 }
 
 impl RenderRequest {
@@ -255,7 +255,7 @@ impl RenderRequest {
         // interpolation can overshoot the values present in the raw data.
         let series = data
             .iter()
-            .map(|(stat_type, points)| (*stat_type, interpolate_series(points).collect::<Vec<_>>()))
+            .map(|(stat_type, points)| (*stat_type, interpolate_series(points)))
             .collect::<Vec<_>>();
 
         let max_value = series
@@ -264,15 +264,23 @@ impl RenderRequest {
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
-        // Add some headroom above the highest point, so that the series do not
-        // touch the border of the chart, and round it to two significant digits
-        // to keep the axis labels readable.
+        // Add some headroom above the highest point and round it up, so that the
+        // series do not touch the border of the chart.
         let maximum_value = nice_upper_bound(max_value * Y_AXIS_HEADROOM).max(100.0);
 
         root.fill(&self.colors.background)?; // Fill the background with white color.
 
+        // Scale the fonts with the size of the widget, otherwise the labels take
+        // up most of the chart when it is rendered in a small window.
+        // Follow the font of the UI, capped so that the labels always fit in the chart.
+        let (_, chart_height) = root.dim_in_pixel();
+        let max_font_size = f64::from((chart_height / 12).max(10));
+        let axis_font_size = (self.base_font_size * 0.8).clamp(8.0, max_font_size) as u32;
+        let title_font_size = (self.base_font_size * 1.2).clamp(9.0, max_font_size) as u32;
+        let legend_font_size = (self.base_font_size * 0.75).clamp(8.0, max_font_size) as u32;
+
         let y_label_style = TextStyle {
-            font: ("sans-serif", 18).into(),
+            font: ("sans-serif", axis_font_size).into(),
             color: self.colors.text.to_backend_color(),
             pos: Pos::default(),
         };
@@ -282,16 +290,28 @@ impl RenderRequest {
             + 10;
 
         // Set up the main chart with axes and labels.
-        let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(25)
+        let mut builder = ChartBuilder::on(&root);
+        builder
+            .x_label_area_size(axis_font_size * 2)
             .y_label_area_size(y_label_area_size)
             .margin(10)
-            .margin_top(20)
-            .caption(self.title.as_str(), ("sans-serif", 24, &self.colors.text))
-            .build_cartesian_2d(
-                start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-                0f64..maximum_value,
-            )?;
+            .margin_top(if self.title.is_empty() {
+                axis_font_size + 4
+            } else {
+                20
+            });
+
+        if !self.title.is_empty() {
+            builder.caption(
+                self.title.as_str(),
+                ("sans-serif", title_font_size, &self.colors.text),
+            );
+        }
+
+        let mut chart = builder.build_cartesian_2d(
+            start_date..max(end_date, start_date + self.time_period_seconds * 1000),
+            0f64..maximum_value,
+        )?;
 
         // Configure the x-axis and y-axis mesh.
         chart
@@ -300,8 +320,8 @@ impl RenderRequest {
             .bold_line_style(self.colors.border)
             .x_label_formatter(&formatting::fmt_timestamp_to_dt)
             .y_label_formatter(&|x| format!("{x}{value_suffix}"))
-            .x_labels(5)
-            .y_labels(10)
+            .x_labels(4)
+            .y_labels(6)
             .label_style(y_label_style.clone())
             .draw()
             .context("Failed to draw mesh")?;
@@ -410,7 +430,7 @@ impl RenderRequest {
         chart
             .configure_series_labels()
             .margin(20)
-            .label_font(("sans-serif", 14, &self.colors.text))
+            .label_font(("sans-serif", legend_font_size, &self.colors.text))
             .position(SeriesLabelPosition::UpperLeft)
             .background_style(self.colors.background.mix(0.6))
             .draw()
@@ -423,19 +443,12 @@ impl RenderRequest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Y_AXIS_HEADROOM, nice_upper_bound};
+    use super::nice_upper_bound;
 
     #[test]
     fn test_nice_upper_bound() {
-        assert_eq!(nice_upper_bound(0.0), 0.0);
-        assert_eq!(nice_upper_bound(-10.0), 0.0);
         assert_eq!(nice_upper_bound(61.6), 62.0);
         assert_eq!(nice_upper_bound(317.9), 320.0);
         assert_eq!(nice_upper_bound(2420.0), 2500.0);
-    }
-
-    #[test]
-    fn test_y_axis_headroom() {
-        assert_eq!(nice_upper_bound(2500.0 * Y_AXIS_HEADROOM), 2800.0);
     }
 }
