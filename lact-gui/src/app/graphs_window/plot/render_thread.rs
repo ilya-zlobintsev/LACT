@@ -161,6 +161,15 @@ pub(super) fn process_request(
 
     let cairo_context = CairoContext::new(&surface).unwrap();
 
+    // The surface does not inherit the font options of GTK, without hinting the
+    // small labels look blurry.
+    if let Ok(mut font_options) = cairo::FontOptions::new() {
+        font_options.set_antialias(cairo::Antialias::Gray);
+        font_options.set_hint_style(cairo::HintStyle::Full);
+        font_options.set_hint_metrics(cairo::HintMetrics::On);
+        cairo_context.set_font_options(&font_options);
+    }
+
     if let Err(err) = render_request.draw(&cairo_context) {
         error!("Failed to plot chart: {err:?}")
     }
