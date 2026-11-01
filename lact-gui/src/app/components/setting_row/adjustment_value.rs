@@ -1,4 +1,3 @@
-use super::setting_value::SettingValue;
 use adw::prelude::*;
 
 /// A numeric setting stored in a shared GTK adjustment, with raw/display unit conversion.
@@ -38,26 +37,22 @@ impl AdjustmentValue {
         self.value.set_upper(upper * ratio);
         self.set_value(value);
     }
-}
 
-impl SettingValue for AdjustmentValue {
-    type Value = f64;
-
-    fn get_value(&self) -> f64 {
+    pub fn get_value(&self) -> f64 {
         self.value.value() / self.value_ratio
     }
 
-    fn set_value(&self, value: f64) {
+    pub fn set_value(&self, value: f64) {
         self.value.set_value(value * self.value_ratio);
     }
 
-    fn reset(&self) {
+    pub fn reset(&self) {
         if let Some(value) = self.default_value {
             self.set_value(value);
         }
     }
 
-    fn serialize(&self) -> Option<f64> {
+    pub fn serialize(&self) -> Option<f64> {
         let value = self.get_value();
         (Some(value) != self.default_value).then_some(value)
     }

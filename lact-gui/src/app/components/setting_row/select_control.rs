@@ -1,4 +1,4 @@
-use super::{ControlInit, select_value::SelectValue, setting_value::SettingValue};
+use super::{ControlInit, select_value::SelectValue};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, RelmObjectExt, css};
 

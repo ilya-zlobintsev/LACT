@@ -1,4 +1,4 @@
-use super::{ControlInit, adjustment_value::AdjustmentValue, setting_value::SettingValue};
+use super::{ControlInit, adjustment_value::AdjustmentValue};
 use crate::app::utils::{ext::make_event_controller_no_scroll, formatting::fmt_value_with_unit};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, css};

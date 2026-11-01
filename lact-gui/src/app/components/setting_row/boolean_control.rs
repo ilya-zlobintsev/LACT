@@ -1,4 +1,4 @@
-use super::{ControlInit, boolean_value::BooleanValue, setting_value::SettingValue};
+use super::{ControlInit, boolean_value::BooleanValue};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, binding::ConnectBinding};
 

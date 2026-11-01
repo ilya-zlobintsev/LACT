@@ -4,11 +4,10 @@ mod boolean_control;
 mod boolean_value;
 mod select_control;
 mod select_value;
-mod setting_value;
 
 use self::{
     adjustment_control::AdjustmentControl, boolean_control::BooleanControl,
-    select_control::SelectControl, setting_value::SettingValue,
+    select_control::SelectControl,
 };
 #[expect(unused_imports, reason = "setting-row-migration")]
 pub use self::{
