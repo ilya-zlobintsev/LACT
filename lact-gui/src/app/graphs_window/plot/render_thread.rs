@@ -189,6 +189,19 @@ impl Default for RenderThread {
     }
 }
 
+/// How much empty space to leave above the highest data point of a plot.
+const Y_AXIS_HEADROOM: f64 = 1.1;
+
+/// Round the value up to two significant digits.
+fn nice_upper_bound(value: f64) -> f64 {
+    if !value.is_finite() || value <= 0.0 {
+        return 0.0;
+    }
+
+    let magnitude = 10f64.powf(value.log10().floor() - 1.0);
+    (value / magnitude).ceil() * magnitude
+}
+
 /// Interpolate a series using a fixed number of points per spline segment.
 fn interpolate_series(data: &[(i64, f64)]) -> impl Iterator<Item = (i64, f64)> + '_ {
     // Evaluate fixed number of points per spline segment
@@ -245,16 +258,16 @@ impl RenderRequest {
             .map(|(stat_type, points)| (*stat_type, interpolate_series(points).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
-        // Calculate the maximum value for the y-axis.
-        let mut maximum_value = series
+        let max_value = series
             .iter()
             .flat_map(|(_, points)| points.iter().map(|(_, value)| *value))
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
-        if maximum_value < 100.0 {
-            maximum_value = 100.0;
-        }
+        // Add some headroom above the highest point, so that the series do not
+        // touch the border of the chart, and round it to two significant digits
+        // to keep the axis labels readable.
+        let maximum_value = nice_upper_bound(max_value * Y_AXIS_HEADROOM).max(100.0);
 
         root.fill(&self.colors.background)?; // Fill the background with white color.
 
@@ -405,5 +418,24 @@ impl RenderRequest {
 
         root.present()?; // Present the final image.
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Y_AXIS_HEADROOM, nice_upper_bound};
+
+    #[test]
+    fn test_nice_upper_bound() {
+        assert_eq!(nice_upper_bound(0.0), 0.0);
+        assert_eq!(nice_upper_bound(-10.0), 0.0);
+        assert_eq!(nice_upper_bound(61.6), 62.0);
+        assert_eq!(nice_upper_bound(317.9), 320.0);
+        assert_eq!(nice_upper_bound(2420.0), 2500.0);
+    }
+
+    #[test]
+    fn test_y_axis_headroom() {
+        assert_eq!(nice_upper_bound(2500.0 * Y_AXIS_HEADROOM), 2800.0);
     }
 }
