@@ -245,6 +245,9 @@ async fn handle_request<'a>(
         Request::MoveProfile { name, new_position } => {
             ok_response(handler.move_profile(&name, new_position).await?)
         }
+        Request::RenameProfile { name, new_name } => {
+            ok_response(handler.rename_profile(&name, new_name).await?)
+        }
         Request::HoldProfile { name } => ok_response(
             handler
                 .hold_profile(name, disconnect_notify.clone())

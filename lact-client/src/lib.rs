@@ -204,6 +204,11 @@ impl DaemonClient {
             .await
     }
 
+    pub async fn rename_profile(&self, name: String, new_name: String) -> anyhow::Result<()> {
+        self.make_request(Request::RenameProfile { name, new_name })
+            .await
+    }
+
     pub async fn hold_profile(&self, name: String) -> anyhow::Result<u64> {
         self.make_request(Request::HoldProfile { name }).await
     }

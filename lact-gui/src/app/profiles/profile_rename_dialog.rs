@@ -21,7 +21,6 @@ impl relm4::Component for ProfileRenameDialog {
     type CommandOutput = ();
 
     view! {
-        #[root]
         adw::Dialog {
             set_content_width: 420,
             set_title: &fl!(I18N, "rename-profile"),
