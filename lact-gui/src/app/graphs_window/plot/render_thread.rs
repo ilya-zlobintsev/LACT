@@ -158,13 +158,7 @@ pub(super) fn process_request(
 
     let cairo_context = CairoContext::new(&surface).unwrap();
 
-    let cairo_backend = CairoBackend::new(
-        &cairo_context,
-        (render_request.width, render_request.height),
-    )
-    .unwrap();
-
-    if let Err(err) = render_request.draw(cairo_backend) {
+    if let Err(err) = render_request.draw(&cairo_context) {
         error!("Failed to plot chart: {err:?}")
     }
 
@@ -195,14 +189,29 @@ impl Default for RenderThread {
     }
 }
 
+/// Interpolate a series using a fixed number of points per spline segment.
+fn interpolate_series(data: &[(i64, f64)]) -> impl Iterator<Item = (i64, f64)> + '_ {
+    // Evaluate fixed number of points per spline segment
+    const POINTS_PER_SEGMENT: usize = 4;
+
+    cubic_spline_interpolation(data).flat_map(move |((first_time, second_time), segment)| {
+        let segment_duration = (second_time - first_time) as f64;
+        let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
+
+        // Evaluate spline at POINTS_PER_SEGMENT evenly spaced points per segment.
+        (0..POINTS_PER_SEGMENT).map(move |i| {
+            let offset = (i as f64 * step).round() as i64;
+            let current_date = first_time + offset;
+            let current_date = current_date.min(second_time - 1);
+            (current_date, segment.evaluate(current_date))
+        })
+    })
+}
+
 impl RenderRequest {
     // Method to handle the actual drawing of the chart.
-    pub fn draw<'a, DB>(&self, backend: DB) -> anyhow::Result<()>
-    where
-        DB: DrawingBackend + 'a,
-        <DB as plotters::prelude::DrawingBackend>::ErrorType: 'static,
-    {
-        let root = backend.into_drawing_area(); // Create the drawing area.
+    pub fn draw(&self, cairo_context: &CairoContext) -> anyhow::Result<()> {
+        let root = CairoBackend::new(cairo_context, (self.width, self.height))?.into_drawing_area();
 
         let data_guard = self.data.read().unwrap();
 
@@ -229,10 +238,17 @@ impl RenderRequest {
                 .unwrap_or_default()
         };
 
-        // Calculate the maximum value for the y-axis.
-        let mut maximum_value = data
+        // Calculate the y-axis range from the interpolated points, since the
+        // interpolation can overshoot the values present in the raw data.
+        let series = data
             .iter()
-            .flat_map(|(_, list)| list.iter().map(|(_, value)| *value))
+            .map(|(stat_type, points)| (*stat_type, interpolate_series(points).collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+
+        // Calculate the maximum value for the y-axis.
+        let mut maximum_value = series
+            .iter()
+            .flat_map(|(_, points)| points.iter().map(|(_, value)| *value))
             .max_by(|x, y| x.partial_cmp(y).unwrap_or(cmp::Ordering::Equal))
             .unwrap_or_default();
 
@@ -277,8 +293,20 @@ impl RenderRequest {
             .draw()
             .context("Failed to draw mesh")?;
 
+        // Clip the series to the plotting area, otherwise points which are out of
+        // the axis range are drawn over the axis labels and the chart title.
+        let (x_range, y_range) = chart.plotting_area().get_pixel_range();
+        cairo_context.save()?;
+        cairo_context.rectangle(
+            x_range.start as f64,
+            y_range.start as f64,
+            (x_range.end - x_range.start) as f64,
+            (y_range.end - y_range.start) as f64,
+        );
+        cairo_context.clip();
+
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, data)) in data.iter().enumerate() {
+        for (idx, (stat_type, data)) in series.iter().enumerate() {
             let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
             let max_value = data
                 .iter()
@@ -303,25 +331,9 @@ impl RenderRequest {
                 write!(stat_label, ", Avg {avg_value:.*}{stat_suffix}", precision).unwrap();
             }
 
-            // Evaluate fixed number of points per spline segment
-            const POINTS_PER_SEGMENT: usize = 4;
-
             chart
                 .draw_series(LineSeries::new(
-                    cubic_spline_interpolation(data).flat_map(
-                        move |((first_time, second_time), segment)| {
-                            let segment_duration = (second_time - first_time) as f64;
-                            let step = segment_duration / (POINTS_PER_SEGMENT as f64 - 1.0);
-
-                            // Evaluate spline at POINTS_PER_SEGMENT evenly spaced points per segment.
-                            (0..POINTS_PER_SEGMENT).map(move |i| {
-                                let offset = (i as f64 * step).round() as i64;
-                                let current_date = first_time + offset;
-                                let current_date = current_date.min(second_time - 1);
-                                (current_date, segment.evaluate(current_date))
-                            })
-                        },
-                    ),
+                    data.iter().copied(),
                     Palette99::pick(idx).stroke_width(2),
                 ))
                 .context("Failed to draw series")?
@@ -378,6 +390,8 @@ impl RenderRequest {
                     )
                 });
         }
+
+        cairo_context.restore()?;
 
         // Configure and draw series labels (the legend).
         chart
