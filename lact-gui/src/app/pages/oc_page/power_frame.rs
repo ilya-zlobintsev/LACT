@@ -3,37 +3,68 @@ use crate::{
     app::{
         components::{
             adjustment_card::AdjustmentCard,
-            adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
             page_section::PageSection,
+            setting_row::{
+                AdjustmentInit, SelectInit, SelectOption, SettingRow, SettingRowInit,
+                SettingRowMsg, SettingRowValue,
+            },
         },
         msg::AppMsg,
         pages::oc_page::{
             OcPageMsg,
-            performance_frame::{PerformanceFrame, PerformanceFrameMsg},
+            power_profile_mode::{AmdPowerProfileMode, AmdPowerProfileModeMsg},
         },
-        utils::ext::RelmDefaultLauchable,
     },
 };
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use i18n_embed_fl::fl;
-use lact_schema::PowerStats;
+use lact_schema::DeviceStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
-    ComponentController, ComponentParts, ComponentSender, WidgetTemplate, factory::FactoryHashMap,
+    ComponentController, ComponentParts, ComponentSender, Controller, WidgetTemplate,
+    factory::FactoryHashMap,
 };
+use std::sync::Arc;
+
+const PERFORMANCE_LEVELS: [PerformanceLevel; 8] = [
+    PerformanceLevel::Auto,
+    PerformanceLevel::High,
+    PerformanceLevel::Low,
+    PerformanceLevel::Manual,
+    PerformanceLevel::ProfileStandard,
+    PerformanceLevel::ProfileMinSclk,
+    PerformanceLevel::ProfileMinMclk,
+    PerformanceLevel::ProfilePeak,
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum PowerSetting {
+    PowerCap,
+    PerformanceLevel,
+    PowerMizer,
+}
+
+pub struct PowerFrameSerialized {
+    pub power_cap: Option<f64>,
+    pub performance_level: Option<PerformanceLevel>,
+    pub power_mizer_mode: Option<PowerMizerMode>,
+    pub power_profile_mode_index: Option<u16>,
+    pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
+}
 
 pub struct PowerFrame {
-    power: PowerStats,
-    power_row: FactoryHashMap<(), AdjustmentRow<()>>,
-    performance_frame: relm4::Controller<PerformanceFrame>,
+    rows: FactoryHashMap<PowerSetting, SettingRow<PowerSetting>>,
+    supported_power_mizer_modes: Vec<PowerMizerMode>,
+    power_profile_mode: Option<Controller<AmdPowerProfileMode>>,
 }
 
 #[derive(Debug)]
 pub enum PowerFrameMsg {
-    PowerStats(PowerStats),
-    Performance(PerformanceFrameMsg),
-    RefreshVisibility,
+    Stats(Arc<DeviceStats>),
+    SetPerformanceLevel(PerformanceLevel),
+    PowerProfileModes(Option<PowerProfileModesTable>),
+    SettingChanged(PowerSetting),
     Reset,
 }
 
@@ -50,20 +81,17 @@ impl relm4::Component for PowerFrame {
             set_name: fl!(I18N, "power-section"),
             set_hide_visible_container: true,
             #[watch]
-            set_visible: model.is_available(),
+            set_visible: !model.rows.is_empty() || model.power_profile_mode.is_some(),
 
             append_header = &gtk::Button {
                 set_label: &fl!(I18N, "default-button"),
                 connect_clicked => PowerFrameMsg::Reset,
-
                 set_halign: gtk::Align::End,
                 set_hexpand: true,
                 #[watch]
-                set_visible: !model.power_row.is_empty(),
+                set_visible: !model.rows.is_empty(),
             },
-            #[template]
-            #[local]
-            append_child = &card -> AdjustmentCard {},
+            append_child = model.rows.widget(),
         },
     }
 
@@ -72,31 +100,21 @@ impl relm4::Component for PowerFrame {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let card = AdjustmentCard::init(());
         let model = Self {
-            power: PowerStats::default(),
-            power_row: FactoryHashMap::builder()
-                .launch(card.content.clone())
-                .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
-            performance_frame: PerformanceFrame::launch_default()
-                .forward(sender.output_sender(), |msg| msg),
+            rows: FactoryHashMap::builder()
+                .launch(AdjustmentCard::init(()).content.clone())
+                .forward(sender.input_sender(), |(setting, _)| {
+                    PowerFrameMsg::SettingChanged(setting)
+                }),
+            supported_power_mizer_modes: Vec::new(),
+            power_profile_mode: None,
         };
-        for row in model.performance_frame.widget().rows() {
-            card.content.append(row);
-            let visibility_sender = sender.clone();
-            row.connect_visible_notify(move |_| {
-                visibility_sender.input(PowerFrameMsg::RefreshVisibility);
-            });
-        }
-
         let widgets = view_output!();
-        let rows = model.performance_frame.widget().rows().map(Clone::clone);
-        // FIXME: performance rows should be factory items like AdjustmentRow; until then
-        // sort to keep the power limit before them when the factory recreates it.
-        model.power_row.widget().set_sort_func(move |left, right| {
-            rows.iter()
-                .position(|row| row == left)
-                .cmp(&rows.iter().position(|row| row == right))
+
+        model.rows.widget().set_sort_func(|left, right| {
+            // Keep the power profile mode row after dynamically inserted setting rows.
+            left.has_css_class("power-profile-mode")
+                .cmp(&right.has_css_class("power-profile-mode"))
                 .into()
         });
 
@@ -111,35 +129,124 @@ impl relm4::Component for PowerFrame {
         _root: &Self::Root,
     ) {
         match msg {
-            PowerFrameMsg::PowerStats(power) => {
-                self.power_row.clear();
-
-                if let Some(value) = power.cap_current {
-                    self.power_row.insert(
-                        (),
-                        AdjustmentRowInit {
+            PowerFrameMsg::Stats(stats) => {
+                self.rows.clear();
+                let power = &stats.power;
+                if let Some(value) = power.cap_current
+                    && let Some(lower) = power.cap_min
+                    && let Some(upper) = power.cap_max
+                {
+                    self.rows.insert(
+                        PowerSetting::PowerCap,
+                        SettingRowInit {
                             title: fl!(I18N, "power-cap"),
-                            unit: fl!(I18N, "watt"),
-                            value,
-                            lower: power.cap_min.unwrap_or_default(),
-                            upper: power.cap_max.unwrap_or_default(),
+                            control: AdjustmentInit {
+                                unit: fl!(I18N, "watt"),
+                                value,
+                                default_value: power.cap_default,
+                                lower,
+                                upper,
+                                ..Default::default()
+                            }
+                            .into(),
                             ..Default::default()
                         },
                     );
                 }
 
-                self.power = power;
-            }
-            PowerFrameMsg::Performance(msg) => {
-                self.performance_frame.emit(msg);
-            }
-            PowerFrameMsg::RefreshVisibility => (),
-            PowerFrameMsg::Reset => {
-                if !self.power_row.is_empty() {
-                    self.power_row.send(
-                        &(),
-                        AdjustmentRowMsg::SetValue(self.power.cap_default.unwrap_or_default()),
+                if let Some(level) = stats.performance_level {
+                    self.rows.insert(
+                        PowerSetting::PerformanceLevel,
+                        SettingRowInit {
+                            title: fl!(I18N, "performance-level"),
+                            control: SelectInit {
+                                default_value: PERFORMANCE_LEVELS
+                                    .iter()
+                                    .position(|level| *level == PerformanceLevel::Auto)
+                                    .map(|index| index as u32),
+                                options: PERFORMANCE_LEVELS
+                                    .iter()
+                                    .copied()
+                                    .map(performance_option)
+                                    .collect(),
+                                selected: PERFORMANCE_LEVELS
+                                    .iter()
+                                    .position(|candidate| *candidate == level)
+                                    .map(|index| index as u32),
+                            }
+                            .into(),
+                            ..Default::default()
+                        },
                     );
+                }
+
+                self.supported_power_mizer_modes = stats
+                    .supported_power_mizer_modes
+                    .clone()
+                    .unwrap_or_default();
+                if let Some(active) = stats.active_power_mizer_mode {
+                    self.rows.insert(
+                        PowerSetting::PowerMizer,
+                        SettingRowInit {
+                            title: fl!(I18N, "power-mizer-mode"),
+                            control: SelectInit {
+                                default_value: self
+                                    .supported_power_mizer_modes
+                                    .iter()
+                                    .position(|mode| *mode == PowerMizerMode::Auto)
+                                    .map(|index| index as u32),
+                                options: self
+                                    .supported_power_mizer_modes
+                                    .iter()
+                                    .copied()
+                                    .map(power_mizer_option)
+                                    .collect(),
+                                selected: self
+                                    .supported_power_mizer_modes
+                                    .iter()
+                                    .position(|mode| *mode == active)
+                                    .map(|index| index as u32),
+                            }
+                            .into(),
+                            ..Default::default()
+                        },
+                    );
+                }
+
+                self.performance_level_changed(&sender);
+            }
+            PowerFrameMsg::SetPerformanceLevel(level) => {
+                if self.rows.get(&PowerSetting::PerformanceLevel).is_some()
+                    && let Some(index) = PERFORMANCE_LEVELS
+                        .iter()
+                        .position(|candidate| *candidate == level)
+                {
+                    self.rows.send(
+                        &PowerSetting::PerformanceLevel,
+                        SettingRowMsg::SetValue(SettingRowValue::Selected(index as u32)),
+                    );
+                }
+            }
+            PowerFrameMsg::PowerProfileModes(table) => {
+                if let Some(power_profile_mode) = self.power_profile_mode.take() {
+                    self.rows.widget().remove(power_profile_mode.widget());
+                }
+                self.power_profile_mode = table.map(|table| {
+                    AmdPowerProfileMode::builder()
+                        .attach_to(self.rows.widget())
+                        .launch((table, self.performance_level()))
+                        .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged)
+                });
+            }
+            PowerFrameMsg::SettingChanged(setting) => {
+                APP_BROKER.send(AppMsg::SettingsChanged);
+                if setting == PowerSetting::PerformanceLevel {
+                    self.performance_level_changed(&sender);
+                }
+            }
+            PowerFrameMsg::Reset => {
+                for setting in self.rows.keys() {
+                    self.rows.send(setting, SettingRowMsg::Reset);
                 }
             }
         }
@@ -149,38 +256,114 @@ impl relm4::Component for PowerFrame {
 }
 
 impl PowerFrame {
-    fn is_available(&self) -> bool {
-        !self.power_row.is_empty()
-            || self
-                .performance_frame
-                .widget()
-                .rows()
-                .iter()
-                .any(|row| row.get_visible())
+    pub fn serialize(&self) -> PowerFrameSerialized {
+        let value = |setting| self.rows.get(&setting).and_then(SettingRow::serialize);
+        let selected = |setting| value(setting).and_then(SettingRowValue::as_selected);
+        let power_profile_mode = self
+            .power_profile_mode
+            .as_ref()
+            .and_then(|power_profile_mode| power_profile_mode.model().serialize());
+        PowerFrameSerialized {
+            power_cap: value(PowerSetting::PowerCap).and_then(SettingRowValue::as_numeric),
+            performance_level: selected(PowerSetting::PerformanceLevel)
+                .and_then(|index| PERFORMANCE_LEVELS.get(index as usize).copied()),
+            power_mizer_mode: selected(PowerSetting::PowerMizer).and_then(|index| {
+                self.supported_power_mizer_modes
+                    .get(index as usize)
+                    .copied()
+            }),
+            power_profile_mode_index: power_profile_mode.as_ref().map(|mode| mode.index),
+            custom_power_profile_mode_hueristics: power_profile_mode
+                .map(|mode| mode.custom_heuristics)
+                .unwrap_or_default(),
+        }
     }
 
-    pub fn get_user_cap(&self) -> Option<f64> {
-        self.power_row
-            .get(&())?
-            .get_changed_value()
-            .filter(|value| *value != 0.0)
+    fn selected(&self, setting: PowerSetting) -> Option<u32> {
+        self.rows.get(&setting)?.get_value().as_selected()
     }
 
     pub fn performance_level(&self) -> Option<PerformanceLevel> {
-        self.performance_frame.model().performance_level()
+        PERFORMANCE_LEVELS
+            .get(self.selected(PowerSetting::PerformanceLevel)? as usize)
+            .copied()
     }
 
-    pub fn active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
-        self.performance_frame.model().active_power_mizer_mode()
+    fn performance_level_changed(&self, sender: &ComponentSender<Self>) {
+        if let Some(power_profile_mode) = &self.power_profile_mode {
+            power_profile_mode.emit(AmdPowerProfileModeMsg::PerformanceLevel(
+                self.performance_level(),
+            ));
+        }
+        sender.output(OcPageMsg::PerformanceLevelChanged).unwrap();
     }
+}
 
-    pub fn power_profile_mode(&self) -> Option<u16> {
-        self.performance_frame.model().power_profile_mode()
-    }
+fn performance_option(level: PerformanceLevel) -> SelectOption {
+    let (label, description) = match level {
+        PerformanceLevel::Auto => (
+            fl!(I18N, "performance-level-auto"),
+            fl!(I18N, "performance-level-auto-description"),
+        ),
+        PerformanceLevel::High => (
+            fl!(I18N, "performance-level-high"),
+            fl!(I18N, "performance-level-high-description"),
+        ),
+        PerformanceLevel::Low => (
+            fl!(I18N, "performance-level-low"),
+            fl!(I18N, "performance-level-low-description"),
+        ),
+        PerformanceLevel::Manual => (
+            fl!(I18N, "performance-level-manual"),
+            fl!(I18N, "performance-level-manual-description"),
+        ),
+        PerformanceLevel::ProfileStandard => (
+            fl!(I18N, "performance-level-profile-standard"),
+            fl!(I18N, "performance-level-profile-standard-description"),
+        ),
+        PerformanceLevel::ProfileMinSclk => (
+            fl!(I18N, "performance-level-profile-min-sclk"),
+            fl!(I18N, "performance-level-profile-min-sclk-description"),
+        ),
+        PerformanceLevel::ProfileMinMclk => (
+            fl!(I18N, "performance-level-profile-min-mclk"),
+            fl!(I18N, "performance-level-profile-min-mclk-description"),
+        ),
+        PerformanceLevel::ProfilePeak => (
+            fl!(I18N, "performance-level-profile-peak"),
+            fl!(I18N, "performance-level-profile-peak-description"),
+        ),
+        PerformanceLevel::PerfDeterminism | PerformanceLevel::ProfileExit => {
+            (level.to_string(), String::new())
+        }
+    };
+    SelectOption { label, description }
+}
 
-    pub fn power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        self.performance_frame
-            .model()
-            .power_profile_mode_custom_heuristics()
-    }
+fn power_mizer_option(mode: PowerMizerMode) -> SelectOption {
+    let (label, description) = match mode {
+        PowerMizerMode::Auto => (
+            fl!(I18N, "power-mizer-mode-auto"),
+            fl!(I18N, "power-mizer-mode-auto-description"),
+        ),
+        PowerMizerMode::Adaptive => (
+            fl!(I18N, "power-mizer-mode-adaptive"),
+            fl!(I18N, "power-mizer-mode-adaptive-description"),
+        ),
+        PowerMizerMode::PreferMaximumPerformance => (
+            fl!(I18N, "power-mizer-mode-prefer-maximum-performance"),
+            fl!(
+                I18N,
+                "power-mizer-mode-prefer-maximum-performance-description"
+            ),
+        ),
+        PowerMizerMode::PreferConsistentPerformance => (
+            fl!(I18N, "power-mizer-mode-prefer-consistent-performance"),
+            fl!(
+                I18N,
+                "power-mizer-mode-prefer-consistent-performance-description"
+            ),
+        ),
+    };
+    SelectOption { label, description }
 }

@@ -1,12 +1,12 @@
 mod card_layout;
 mod clocks_frame;
 mod igpu_frame;
-mod performance_frame;
 mod power_frame;
+mod power_profile_mode;
 mod power_states;
 mod vf_curve;
 
-use crate::APP_BROKER;
+use crate::CONFIG;
 use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
@@ -23,9 +23,7 @@ use clocks_frame::{ClockDomain, ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use indexmap::IndexMap;
 use lact_schema::config;
 use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
-use nvml_wrapper::enums::device::PowerMizerMode;
-use performance_frame::PerformanceFrameMsg;
-use power_frame::{PowerFrame, PowerFrameMsg};
+use power_frame::{PowerFrame, PowerFrameMsg, PowerFrameSerialized};
 use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
@@ -45,6 +43,13 @@ pub struct OcPage {
     igpu_frame: relm4::Controller<IGpuFrame>,
 
     vf_curve_editor: relm4::Controller<VfCurveEditor>,
+}
+
+pub struct OcPageSerialized {
+    pub power: PowerFrameSerialized,
+    pub clocks_configuration: config::ClocksConfiguration,
+    pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
+    pub uma_carveout: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -199,17 +204,7 @@ impl relm4::Component for OcPage {
                         .emit(VfCurveEditorMsg::Stats(stats.clone()));
 
                     if initial {
-                        self.power_frame
-                            .emit(PowerFrameMsg::PowerStats(stats.power.clone()));
-                        self.power_frame.emit(PowerFrameMsg::Performance(
-                            PerformanceFrameMsg::PerformanceLevel(stats.performance_level),
-                        ));
-                        self.power_frame.emit(PowerFrameMsg::Performance(
-                            PerformanceFrameMsg::PowerMizerInfo {
-                                active: stats.active_power_mizer_mode,
-                                supported: stats.supported_power_mizer_modes.clone(),
-                            },
-                        ));
+                        self.power_frame.emit(PowerFrameMsg::Stats(stats.clone()));
                     }
                 }
                 PageUpdate::Info(info) => {
@@ -249,9 +244,8 @@ impl relm4::Component for OcPage {
                     .emit(VfCurveEditorMsg::Clocks(table.clone()));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
-                self.power_frame.emit(PowerFrameMsg::Performance(
-                    PerformanceFrameMsg::PowerProfileModes(modes_table),
-                ));
+                self.power_frame
+                    .emit(PowerFrameMsg::PowerProfileModes(modes_table));
             }
             OcPageMsg::PowerStates {
                 pstates,
@@ -288,10 +282,8 @@ impl relm4::Component for OcPage {
                     ));
             }
             OcPageMsg::SetPerformanceLevel(level) => {
-                self.power_frame.emit(PowerFrameMsg::Performance(
-                    PerformanceFrameMsg::PerformanceLevel(Some(level)),
-                ));
-                APP_BROKER.send(AppMsg::SettingsChanged);
+                self.power_frame
+                    .emit(PowerFrameMsg::SetPerformanceLevel(level));
             }
             OcPageMsg::EnablePstateConfig => {
                 self.power_states_dialog
@@ -325,25 +317,30 @@ impl OcPage {
         self.power_frame.model().performance_level()
     }
 
-    pub fn get_active_power_mizer_mode(&self) -> Option<PowerMizerMode> {
-        self.power_frame.model().active_power_mizer_mode()
+    // stored_config is temporary here, long term serialization should be derevied from SettingRow values
+    pub fn serialize(&self, stored_config: &config::GpuConfig) -> OcPageSerialized {
+        OcPageSerialized {
+            power: self.power_frame.model().serialize(),
+            clocks_configuration: self.serialize_clocks(stored_config.clocks_configuration.clone()),
+            power_states: if self.get_performance_level() == Some(PerformanceLevel::Manual) {
+                self.power_states_dialog.model().get_enabled_power_states()
+            } else {
+                IndexMap::new()
+            },
+            // Avoids applying the setting if it's the default but doesn't wipe it if it's unchanged in the UI
+            uma_carveout: self
+                .igpu_frame
+                .model()
+                .get_uma_carveout()
+                .map(|value| value as usize)
+                .or(stored_config.uma_carveout),
+        }
     }
 
-    pub fn get_power_profile_mode(&self) -> Option<u16> {
-        self.power_frame.model().power_profile_mode()
-    }
-
-    pub fn get_power_profile_mode_custom_heuristics(&self) -> Vec<Vec<Option<i32>>> {
-        self.power_frame
-            .model()
-            .power_profile_mode_custom_heuristics()
-    }
-
-    pub fn get_power_cap(&self) -> Option<f64> {
-        self.power_frame.model().get_user_cap()
-    }
-
-    pub fn apply_clocks_config(&self, config: &mut config::ClocksConfiguration) {
+    fn serialize_clocks(
+        &self,
+        mut config: config::ClocksConfiguration,
+    ) -> config::ClocksConfiguration {
         let mut commands = self.gpu_clocks_frame.model().get_commands();
         commands.extend(self.vram_clocks_frame.model().get_commands());
 
@@ -356,17 +353,17 @@ impl OcPage {
         if !self.vf_curve_editor.model().is_empty() {
             config.nvidia_gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
         }
-    }
 
-    pub fn get_enabled_power_states(&self) -> IndexMap<PowerLevelKind, Vec<u8>> {
-        if self.get_performance_level() == Some(PerformanceLevel::Manual) {
-            self.power_states_dialog.model().get_enabled_power_states()
-        } else {
-            IndexMap::new()
+        if self
+            .device_info
+            .as_ref()
+            .is_some_and(|info| info.driver == "nvidia")
+            && !CONFIG.read().experimental_nvidia_pstate_offsets
+        {
+            config.gpu_clock_offsets.retain(|pstate, _| *pstate == 0);
+            config.mem_clock_offsets.retain(|pstate, _| *pstate == 0);
         }
-    }
 
-    pub fn get_uma_carveout(&self) -> Option<u32> {
-        self.igpu_frame.model().get_uma_carveout()
+        config
     }
 }
