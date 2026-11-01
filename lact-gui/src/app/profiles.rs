@@ -126,7 +126,7 @@ impl Component for ProfileSelector {
                             set_spacing: 5,
 
                             gtk::Button {
-                                set_icon_name: "list-add",
+                                set_icon_name: "list-add-symbolic",
                                 set_expand: true,
                                 set_tooltip: &fl!(I18N, "add-profile"),
                                 connect_clicked => ProfileSelectorMsg::CreateProfile,
