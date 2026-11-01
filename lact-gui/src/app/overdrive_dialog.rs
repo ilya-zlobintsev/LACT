@@ -98,7 +98,7 @@ impl relm4::Component for OverdriveDialog {
                             add_prefix = &gtk::Image {
                                 #[watch]
                                 set_visible: model.is_done,
-                                set_icon_name: Some("emblem-ok-symbolic"),
+                                set_icon_name: Some("object-select-symbolic"),
                                 add_css_class: "success",
                             },
                         },

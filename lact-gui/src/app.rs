@@ -349,6 +349,7 @@ impl AsyncComponent for AppModel {
             .expect("Failed to get application from root window");
 
         relm4::set_global_css_with_priority(styles::COMBINED_CSS, styles::APPLICATION_CSS_PRIORITY);
+        root.settings().set_gtk_icon_theme_name(Some("Adwaita"));
 
         if let Err(err) = styles::apply_theme(CONFIG.read().theme) {
             error!("could not apply theme: {err:#}");
@@ -719,21 +720,9 @@ impl AppModel {
             }
             AppMsg::RenameProfile(old_name, new_name) => {
                 if old_name != new_name {
-                    let original_profile = self
-                        .daemon_client
-                        .get_profile(Some(old_name.clone()))
-                        .await
-                        .context("Could not get profile by old name")?
-                        .context("Original profile not found")?;
                     self.daemon_client
-                        .create_profile(new_name, ProfileBase::Provided(original_profile))
-                        .await
-                        .context("Could not create new profile")?;
-                    self.daemon_client
-                        .delete_profile(old_name)
-                        .await
-                        .context("Could not delete old name")?;
-
+                        .rename_profile(old_name, new_name)
+                        .await?;
                     sender.input(AppMsg::ReloadProfiles { state_sender: None });
                 }
             }

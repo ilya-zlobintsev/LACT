@@ -93,6 +93,10 @@ pub enum Request<'a> {
         name: String,
         new_position: usize,
     },
+    RenameProfile {
+        name: String,
+        new_name: String,
+    },
     HoldProfile {
         name: String,
     },
