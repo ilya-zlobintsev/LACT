@@ -20,7 +20,7 @@ use relm4::{
 use std::{fmt::Debug, marker::PhantomData};
 
 pub struct SettingRow<Key> {
-    control: SettingControl,
+    pub control: SettingControl,
     _key: PhantomData<Key>,
 }
 
