@@ -1,9 +1,6 @@
 mod adjustment_control;
-mod adjustment_value;
 mod boolean_control;
-mod boolean_value;
 mod select_control;
-mod select_value;
 
 use self::{
     adjustment_control::AdjustmentControl, boolean_control::BooleanControl,
@@ -23,7 +20,7 @@ use relm4::{
 use std::{fmt::Debug, marker::PhantomData};
 
 pub struct SettingRow<Key> {
-    pub control: SettingControl,
+    control: SettingControl,
     _key: PhantomData<Key>,
 }
 
@@ -102,34 +99,28 @@ impl<Key> SettingRow<Key> {
     /// Serialize the current value, omitting unset values and defaults.
     pub fn serialize(&self) -> Option<SettingRowValue> {
         match &self.control {
-            SettingControl::Adjustment(control) => control
-                .model()
-                .value
-                .serialize()
-                .map(SettingRowValue::Numeric),
-            SettingControl::Boolean(control) => control
-                .model()
-                .value
-                .serialize()
-                .map(SettingRowValue::Boolean),
-            SettingControl::Select(control) => control
-                .model()
-                .value
-                .serialize()
-                .map(SettingRowValue::Selected),
+            SettingControl::Adjustment(control) => {
+                control.model().serialize().map(SettingRowValue::Numeric)
+            }
+            SettingControl::Boolean(control) => {
+                control.model().serialize().map(SettingRowValue::Boolean)
+            }
+            SettingControl::Select(control) => {
+                control.model().serialize().map(SettingRowValue::Selected)
+            }
         }
     }
 
     fn set_value(&self, value: SettingRowValue) {
         match (&self.control, value) {
             (SettingControl::Adjustment(control), SettingRowValue::Numeric(value)) => {
-                control.model().value.set_value(value)
+                control.model().set_value(value)
             }
             (SettingControl::Boolean(control), SettingRowValue::Boolean(value)) => {
-                control.model().value.set_value(value)
+                control.model().set_value(value)
             }
             (SettingControl::Select(control), SettingRowValue::Selected(value)) => {
-                control.model().value.set_value(value)
+                control.model().set_value(value)
             }
             _ => panic!("setting value does not match the row's control"),
         }
@@ -138,13 +129,13 @@ impl<Key> SettingRow<Key> {
     pub fn get_value(&self) -> SettingRowValue {
         match &self.control {
             SettingControl::Adjustment(control) => {
-                SettingRowValue::Numeric(control.model().value.get_value())
+                SettingRowValue::Numeric(control.model().get_value())
             }
             SettingControl::Boolean(control) => {
-                SettingRowValue::Boolean(control.model().value.get_value())
+                SettingRowValue::Boolean(control.model().get_value())
             }
             SettingControl::Select(control) => {
-                SettingRowValue::Selected(control.model().value.get_value())
+                SettingRowValue::Selected(control.model().get_value())
             }
         }
     }
@@ -245,9 +236,9 @@ impl SettingControl {
 
     fn reset(&self) {
         match self {
-            Self::Adjustment(control) => control.model().value.reset(),
-            Self::Boolean(control) => control.model().value.reset(),
-            Self::Select(control) => control.model().value.reset(),
+            Self::Adjustment(control) => control.model().reset(),
+            Self::Boolean(control) => control.model().reset(),
+            Self::Select(control) => control.model().reset(),
         }
     }
 }

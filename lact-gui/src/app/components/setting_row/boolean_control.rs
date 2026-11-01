@@ -1,6 +1,9 @@
-use super::{ControlInit, boolean_value::BooleanValue};
+use super::ControlInit;
 use adw::prelude::*;
-use relm4::{Component, ComponentParts, ComponentSender, binding::ConnectBinding};
+use relm4::{
+    Component, ComponentParts, ComponentSender,
+    binding::{Binding, BoolBinding, ConnectBinding},
+};
 
 #[derive(Default)]
 pub struct BooleanInit {
@@ -9,7 +12,8 @@ pub struct BooleanInit {
 }
 
 pub struct BooleanControl {
-    pub(super) value: BooleanValue,
+    value: BoolBinding,
+    default_value: Option<bool>,
     title: gtk::Box,
     pub(super) size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
 }
@@ -35,7 +39,7 @@ impl Component for BooleanControl {
             gtk::Switch {
                 set_valign: gtk::Align::Center,
                 set_halign: gtk::Align::End,
-                bind: model.value.binding(),
+                bind: &model.value,
             },
         },
     }
@@ -51,7 +55,8 @@ impl Component for BooleanControl {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut model = Self {
-            value: BooleanValue::new(init.value, init.default_value),
+            value: BoolBinding::new(init.value),
+            default_value: init.default_value,
             title,
             size_group_widgets: Vec::new(),
         };
@@ -65,7 +70,7 @@ impl Component for BooleanControl {
                 model.size_group_widgets.push((group, widget));
             }
         }
-        model.value.binding().connect_value_notify(move |_| {
+        model.value.connect_value_notify(move |_| {
             sender.input(BooleanControlMsg::Changed);
         });
         ComponentParts { model, widgets }
@@ -74,8 +79,31 @@ impl Component for BooleanControl {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             BooleanControlMsg::Changed => {
-                let _ = sender.output(self.value.get_value());
+                let _ = sender.output(self.get_value());
             }
         }
+    }
+}
+
+impl BooleanControl {
+    pub(super) fn get_value(&self) -> bool {
+        self.value.get()
+    }
+
+    pub(super) fn set_value(&self, value: bool) {
+        if self.get_value() != value {
+            self.value.set(value);
+        }
+    }
+
+    pub(super) fn reset(&self) {
+        if let Some(value) = self.default_value {
+            self.set_value(value);
+        }
+    }
+
+    pub(super) fn serialize(&self) -> Option<bool> {
+        let value = self.get_value();
+        (Some(value) != self.default_value).then_some(value)
     }
 }

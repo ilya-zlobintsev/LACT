@@ -1,4 +1,4 @@
-use super::{ControlInit, adjustment_value::AdjustmentValue};
+use super::ControlInit;
 use crate::app::utils::{ext::make_event_controller_no_scroll, formatting::fmt_value_with_unit};
 use adw::prelude::*;
 use relm4::{Component, ComponentParts, ComponentSender, css};
@@ -32,7 +32,9 @@ impl Default for AdjustmentInit {
 }
 
 pub struct AdjustmentControl {
-    pub(super) value: AdjustmentValue,
+    adjustment: gtk::Adjustment,
+    default_value: Option<f64>,
+    value_ratio: f64,
     title: gtk::Box,
     unit: String,
     pub(super) size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
@@ -64,7 +66,7 @@ impl Component for AdjustmentControl {
 
                 #[name = "spinbutton"]
                 gtk::SpinButton {
-                    set_adjustment: model.value.adjustment(),
+                    set_adjustment: &model.adjustment,
                     set_valign: gtk::Align::Center,
                     add_controller = make_event_controller_no_scroll(),
                 },
@@ -75,13 +77,13 @@ impl Component for AdjustmentControl {
 
                 #[name = "lower_label"]
                 gtk::Label {
-                    set_label: &fmt_value_with_unit(model.value.adjustment().lower(), &model.unit),
+                    set_label: &fmt_value_with_unit(model.adjustment.lower(), &model.unit),
                     add_css_class: css::CAPTION,
                     add_css_class: css::DIM_LABEL,
                 },
                 #[name = "scale"]
                 gtk::Scale {
-                    set_adjustment: model.value.adjustment(),
+                    set_adjustment: &model.adjustment,
                     set_orientation: gtk::Orientation::Horizontal,
                     set_hexpand: true,
                     set_digits: 0,
@@ -92,7 +94,7 @@ impl Component for AdjustmentControl {
                 },
                 #[name = "upper_label"]
                 gtk::Label {
-                    set_label: &fmt_value_with_unit(model.value.adjustment().upper(), &model.unit),
+                    set_label: &fmt_value_with_unit(model.adjustment.upper(), &model.unit),
                     add_css_class: css::CAPTION,
                     add_css_class: css::DIM_LABEL,
                 },
@@ -116,19 +118,21 @@ impl Component for AdjustmentControl {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut model = Self {
-            value: AdjustmentValue::new(
+            adjustment: gtk::Adjustment::new(
                 init.value,
-                init.default_value,
                 init.lower,
                 init.upper,
                 init.step_increment,
                 init.page_increment,
+                0.0,
             ),
+            default_value: init.default_value,
+            value_ratio: 1.0,
             title,
             unit: init.unit,
             size_group_widgets: Vec::new(),
         };
-        let adjustment = model.value.adjustment();
+        let adjustment = &model.adjustment;
         let widgets = view_output!();
         for (group, widget) in [
             (label_group, model.title.clone().upcast::<gtk::Widget>()),
@@ -153,25 +157,51 @@ impl Component for AdjustmentControl {
     ) {
         match msg {
             AdjustmentControlMsg::Changed => {
-                let _ = sender.output(self.value.get_value());
+                let _ = sender.output(self.get_value());
             }
             AdjustmentControlMsg::SetValueRatio(ratio) => {
-                self.value
-                    .adjustment()
-                    .block_signal(&widgets.value_change_signal);
-                self.value.set_value_ratio(ratio);
-                widgets.lower_label.set_label(&fmt_value_with_unit(
-                    self.value.adjustment().lower(),
-                    &self.unit,
-                ));
-                widgets.upper_label.set_label(&fmt_value_with_unit(
-                    self.value.adjustment().upper(),
-                    &self.unit,
-                ));
-                self.value
-                    .adjustment()
-                    .unblock_signal(&widgets.value_change_signal);
+                self.adjustment.block_signal(&widgets.value_change_signal);
+                self.set_value_ratio(ratio);
+                widgets
+                    .lower_label
+                    .set_label(&fmt_value_with_unit(self.adjustment.lower(), &self.unit));
+                widgets
+                    .upper_label
+                    .set_label(&fmt_value_with_unit(self.adjustment.upper(), &self.unit));
+                self.adjustment.unblock_signal(&widgets.value_change_signal);
             }
         }
+    }
+}
+
+impl AdjustmentControl {
+    pub(super) fn get_value(&self) -> f64 {
+        self.adjustment.value() / self.value_ratio
+    }
+
+    pub(super) fn set_value(&self, value: f64) {
+        self.adjustment.set_value(value * self.value_ratio);
+    }
+
+    pub(super) fn reset(&self) {
+        if let Some(value) = self.default_value {
+            self.set_value(value);
+        }
+    }
+
+    pub(super) fn serialize(&self) -> Option<f64> {
+        let value = self.get_value();
+        (Some(value) != self.default_value).then_some(value)
+    }
+
+    /// Changes display units, retaining the raw value.
+    fn set_value_ratio(&mut self, ratio: f64) {
+        let value = self.get_value();
+        let lower = self.adjustment.lower() / self.value_ratio;
+        let upper = self.adjustment.upper() / self.value_ratio;
+        self.value_ratio = ratio;
+        self.adjustment.set_lower(lower * ratio);
+        self.adjustment.set_upper(upper * ratio);
+        self.set_value(value);
     }
 }

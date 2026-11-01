@@ -1,6 +1,10 @@
-use super::{ControlInit, select_value::SelectValue};
+use super::ControlInit;
 use adw::prelude::*;
-use relm4::{Component, ComponentParts, ComponentSender, RelmObjectExt, css};
+use relm4::{
+    Component, ComponentParts, ComponentSender, RelmObjectExt,
+    binding::{Binding, U32Binding},
+    css,
+};
 
 #[derive(Default)]
 pub struct SelectOption {
@@ -26,7 +30,8 @@ pub struct SelectInit {
 }
 
 pub struct SelectControl {
-    pub(super) value: SelectValue,
+    value: U32Binding,
+    default_value: Option<u32>,
     options: Vec<SelectOption>,
     title: gtk::Box,
     pub(super) size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
@@ -72,7 +77,7 @@ impl Component for SelectControl {
             gtk::DropDown {
                 set_valign: gtk::Align::Center,
                 set_model: Some(&model.options.iter().map(|option| option.label.clone()).collect::<gtk::StringList>()),
-                add_binding: (model.value.binding(), "selected"),
+                add_binding: (&model.value, "selected"),
             },
         },
     }
@@ -88,7 +93,12 @@ impl Component for SelectControl {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut model = Self {
-            value: SelectValue::new(init.selected, init.default_value, init.options.len() as u32),
+            value: U32Binding::new(
+                init.selected
+                    .filter(|selected| *selected < init.options.len() as u32)
+                    .unwrap_or(0),
+            ),
+            default_value: init.default_value,
             options: init.options,
             title,
             size_group_widgets: Vec::new(),
@@ -104,7 +114,7 @@ impl Component for SelectControl {
                 model.size_group_widgets.push((group, widget));
             }
         }
-        model.change_signal = Some(model.value.binding().connect_value_notify(move |_| {
+        model.change_signal = Some(model.value.connect_value_notify(move |_| {
             sender.input(SelectControlMsg::Changed);
         }));
         ComponentParts { model, widgets }
@@ -113,22 +123,43 @@ impl Component for SelectControl {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
             SelectControlMsg::Changed => {
-                let _ = sender.output(self.value.get_value());
+                let _ = sender.output(self.get_value());
             }
         }
     }
 
     fn shutdown(&mut self, _widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
         if let Some(signal) = self.change_signal.take() {
-            self.value.binding().disconnect(signal);
+            self.value.disconnect(signal);
         }
     }
 }
 
 impl SelectControl {
+    pub(super) fn get_value(&self) -> u32 {
+        self.value.get()
+    }
+
+    pub(super) fn set_value(&self, value: u32) {
+        if self.get_value() != value {
+            self.value.set(value);
+        }
+    }
+
+    pub(super) fn reset(&self) {
+        if let Some(value) = self.default_value {
+            self.set_value(value);
+        }
+    }
+
+    pub(super) fn serialize(&self) -> Option<u32> {
+        let value = self.get_value();
+        (Some(value) != self.default_value).then_some(value)
+    }
+
     fn description(&self) -> &str {
         self.options
-            .get(self.value.get_value() as usize)
+            .get(self.get_value() as usize)
             .map(|option| option.description.as_str())
             .unwrap_or_default()
     }
