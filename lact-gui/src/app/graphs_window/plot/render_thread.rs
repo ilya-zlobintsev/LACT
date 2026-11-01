@@ -294,7 +294,7 @@ fn layout_legend(
         text_height = text_height.max(height as i32);
     }
 
-    let slot_width = item_width.max(1);
+    let slot_width = item_width.max(1) + LEGEND_SPACING;
     let available_width = area.dim_in_pixel().0 as i32 - LEGEND_MARGIN * 2;
     let columns = (available_width / slot_width).clamp(1, entries.len().max(1) as i32) as usize;
     let rows = entries.len().div_ceil(columns);
