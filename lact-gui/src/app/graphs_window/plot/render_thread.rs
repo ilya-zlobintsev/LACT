@@ -7,8 +7,9 @@ use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
 use indexmap::IndexSet;
+use plotters::coord::Shift;
 use plotters::prelude::*;
-use plotters::style::text_anchor::Pos;
+use plotters::style::text_anchor::{HPos, Pos, VPos};
 use plotters_cairo::CairoBackend;
 use relm4::tokio::sync::broadcast;
 use std::cmp::{self, max};
@@ -221,6 +222,130 @@ fn interpolate_series(data: &[(i64, f64)]) -> Vec<(i64, f64)> {
         .collect()
 }
 
+const LEGEND_SWATCH_SIZE: i32 = 10;
+const LEGEND_SPACING: i32 = 8;
+const LEGEND_ROW_SPACING: i32 = 4;
+const LEGEND_MARGIN: i32 = 6;
+struct LegendEntry {
+    label: String,
+    /// Same label with the values replaced by placeholders, used to size the slots.
+    width_label: String,
+    color: RGBAColor,
+}
+
+struct LegendLayout {
+    columns: usize,
+    slot_width: i32,
+    row_height: i32,
+    height: u32,
+}
+
+/// Format a legend label. Without values, a fixed width placeholder is used, so
+/// that the width of the label does not follow the data.
+fn stat_label(stat: &StatType, values: Option<(f64, f64, f64)>, print_extra_info: bool) -> String {
+    let precision = stat.precision();
+    let suffix = stat.metric();
+
+    let (current, peak, avg) = match values {
+        Some((current, peak, avg)) => (
+            format!("{current:.*}", precision),
+            format!("{peak:.*}", precision),
+            format!("{avg:.*}", precision),
+        ),
+        None => {
+            let placeholder = if precision > 0 { "00000.0" } else { "00000" }.to_owned();
+            (placeholder.clone(), placeholder.clone(), placeholder)
+        }
+    };
+
+    let mut label = format!("{}: {current}{suffix}", stat.display());
+    if print_extra_info {
+        if stat.show_peak() {
+            write!(label, ", Peak {peak}{suffix}").unwrap();
+        }
+
+        write!(label, ", Avg {avg}{suffix}").unwrap();
+    }
+
+    label
+}
+
+/// Lay out the legend entries in a grid of equally sized slots.
+fn layout_legend(
+    area: &DrawingArea<CairoBackend<'_>, Shift>,
+    entries: &[LegendEntry],
+    style: &TextStyle,
+) -> anyhow::Result<LegendLayout> {
+    let mut item_width = 0;
+    let mut text_height = 0;
+
+    for entry in entries {
+        let (width, height) = area.estimate_text_size(&entry.width_label, style)?;
+        item_width = item_width.max(LEGEND_SWATCH_SIZE + LEGEND_SPACING + width as i32);
+        text_height = text_height.max(height as i32);
+    }
+
+    let slot_width = item_width.max(1);
+    let available_width = area.dim_in_pixel().0 as i32 - LEGEND_MARGIN * 2;
+    let columns = (available_width / slot_width).clamp(1, entries.len().max(1) as i32) as usize;
+    let rows = entries.len().div_ceil(columns);
+
+    let row_height = text_height + LEGEND_ROW_SPACING;
+    // Leave at least half of the drawing area for the chart itself.
+    let max_height = area.dim_in_pixel().1 / 2;
+    let height = (rows as u32 * row_height as u32 + LEGEND_MARGIN as u32).min(max_height);
+
+    Ok(LegendLayout {
+        columns,
+        slot_width,
+        row_height,
+        height,
+    })
+}
+
+/// Draw the legend entries into an area which is outside of the plot area.
+fn draw_legend(
+    area: &DrawingArea<CairoBackend<'_>, Shift>,
+    layout: &LegendLayout,
+    entries: &[LegendEntry],
+    style: &TextStyle,
+) -> anyhow::Result<()> {
+    let area_width = area.dim_in_pixel().0 as i32;
+    let area_height = area.dim_in_pixel().1 as i32;
+
+    let block_width = layout.columns as i32 * layout.slot_width;
+    let start_x = ((area_width - block_width) / 2).max(LEGEND_MARGIN);
+
+    for (idx, entry) in entries.iter().enumerate() {
+        let row = (idx / layout.columns) as i32;
+        let column = (idx % layout.columns) as i32;
+
+        let center_y = LEGEND_MARGIN + row * layout.row_height + layout.row_height / 2;
+
+        // Skip the rows which do not fit into the reserved area.
+        if center_y + layout.row_height / 2 > area_height {
+            break;
+        }
+
+        let x = start_x + column * layout.slot_width;
+
+        area.draw(&Rectangle::new(
+            [
+                (x, center_y - LEGEND_SWATCH_SIZE / 2),
+                (x + LEGEND_SWATCH_SIZE, center_y + LEGEND_SWATCH_SIZE / 2),
+            ],
+            entry.color.filled(),
+        ))?;
+        area.draw(&Text::new(
+            entry.label.as_str(),
+            (x + LEGEND_SWATCH_SIZE + LEGEND_SPACING, center_y),
+            style.clone(),
+        ))?;
+    }
+
+    Ok(())
+}
+
 impl RenderRequest {
     // Method to handle the actual drawing of the chart.
     pub fn draw(&self, cairo_context: &CairoContext) -> anyhow::Result<()> {
@@ -268,8 +393,8 @@ impl RenderRequest {
         // series do not touch the border of the chart.
         let maximum_value = nice_upper_bound(max_value * Y_AXIS_HEADROOM).max(100.0);
 
-        root.fill(&self.colors.background)?; // Fill the background with white color.
-
+        // The surface is transparent, so the card background and its rounded
+        // corners show through it.
         // Scale the fonts with the size of the widget, otherwise the labels take
         // up most of the chart when it is rendered in a small window.
         // Follow the font of the UI, capped so that the labels always fit in the chart.
@@ -289,29 +414,75 @@ impl RenderRequest {
             .0
             + 10;
 
+        // Build the legend entries first, they are needed to calculate the size of
+        // the area reserved for the legend below the chart.
+        let mut legend_entries = data
+            .iter()
+            .enumerate()
+            .map(|(idx, (stat_type, points))| {
+                let current = points.last().map(|(_, value)| *value).unwrap_or_default();
+                let peak = points
+                    .iter()
+                    .map(|(_, value)| *value)
+                    .reduce(f64::max)
+                    .unwrap_or_default();
+                let avg = points.iter().map(|(_, value)| *value).sum::<f64>() / points.len() as f64;
+
+                LegendEntry {
+                    label: stat_label(stat_type, Some((current, peak, avg)), self.print_extra_info),
+                    width_label: stat_label(stat_type, None, self.print_extra_info),
+                    color: Palette99::pick(idx).to_rgba(),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let throttling_sections = data_guard.throttling_sections();
+        let has_throttling = throttling_sections
+            .iter()
+            .any(|section| !section.is_empty());
+        let throttling_color = self.colors.throttling.mix(0.5);
+
+        if has_throttling {
+            let names: IndexSet<&str> = throttling_sections
+                .iter()
+                .flat_map(|section| section.iter().flat_map(|(_, values)| values))
+                .map(|value| value.as_str())
+                .collect();
+
+            let label = format!(
+                "Throttling: {}",
+                names.into_iter().collect::<Vec<_>>().join(",")
+            );
+            legend_entries.push(LegendEntry {
+                width_label: label.clone(),
+                label,
+                color: throttling_color,
+            });
+        }
+
+        let legend_style = TextStyle {
+            font: ("sans-serif", legend_font_size).into(),
+            color: self.colors.text.to_backend_color(),
+            pos: Pos::new(HPos::Left, VPos::Center),
+        };
+        let legend = layout_legend(&root, &legend_entries, &legend_style)?;
+        let (chart_area, legend_area) =
+            root.split_vertically(root.dim_in_pixel().1.saturating_sub(legend.height));
+
         // Set up the main chart with axes and labels.
-        let mut builder = ChartBuilder::on(&root);
-        builder
+        let mut chart = ChartBuilder::on(&chart_area)
             .x_label_area_size(axis_font_size * 2)
             .y_label_area_size(y_label_area_size)
             .margin(10)
-            .margin_top(if self.title.is_empty() {
-                axis_font_size + 4
-            } else {
-                20
-            });
-
-        if !self.title.is_empty() {
-            builder.caption(
+            .margin_top(20)
+            .caption(
                 self.title.as_str(),
                 ("sans-serif", title_font_size, &self.colors.text),
-            );
-        }
-
-        let mut chart = builder.build_cartesian_2d(
-            start_date..max(end_date, start_date + self.time_period_seconds * 1000),
-            0f64..maximum_value,
-        )?;
+            )
+            .build_cartesian_2d(
+                start_date..max(end_date, start_date + self.time_period_seconds * 1000),
+                0f64..maximum_value,
+            )?;
 
         // Configure the x-axis and y-axis mesh.
         chart
@@ -339,65 +510,20 @@ impl RenderRequest {
         cairo_context.clip();
 
         // Draw the main line series using cubic spline interpolation.
-        for (idx, (stat_type, data)) in series.iter().enumerate() {
-            let current_value = data.last().map(|(_, val)| *val).unwrap_or(0.0);
-            let max_value = data
-                .iter()
-                .map(|(_, val)| *val)
-                .reduce(f64::max)
-                .unwrap_or(0.0);
-            let avg_value = data.iter().map(|(_, val)| *val).sum::<f64>() / data.len() as f64;
-
-            let stat_suffix = stat_type.metric();
-            let precision = stat_type.precision();
-
-            let mut stat_label = format!(
-                "{}: {current_value:.*}{stat_suffix}",
-                stat_type.display(),
-                precision
-            );
-            if self.print_extra_info {
-                if stat_type.show_peak() {
-                    write!(stat_label, ", Peak {max_value:.*}{stat_suffix}", precision).unwrap();
-                }
-
-                write!(stat_label, ", Avg {avg_value:.*}{stat_suffix}", precision).unwrap();
-            }
-
+        for (entry, (_, data)) in legend_entries.iter().zip(&series) {
             chart
                 .draw_series(LineSeries::new(
                     data.iter().copied(),
-                    Palette99::pick(idx).stroke_width(2),
+                    entry.color.stroke_width(2),
                 ))
-                .context("Failed to draw series")?
-                .label(stat_label)
-                .legend(move |(x, y)| {
-                    let offset = 7;
-                    Rectangle::new(
-                        [(x - offset, y - offset), (x + offset, y + offset)],
-                        Palette99::pick(idx).filled(),
-                    )
-                });
+                .context("Failed to draw series")?;
         }
 
         // Draw throttling series
-        if data_guard
-            .throttling_sections()
-            .iter()
-            .any(|section| !section.is_empty())
-        {
-            let throttling_color = self.colors.throttling.mix(0.5).filled();
-            let names: IndexSet<&str> = data_guard
-                .throttling_sections()
-                .iter()
-                .flat_map(|section| section.iter().flat_map(|(_, values)| values))
-                .map(|value| value.as_str())
-                .collect();
-
+        if has_throttling {
             chart
                 .draw_series(
-                    data_guard
-                        .throttling_sections()
+                    throttling_sections
                         .iter()
                         .filter_map(|section| {
                             let first = section.first()?;
@@ -407,34 +533,18 @@ impl RenderRequest {
                             ))
                         })
                         .map(|(start, end)| {
-                            Rectangle::new([(start, 0f64), (end, maximum_value)], throttling_color)
+                            Rectangle::new(
+                                [(start, 0f64), (end, maximum_value)],
+                                throttling_color.filled(),
+                            )
                         }),
                 )
-                .context("Failed to draw throttling histogram")?
-                .label(format!(
-                    "Throttling: {}",
-                    names.into_iter().collect::<Vec<_>>().join(",")
-                ))
-                .legend(move |(x, y)| {
-                    let offset = 7;
-                    Rectangle::new(
-                        [(x - offset, y - offset), (x + offset, y + offset)],
-                        throttling_color,
-                    )
-                });
+                .context("Failed to draw throttling histogram")?;
         }
 
         cairo_context.restore()?;
 
-        // Configure and draw series labels (the legend).
-        chart
-            .configure_series_labels()
-            .margin(20)
-            .label_font(("sans-serif", legend_font_size, &self.colors.text))
-            .position(SeriesLabelPosition::UpperLeft)
-            .background_style(self.colors.background.mix(0.6))
-            .draw()
-            .context("Failed to draw series labels")?;
+        draw_legend(&legend_area, &legend, &legend_entries, &legend_style)?;
 
         root.present()?; // Present the final image.
         Ok(())
@@ -443,12 +553,26 @@ impl RenderRequest {
 
 #[cfg(test)]
 mod tests {
-    use super::nice_upper_bound;
+    use super::{nice_upper_bound, stat_label};
 
     #[test]
     fn test_nice_upper_bound() {
         assert_eq!(nice_upper_bound(61.6), 62.0);
         assert_eq!(nice_upper_bound(317.9), 320.0);
         assert_eq!(nice_upper_bound(2420.0), 2500.0);
+    }
+
+    #[test]
+    fn test_stat_label() {
+        let stat = crate::app::graphs_window::stat::StatType::Temperature("edge".into());
+
+        assert_eq!(
+            stat_label(&stat, Some((50.0, 60.0, 55.0)), true),
+            "Temp (edge): 50.0\u{2103}, Peak 60.0\u{2103}, Avg 55.0\u{2103}"
+        );
+        assert_eq!(
+            stat_label(&stat, None, true),
+            "Temp (edge): 00000.0\u{2103}, Peak 00000.0\u{2103}, Avg 00000.0\u{2103}"
+        );
     }
 }
