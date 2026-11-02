@@ -77,7 +77,7 @@ fn cairo_format_to_memory_format(format: cairo::Format) -> gdk::MemoryFormat {
         cairo::Format::Rgb24 => gdk::MemoryFormat::R8g8b8,
         // Cairo surfaces are premultiplied, which only matters for the partially
         // transparent pixels produced by the antialiasing and the edge fading.
-        cairo::Format::ARgb32 => gdk::MemoryFormat::R8g8b8a8Premultiplied,
+        cairo::Format::ARgb32 => gdk::MemoryFormat::B8g8r8a8Premultiplied,
         _ => panic!("Unsupported cairo format"),
     }
 }
