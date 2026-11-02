@@ -13,6 +13,34 @@ fn main() {
     gen_nvidia_bindings();
 
     gen_vulkan_constants();
+
+    #[cfg(feature = "schema-generate")]
+    gen_api_schema();
+}
+
+/// Writes the JSON schemas describing the daemon API into `lact-schema/schema`.
+#[cfg(feature = "schema-generate")]
+fn gen_api_schema() {
+    use lact_schema::{Request, Response};
+    use schemars::{JsonSchema, Schema, schema_for};
+    use std::{fs::File, io::BufWriter};
+
+    println!("cargo::rerun-if-changed=../lact-schema/src");
+
+    let schema_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../lact-schema/schema");
+    fs::create_dir_all(&schema_dir).expect("Couldn't create the schema directory");
+
+    write_schema::<Response>(&schema_dir.join("response.json"));
+    write_schema::<Request>(&schema_dir.join("request.json"));
+
+    fn write_schema<T: JsonSchema>(path: &Path) {
+        let schema: Schema = schema_for!(T);
+
+        let file = File::create(path).expect("Couldn't create the schema file");
+        serde_json::to_writer_pretty(BufWriter::new(file), &schema)
+            .expect("Couldn't write the schema file");
+    }
 }
 
 fn gen_intel_bindings() {
