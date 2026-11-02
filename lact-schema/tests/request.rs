@@ -25,7 +25,7 @@ fn test_performance_level_schema() {
 
     for level in &performance_levels {
         let stats = DeviceStats {
-            performance_level: level.clone(),
+            performance_level: *level,
             ..Default::default()
         };
 

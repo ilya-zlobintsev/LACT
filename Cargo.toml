@@ -5,7 +5,6 @@ members = [
     "lact-cli",
     "lact-gui",
     "lact-schema",
-    "lact-schema-generator",
     "lact-client",
     "lact-daemon",
 ]

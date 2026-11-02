@@ -9,6 +9,7 @@ bench = ["dep:divan"]
 nvidia = []
 display-info = ["dep:libdisplay-info"]
 mock = []
+schema-generate = []
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
@@ -65,3 +66,5 @@ lact-daemon = { path = ".", features= ["mock"] }
 [build-dependencies]
 bindgen = "0.73"
 serde_json = { workspace = true }
+lact-schema = { path = "../lact-schema", features = ["schema"] }
+schemars = { workspace = true, features = ["derive"] }

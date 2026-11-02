@@ -220,7 +220,6 @@ fn test_all_response_payloads_validate() {
                     Some(ProfileRule::Process(ProcessProfileRule {
                         name: "game".into(),
                         args: None,
-                        ..Default::default()
                     })),
                 ),
             ]),

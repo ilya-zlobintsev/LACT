@@ -1964,6 +1964,7 @@ dependencies = [
  "os-release",
  "pciid-parser",
  "pretty_assertions",
+ "schemars",
  "serde",
  "serde_json",
  "serde_norway",
@@ -2033,16 +2034,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "vergen-gitcl",
-]
-
-[[package]]
-name = "lact-schema-generator"
-version = "0.10.1"
-dependencies = [
- "anyhow",
- "lact-schema",
- "schemars",
- "serde_json",
 ]
 
 [[package]]
