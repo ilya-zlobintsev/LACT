@@ -13,7 +13,7 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
     select,
-    sync::{mpsc, Notify},
+    sync::{Notify, mpsc},
 };
 use tracing::{debug, error, info, warn};
 
@@ -30,8 +30,14 @@ impl GameModeConnector {
     pub fn new(process_list: &ProfileProcessMap) -> Option<Self> {
         let mut base_args: Vec<OsString> = vec![];
         let program_name = if *IS_FLATBOX {
-            base_args.extend_from_slice(&["--host".into(), "sudo".into()]);
-            "flatpak-spawn"
+            base_args.extend_from_slice(&[
+                "--target".into(),
+                "1".into(),
+                "--all".into(),
+                "--".into(),
+                "sudo".into(),
+            ]);
+            "nsenter"
         } else {
             "sudo"
         };
@@ -108,7 +114,8 @@ impl GameModeConnector {
                 .arg(INTERFACE_NAME)
                 .arg("/com/feralinteractive/GameMode")
                 .arg(INTERFACE_NAME)
-                .arg("ListGames");
+                .arg("ListGames")
+                .kill_on_drop(true);
             debug!("running {cmd:?}");
             let output = cmd.output().await?;
             let response: GamesResponse =
@@ -140,6 +147,7 @@ impl GameModeConnector {
                 .arg("--match")
                 .arg(format!("sender={INTERFACE_NAME},type=signal"))
                 .stdout(Stdio::piped())
+                .kill_on_drop(true)
                 .spawn()?;
 
             let stdout = child.stdout.take().context("No child stdout")?;
@@ -180,7 +188,10 @@ impl GameModeConnector {
                                     },
                                     Err(err) => warn!("could not parse gamemode signal: {err}: {line}"),
                                 },
-                                Ok(None) => (),
+                                Ok(None) => {
+                                    warn!("gamemode watcher process exited unexpectedly");
+                                    break;
+                                },
                                 Err(err) => {
                                     error!("gamemode watcher error: {err}");
                                     break;

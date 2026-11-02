@@ -14,6 +14,8 @@ body:
           required: true
         - label: I've checked that the issue still happens in the latest [development build](https://github.com/ilya-zlobintsev/lact?tab=readme-ov-file#development-builds).
           required: true
+        - label: I have read the AI policy in [CONTRIBUTING.md](https://github.com/ilya-zlobintsev/LACT/blob/master/docs/CONTRIBUTING.md).
+          required: true
 
   - type: textarea
     id: description

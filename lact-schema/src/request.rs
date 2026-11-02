@@ -3,12 +3,12 @@
 use std::fmt;
 
 use crate::{
-    config::{GpuConfig, Profile, ProfileHooks},
     FanOptions, ProfileRule,
+    config::{GpuConfig, Profile, ProfileHooks},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 #[cfg(feature = "schema")]
-use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -20,8 +20,16 @@ pub enum Request<'a> {
     SystemInfo,
     DeviceInfo {
         id: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        include_api_info: Option<bool>,
+    },
+    DeviceApiInfo {
+        id: &'a str,
     },
     DeviceStats {
+        id: &'a str,
+    },
+    DisplaysInfo {
         id: &'a str,
     },
     DeviceClocksInfo {
@@ -92,6 +100,16 @@ pub enum Request<'a> {
         name: String,
         new_position: usize,
     },
+    RenameProfile {
+        name: String,
+        new_name: String,
+    },
+    HoldProfile {
+        name: String,
+    },
+    ReleaseProfile {
+        cookie: u64,
+    },
     EvaluateProfileRule {
         rule: ProfileRule,
     },
@@ -109,6 +127,12 @@ pub enum Request<'a> {
         config: Box<GpuConfig>,
     },
     ProcessList {
+        id: &'a str,
+    },
+    DetachGpu {
+        id: &'a str,
+    },
+    ReattachGpu {
         id: &'a str,
     },
     EnableOverdrive,
@@ -147,18 +171,24 @@ impl SetClocksCommand {
 #[serde(rename_all = "snake_case")]
 pub enum ClockspeedType {
     MaxCoreClock,
-    MaxMemoryClock,
-    MaxVoltage,
     MinCoreClock,
-    MinMemoryClock,
-    MinVoltage,
-    VoltageOffset,
     GpuClockOffset(u32),
+
+    MinVoltage,
+    MaxVoltage,
+    VoltageOffset,
+    VoltageBoost,
+
+    MaxMemoryClock,
+    MinMemoryClock,
     MemClockOffset(u32),
+
     GpuVfCurveClock(u8),
-    MemVfCurveClock(u8),
     GpuVfCurveVoltage(u8),
+
+    MemVfCurveClock(u8),
     MemVfCurveVoltage(u8),
+
     Reset,
 }
 
@@ -220,8 +250,8 @@ fn power_level_kind_schema(_gen: &mut SchemaGenerator) -> Schema {
 #[cfg(test)]
 mod tests {
     use crate::{
-        request::{ClockspeedType, SetClocksCommand},
         Request,
+        request::{ClockspeedType, SetClocksCommand},
     };
 
     #[test]

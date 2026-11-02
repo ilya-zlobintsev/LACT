@@ -1,11 +1,14 @@
 pub mod power_profiles_daemon;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{Context, anyhow, bail, ensure};
 use lact_schema::{
-    AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, GIT_COMMIT,
+    AmdgpuParamsConfigurator, BootArgConfigurator, InitramfsType, SystemInfo, VersionInfo,
 };
-use nix::sys::socket::{
-    bind, recv, socket, AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType,
+use nix::sys::{
+    socket::{
+        AddressFamily, MsgFlags, NetlinkAddr, SockFlag, SockProtocol, SockType, bind, recv, socket,
+    },
+    utsname::uname,
 };
 use os_release::OsRelease;
 use std::{
@@ -17,8 +20,8 @@ use std::{
     path::{Path, PathBuf},
     process::{self, Output},
     sync::{
-        atomic::{AtomicBool, Ordering},
         LazyLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 use tokio::{process::Command, sync::Notify};
@@ -42,23 +45,13 @@ static MODULE_CONF_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
 });
 
 pub async fn info() -> anyhow::Result<SystemInfo> {
-    let version = DAEMON_VERSION.to_owned();
-    let profile = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
-    }
-    .to_owned();
-
-    let kernel_output = Command::new("uname")
-        .arg("-r")
-        .output()
-        .await
-        .context("Could not read kernel version")?;
-    let kernel_version = String::from_utf8(kernel_output.stdout)
-        .context("Invalid kernel version output")?
-        .trim()
-        .to_owned();
+    let kernel_version = uname().map_or_else(
+        |err| {
+            error!("could not fetch kernel version: {err}");
+            "<Unknown>".to_owned()
+        },
+        |info| info.release().to_string_lossy().into_owned(),
+    );
 
     let amdgpu_overdrive_enabled = if let Ok(mask) = read_current_mask() {
         Some((mask & PP_OVERDRIVE_MASK) > 0)
@@ -69,12 +62,10 @@ pub async fn info() -> anyhow::Result<SystemInfo> {
     let os_release = get_os_release().inspect_err(|err| error!("Could not detect distro: {err}"));
 
     Ok(SystemInfo {
-        version,
-        profile,
+        version: VersionInfo::current(),
         kernel_version,
         distro: os_release.as_ref().map(|release| release.name.clone()).ok(),
         amdgpu_overdrive_enabled,
-        commit: Some(GIT_COMMIT.to_owned()),
         amdgpu_params_configurator: match os_release {
             Ok(release) => detect_amdgpu_configurator(&release).await.ok(),
             Err(_) => None,
@@ -250,8 +241,20 @@ pub async fn run_command(exec: &str, args: &[&str]) -> anyhow::Result<Output> {
 
     let mut command;
     if *IS_FLATBOX {
-        command = Command::new("flatpak-spawn");
-        command.arg("--host").arg(exec).args(args);
+        let host_path = env::var("FLATBOX_HOST_PATH").context("FLATBOX_HOST_PATH not present")?;
+
+        command = Command::new("nsenter");
+        command
+            .args([
+                "--target",
+                "1",
+                "--all",
+                "--",
+                "env",
+                &format!("PATH={host_path}"),
+            ])
+            .arg(exec)
+            .args(args);
     } else {
         command = Command::new(exec);
         command.args(args);
@@ -302,10 +305,10 @@ pub(crate) fn listen_netlink_kernel_event(notify: &Notify) -> anyhow::Result<()>
                         continue;
                     }
 
-                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=") {
-                        if subsystem == "drm" {
-                            notify.notify_one();
-                        }
+                    if let Some(subsystem) = line.strip_prefix("SUBSYSTEM=")
+                        && subsystem == "drm"
+                    {
+                        notify.notify_one();
                     }
                 }
                 Err(_) => {

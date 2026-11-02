@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2006-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2006-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -260,13 +260,20 @@ typedef NV0080_CTRL_GR_INFO NV2080_CTRL_GR_INFO;
 #define NV2080_CTRL_GR_INFO_INDEX_LITTER_NUM_GFXC_SMC_ENGINES           NV0080_CTRL_GR_INFO_INDEX_LITTER_NUM_GFXC_SMC_ENGINES
 
 
-#define NV2080_CTRL_GR_INFO_INDEX_DUMMY                                 NV0080_CTRL_GR_INFO_INDEX_DUMMY
+#define NV2080_CTRL_GR_INFO_INDEX_RESERVED                              NV0080_CTRL_GR_INFO_INDEX_RESERVED
 #define NV2080_CTRL_GR_INFO_INDEX_GFX_CAPABILITIES                      NV0080_CTRL_GR_INFO_INDEX_GFX_CAPABILITIES
 #define NV2080_CTRL_GR_INFO_INDEX_MAX_MIG_ENGINES                       NV0080_CTRL_GR_INFO_INDEX_MAX_MIG_ENGINES
 #define NV2080_CTRL_GR_INFO_INDEX_MAX_PARTITIONABLE_GPCS                NV0080_CTRL_GR_INFO_INDEX_MAX_PARTITIONABLE_GPCS
 #define NV2080_CTRL_GR_INFO_INDEX_LITTER_MIN_SUBCTX_PER_SMC_ENG         NV0080_CTRL_GR_INFO_INDEX_LITTER_MIN_SUBCTX_PER_SMC_ENG
 #define NV2080_CTRL_GR_INFO_INDEX_LITTER_NUM_GPCS_PER_DIELET            NV0080_CTRL_GR_INFO_INDEX_LITTER_NUM_GPCS_PER_DIELET
 #define NV2080_CTRL_GR_INFO_INDEX_LITTER_MAX_NUM_SMC_ENGINES_PER_DIELET NV0080_CTRL_GR_INFO_INDEX_LITTER_MAX_NUM_SMC_ENGINES_PER_DIELET
+#define NV2080_CTRL_GR_INFO_INDEX_LITTER_NUM_CPC_PER_GPC                NV0080_CTRL_GR_INFO_INDEX_LITTER_NUM_CPC_PER_GPC
+#define NV2080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_NVLINK_MASK              NV0080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_NVLINK_MASK
+#define NV2080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_C2C_MASK                 NV0080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_C2C_MASK
+#define NV2080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_PCIE_MASK                NV0080_CTRL_GR_INFO_INDEX_LITTER_HSHUB_PCIE_MASK
+
+
+#define NV2080_CTRL_GR_INFO_INDEX_RESERVED1                             NV0080_CTRL_GR_INFO_INDEX_RESERVED1
 
 /* When adding a new INDEX, please update INDEX_MAX and MAX_SIZE accordingly
  * NOTE: 0080 functionality is merged with 2080 functionality, so this max size
@@ -316,8 +323,23 @@ typedef NV0080_CTRL_GR_INFO NV2080_CTRL_GR_INFO;
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_00                            (0x00000A00U)
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_01                            (0x00000A01U)
 
+#define NV2080_CTRL_GR_INFO_SM_VERSION_10_03                            (0x00000A03U)
 
+
+/*
+ * TODO Bug 4333440 is introducing versions 12_*.
+ * Eventually once 12_* is tested and validated, another
+ * follow up change will be needed to remove 10_04 support.
+ */
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_04                            (0x00000A04U)
+#define NV2080_CTRL_GR_INFO_SM_VERSION_12_00                            (0x00000C00U)
+
+
+#define NV2080_CTRL_GR_INFO_SM_VERSION_12_01                            (0x00000C01U)
+
+
+#define NV2080_CTRL_GR_INFO_SM_VERSION_10_05                            (0x00000A05U)
+#define NV2080_CTRL_GR_INFO_SM_VERSION_13_00                            (0x00000D00U)
 
 
 
@@ -339,8 +361,14 @@ typedef NV0080_CTRL_GR_INFO NV2080_CTRL_GR_INFO;
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_0                             (NV2080_CTRL_GR_INFO_SM_VERSION_10_00)
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_1                             (NV2080_CTRL_GR_INFO_SM_VERSION_10_01)
 
+#define NV2080_CTRL_GR_INFO_SM_VERSION_10_3                             (NV2080_CTRL_GR_INFO_SM_VERSION_10_03)
+
 
 #define NV2080_CTRL_GR_INFO_SM_VERSION_10_4                             (NV2080_CTRL_GR_INFO_SM_VERSION_10_04)
+
+
+#define NV2080_CTRL_GR_INFO_SM_VERSION_10_5                             (NV2080_CTRL_GR_INFO_SM_VERSION_10_05)
+#define NV2080_CTRL_GR_INFO_SM_VERSION_13_0                             (NV2080_CTRL_GR_INFO_SM_VERSION_13_00)
 
 
 
@@ -386,8 +414,6 @@ typedef struct NV2080_CTRL_GR_GET_INFO_PARAMS {
     NV_DECLARE_ALIGNED(NvP64 grInfoList, 8);
     NV_DECLARE_ALIGNED(NV2080_CTRL_GR_ROUTE_INFO grRouteInfo, 8);
 } NV2080_CTRL_GR_GET_INFO_PARAMS;
-
-
 
 /*
  * NV2080_CTRL_CMD_GR_CTXSW_ZCULL_MODE
@@ -750,7 +776,7 @@ typedef struct NV2080_CTRL_GR_CTXSW_SMPC_MODE_PARAMS {
  */
 #define NV2080_CTRL_CMD_GR_GET_SM_TO_GPC_TPC_MAPPINGS          (0x2080120fU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_GET_SM_TO_GPC_TPC_MAPPINGS_PARAMS_MESSAGE_ID" */
 
-#define NV2080_CTRL_GR_GET_SM_TO_GPC_TPC_MAPPINGS_MAX_SM_COUNT 240U
+#define NV2080_CTRL_GR_GET_SM_TO_GPC_TPC_MAPPINGS_MAX_SM_COUNT 512U
 #define NV2080_CTRL_GR_GET_SM_TO_GPC_TPC_MAPPINGS_PARAMS_MESSAGE_ID (0xFU)
 
 typedef struct NV2080_CTRL_GR_GET_SM_TO_GPC_TPC_MAPPINGS_PARAMS {
@@ -1172,6 +1198,9 @@ typedef struct NV2080_CTRL_GR_GET_CTX_BUFFER_INFO_PARAMS {
  *         This parameter specifies the routing information used to
  *         disambiguate the target GR engine.
  *
+ *     ugpuId
+ *         Specifies the uGPU ID on Hopper+.
+ *
  */
 #define NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER              (0x2080121bU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_GET_GLOBAL_SM_ORDER_PARAMS_MESSAGE_ID" */
 
@@ -1189,6 +1218,9 @@ typedef struct NV2080_CTRL_GR_GET_GLOBAL_SM_ORDER_PARAMS {
         NvU16 globalTpcId;
         NvU16 virtualGpcId;
         NvU16 migratableTpcId;
+        NvU16 ugpuId;
+        NvU16 physicalCpcId;
+        NvU16 virtualTpcId;
     } globalSmId[NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER_MAX_SM_COUNT];
 
     NvU16 numSm;
@@ -1215,49 +1247,6 @@ typedef struct NV2080_CTRL_GR_GET_CURRENT_RESIDENT_CHANNEL_PARAMS {
     NvU32 chID;
     NV_DECLARE_ALIGNED(NV2080_CTRL_GR_ROUTE_INFO grRouteInfo, 8);
 } NV2080_CTRL_GR_GET_CURRENT_RESIDENT_CHANNEL_PARAMS;
-
-/*
- * NV2080_CTRL_CMD_GR_GET_VAT_ALARM_DATA
- *
- * This command provides the _VAT_ALARM data i.e. error and warning, counter and
- * timestamps along with max GPC and TPC per GPC count.
- *
- *   smVatAlarm [OUT]
- *     VAT Alarm data array per SM containing per GPC per TPC, counter and
- *      timestamp values for error and warning alarms.
- *   maxGpcCount [OUT]
- *     This parameter returns max GPC count.
- *   maxTpcPerGpcCount [OUT]
- *     This parameter returns the max TPC per GPC count.
- */
-#define NV2080_CTRL_CMD_GR_GET_VAT_ALARM_MAX_GPC_COUNT         10U
-#define NV2080_CTRL_CMD_GR_GET_VAT_ALARM_MAX_TPC_PER_GPC_COUNT 10U
-
-#define NV2080_CTRL_CMD_GR_GET_VAT_ALARM_DATA                  (0x2080121dU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS_MESSAGE_ID" */
-
-typedef struct NV2080_CTRL_GR_VAT_ALARM_DATA_PER_TPC {
-    NV_DECLARE_ALIGNED(NvU64 errorCounter, 8);
-    NV_DECLARE_ALIGNED(NvU64 errorTimestamp, 8);
-    NV_DECLARE_ALIGNED(NvU64 warningCounter, 8);
-    NV_DECLARE_ALIGNED(NvU64 warningTimestamp, 8);
-} NV2080_CTRL_GR_VAT_ALARM_DATA_PER_TPC;
-
-typedef struct NV2080_CTRL_GR_VAT_ALARM_DATA_PER_GPC {
-    NV_DECLARE_ALIGNED(NV2080_CTRL_GR_VAT_ALARM_DATA_PER_TPC tpc[NV2080_CTRL_CMD_GR_GET_VAT_ALARM_MAX_TPC_PER_GPC_COUNT], 8);
-} NV2080_CTRL_GR_VAT_ALARM_DATA_PER_GPC;
-
-typedef struct NV2080_CTRL_GR_VAT_ALARM_DATA {
-    NV_DECLARE_ALIGNED(NV2080_CTRL_GR_VAT_ALARM_DATA_PER_GPC gpc[NV2080_CTRL_CMD_GR_GET_VAT_ALARM_MAX_GPC_COUNT], 8);
-} NV2080_CTRL_GR_VAT_ALARM_DATA;
-
-#define NV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS_MESSAGE_ID (0x1DU)
-
-typedef struct NV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS {
-    NV_DECLARE_ALIGNED(NV2080_CTRL_GR_VAT_ALARM_DATA smVatAlarm, 8);
-    NvU32 maxGpcCount;
-    NvU32 maxTpcPerGpcCount;
-} NV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS;
-typedef struct NV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS *PNV2080_CTRL_GR_GET_VAT_ALARM_DATA_PARAMS;
 
 /*
  * NV2080_CTRL_CMD_GR_GET_ATTRIBUTE_BUFFER_SIZE
@@ -1655,6 +1644,77 @@ typedef struct NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_PARAMS {
     NvU8 imla4;
 } NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_PARAMS;
 
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_MAX_LIST_SIZE (0xFFU)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_FMLA16        (0x0U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_DP            (0x1U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_FMLA32        (0x2U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_FFMA          (0x3U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_IMLA0         (0x4U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_IMLA1         (0x5U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_IMLA2         (0x6U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_IMLA3         (0x7U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_IMLA4         (0x8U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_FP16          (0x9U)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_FP32          (0xAU)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_DFMA          (0xBU)
+#define NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_DMLA          (0xCU)
+
+/*
+ * NV2080_CTRL_CMD_GR_GET_SM_ISSUE_RATE_MODIFIER_V2
+ *
+ * This command provides an interface to retrieve the speed select values of
+ * various instruction types.
+ *
+ *   smIssueRateModifierListSize
+ *     This field specifies the number of entries on the caller's
+ *     smIssueRateModifierList.
+ *     When caller passes smIssueRateModifierListSize = 0, all fuse
+ *     values are returned.
+ *   smIssueRateModifierList
+ *     This field specifies a pointer in the caller's address space
+ *     to the buffer into which the speed select values are to be returned.
+ */
+#define NV2080_CTRL_CMD_GR_GET_SM_ISSUE_RATE_MODIFIER_V2       (0x2080123cU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_V2_PARAMS_MESSAGE_ID" */
+
+typedef NVXXXX_CTRL_XXX_INFO NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2;
+
+#define NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_V2_PARAMS_MESSAGE_ID (0x3CU)
+
+typedef struct NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_V2_PARAMS {
+    NvU32                                    smIssueRateModifierListSize;
+    NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2 smIssueRateModifierList[NV2080_CTRL_GR_SM_ISSUE_RATE_MODIFIER_V2_MAX_LIST_SIZE];
+} NV2080_CTRL_GR_GET_SM_ISSUE_RATE_MODIFIER_V2_PARAMS;
+
+#define NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL_MAX_LIST_SIZE (0xFFU)
+#define NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL_MASK          (0x0U)
+#define NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL_CREDIT        (0x1U)
+
+/*
+ * NV2080_CTRL_CMD_GR_GET_SM_ISSUE_THROTTLE_CTRL
+ *
+ * This command provides an interface to retrieve the throttle contol values of
+ * various instruction types for a GR engine.
+ *
+ *   smIssueThrottleCtrlListSize
+ *     This field specifies the number of entries on the caller's
+ *     smIssueThrottleCtrlList.
+ *     When caller passes smIssueThrottleCtrlListSize = 0, all fuse
+ *     values are returned.
+ *   smIssueThrottleCtrlList
+ *     This field specifies a pointer in the caller's address space
+ *     to the buffer into which the throttle control values are to be returned.
+ */
+#define NV2080_CTRL_CMD_GR_GET_SM_ISSUE_THROTTLE_CTRL       (0x2080123dU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_GET_SM_ISSUE_THROTTLE_CTRL_PARAMS_MESSAGE_ID" */
+
+typedef NVXXXX_CTRL_XXX_INFO NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL;
+
+#define NV2080_CTRL_GR_GET_SM_ISSUE_THROTTLE_CTRL_PARAMS_MESSAGE_ID (0x3DU)
+
+typedef struct NV2080_CTRL_GR_GET_SM_ISSUE_THROTTLE_CTRL_PARAMS {
+    NvU32                                 smIssueThrottleCtrlListSize;
+    NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL smIssueThrottleCtrlList[NV2080_CTRL_GR_SM_ISSUE_THROTTLE_CTRL_MAX_LIST_SIZE];
+} NV2080_CTRL_GR_GET_SM_ISSUE_THROTTLE_CTRL_PARAMS;
+
 /*
  * NV2080_CTRL_CMD_GR_FECS_BIND_EVTBUF_FOR_UID
  *
@@ -1943,5 +2003,32 @@ typedef struct NV2080_CTRL_GR_GET_TPC_RECONFIG_MASK_PARAMS {
     NvU32 tpcReconfigMask;
     NV_DECLARE_ALIGNED(NV2080_CTRL_GR_ROUTE_INFO grRouteInfo, 8);
 } NV2080_CTRL_GR_GET_TPC_RECONFIG_MASK_PARAMS;
+
+/*
+ * NV2080_CTRL_CMD_GR_TEST_CTXSW_ERROR_LOGS
+ *
+ * This command provides an interface to test CTXSW print logs from
+ * the context switch microcode. This is test only interface.
+ *
+ *    expectedCharCount[IN]
+ *      This parameter specifies the number of characters to retrieve
+ *      and print.
+ *    bUseInterrupt[IN]
+ *      This flag is used to indicate if an interrupt is to be issued prior to 
+ *      ctxsw ucode dumping its prints to the buffer. 
+ *
+ * Possible status values returned are:
+ *   NV_OK
+ *   NV_ERR_INVALID_STATE
+ *   NV_ERR_INVALID_ARGUMENT
+ */
+#define NV2080_CTRL_CMD_GR_TEST_CTXSW_ERROR_LOGS (0x2080123eU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GR_INTERFACE_ID << 8) | NV2080_CTRL_GR_TEST_CTXSW_ERROR_LOGS_PARAMS_MESSAGE_ID" */
+
+#define NV2080_CTRL_GR_TEST_CTXSW_ERROR_LOGS_PARAMS_MESSAGE_ID (0x3EU)
+
+typedef struct NV2080_CTRL_GR_TEST_CTXSW_ERROR_LOGS_PARAMS {
+    NvU32  expectedCharCount;
+    NvBool bUseInterrupt;
+} NV2080_CTRL_GR_TEST_CTXSW_ERROR_LOGS_PARAMS;
 
 /* _ctrl2080gr_h_ */

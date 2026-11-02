@@ -1,5 +1,5 @@
 use amdgpu_sysfs::{gpu_handle::fan_control::FanCurve as PmfwCurve, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use lact_schema::config::FanCurve;
 use tracing::warn;
 
@@ -21,7 +21,7 @@ impl FanCurveExt for FanCurve {
         let current = temp.current.expect("No current temp");
 
         // This scenario is most likely unreachable as the kernel shuts down the GPU when it reaches critical temperature
-        if temp.crit.filter(|crit| current > *crit).is_some() {
+        if temp.crit.as_ref().is_some_and(|crit| current > *crit) {
             warn!("GPU temperature is beyond critical values! {current}°C");
             return u8::MAX;
         }

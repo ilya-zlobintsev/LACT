@@ -1,7 +1,7 @@
-info-page = Informations
-oc-page = OC
+info-page = Infos matériel
+oc-page = Overclock
 thermals-page = Températures
-software-page = Logiciel
+software-page = Infos logiciel
 hardware-info = Informations sur le matériel
 system-section = Système
 kernel-version = Version du noyau
@@ -22,7 +22,7 @@ global-memory = Mémoire globale
 lact-daemon = Démon LACT
 local-memory = Mémoire locale
 temperatures = Températures
-reset-config-description = Voulez-vous vraiment réinitialiser toute la configuration GPU ?
+reset-config-description = Cela réinitialisera tous les paramètres du GPU à leurs valeurs par défaut et supprimera définitivement tous les profils
 throttling = Régulation
 device-not-found = Périphérique { $kind } introuvable
 cache-info = Informations sur le cache
@@ -48,9 +48,7 @@ curve-page = Courbe
 target-temp = Température cible (°C)
 enable-amd-oc-description = Cela aura pour effet d’activer la fonctionnalité overdrive du pilote amdgpu en créant un fichier à l’emplacement <b>{ $path }</b> et en mettant à jour l’initramfs. Voulez-vous vraiment continuer ?
 zero-rpm-stop-temp = Température d’arrêt à zéro tr/min (°C)
-amd-oc-disabled =
-    La prise en charge de l’overclocking AMD n’est pas activée !
-    Vous pouvez toujours modifier les paramètres de base, mais les réglages avancés de fréquence et de tension ne seront pas disponibles.
+amd-oc-disabled = L’overclocking AMD n’est pas activé ! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Certaines fonctionnalités ne seront pas disponibles.</a>
 pmfw-reset-warning = Attention : cette opération réinitialise les paramètres des ventilateurs du micrologiciel !
 show-button = Afficher
 cache-data = Données
@@ -74,8 +72,8 @@ unknown-throttling = Inconnue
 performance-level-manual = Manuel
 min-gpu-clock = Fréquence d’horloge GPU minimale (MHz)
 enable-vram-locked-clocks = Activer VRAM Locked Clocks
-oc-warning = Avertissement : la modification de ces valeurs peut entraîner une instabilité du système et endommager votre matériel !
-pstates-manual-needed = Remarque : le niveau de performance doit être réglé sur « manuel » pour basculer entre les états d’alimentation
+oc-warning = La modification de ces valeurs peut entraîner une instabilité du système et endommager votre matériel !
+pstates-manual-needed = Le niveau de performance doit être défini sur « manuel » pour basculer entre les états d’alimentation
 min-gpu-voltage = Tension GPU minimale (mV)
 pstate-list-description = <b>Les valeurs suivantes correspondent à l’ajustement des fréquences d’horloge pour chaque P-State, du plus élevé au plus faible.</b>
 min-vram-clock = Fréquence d’horloge VRAM minimale (MHz)
@@ -89,7 +87,7 @@ performance-level-auto = Automatique
 performance-level-auto-description = Ajuster automatiquement les fréquences d’horloge GPU et VRAM. (Par défaut)
 power-profile-mode = Mode profil d’alimentation :
 overclock-section = Fréquence d’horloge et tension
-nvidia-oc-info = Informations sur Nvidia Overclocking
+nvidia-oc-info = Informations overclock
 show-all-pstates = Afficher tous les P-States
 no-clocks-data = Aucune donnée de fréquence d’horloge disponible
 gpu-clock-offset = Décalage de la fréquence d’horloge GPU (MHz)
@@ -117,7 +115,7 @@ mem-pstate-clock = P-State VRAM { $pstate } Fréquence d’horloge (MHz)
 gpu-pstate-clock-voltage = P-State GPU { $pstate } Tension (mV)
 gpu-pstates = États de puissance GPU
 vram-pstates = États de puissance VRAM
-show-historical-charts = Afficher les graphiques historiques
+show-historical-charts = Afficher les graphiques
 auto-switch-profiles = Basculer automatiquement
 nvidia-oc-description =
     La fonctionnalité d’overclocking NVIDIA comprend le réglage des fréquences d’horloge GPU/VRAM et la limitation de la plage potentielle des fréquences d’horloge à l’aide de la fonctionnalité « locked clocks ».
@@ -125,8 +123,6 @@ nvidia-oc-description =
     Sur de nombreuses cartes, l’ajustement de la fréquence d’horloge VRAM n’affectera la fréquence d’horloge réelle de la mémoire que de la moitié de la valeur d’ajustement.
     Par exemple, un ajustement VRAM de +1000 MHz augmente la fréquence VRAM mesurée de seulement 500 MHz.
     Ce comportement est normal et est cohérent avec la manière dont NVIDIA gère les débits de données GDDR. Ajustez votre overclocking en conséquence.
-
-    Le contrôle direct de la tension n’est pas pris en charge, car il n’existe pas dans le pilote Linux NVIDIA.
 
     Il est possible d’obtenir un pseudo-undervolt en combinant l’option « locked clocks » à un ajustement positif de la fréquence d’horloge.
     Cela forcera le GPU à fonctionner à une tension limitée par le verrouillage d’horloges, tout en atteignant une fréquence d’horloge plus élevée grâce à l’ajustement.
@@ -198,7 +194,7 @@ generate-debug-snapshot = Générer un instantané de débogage
 dump-vbios = Dumper le VBIOS
 reset-all-config = Réinitialiser toute la configuration
 stats-update-interval = Intervalle de mise à jour (ms)
-reconnecting-to-daemon = Connexion au démon perdue, reconnexion...
+reconnecting-to-daemon = Connexion au service perdue, reconnexion...
 daemon-connection-lost = Connexion perdue
 plot-show-detailed-info = Afficher les détails
 show-process-monitor = Afficher le moniteur de processus
@@ -226,3 +222,88 @@ edit-graph-sensors = Modifier les capteurs du graphique
 apply-button = Appliquer
 revert-button = Rétablir
 edit-graphs = Modifier
+gibibyte = Gio
+crash-page-title = L’application a planté
+exit = Quitter
+bytes = octets
+kibibyte = Kio
+hw-ip-info = Informations IP matériel
+hw-queues = Files d'attente
+theme = Thème
+theme-auto = Automatique
+vf-curve-editor = Éditeur de courbes VF
+nvidia-vf-curve-warning =
+    L’éditeur de courbes voltage-fréquence dépend de fonctionnalités non documentées du pilote.
+    Il n'existe aucune garantie quant à son fonctionnement, sa sécurité ou sa disponibilité.
+    <span weight = "heavy" underline = "single">À utiliser à vos risques et périls</span>.
+voltage = Voltage
+frequency = Fréquence
+vf-active-curve = Courbe active
+vf-base-curve = Courbe de base
+vf-curve-visible-range = Intervalle visible (%) :
+vf-curve-visible-range-to = à
+vf-curve-flatten-right = Aplatir la courbe sur la droite
+preferences = Préférences
+ui = Interface
+daemon = Démon
+about = À propos
+confirm = Confirmer
+confirm-settings = Confirmer les paramètres
+settings-confirmation = Voulez-vous conserver les nouveaux paramètres ? (Annulation dans { $seconds_left } secondes)
+error-heading = Erreur
+daemon-info-heading = Infos sur le démon
+version-mismatch-description =
+    La version de l'interface graphique et du démon sont incompatibles ({ $gui_version }-{ $gui_commit } contre { $daemon_version }-{ $daemon_commit }) !
+    Si vous avez mis à jour LACT, vous devez redémarrer le service.
+close = Fermer
+menu = Menu
+color-scheme-dark = Sombre
+color-scheme-light = Clair
+displays-page = Informations sur l’écran
+thresholds-section = Seuils et limites
+no-fan-detected = Aucun ventilateur détecté
+no-sensors-found = Aucun capteurs détectés
+reset-now-button = Réinitialiser maintenant
+default-button = Par défaut
+power-mizer-mode = Mode PowerMizer
+power-mizer-mode-auto = Auto
+power-mizer-mode-adaptive = Adaptatif
+power-mizer-mode-prefer-maximum-performance = Préférer des performances optimales
+power-mizer-mode-prefer-consistent-performance = Préférer des performances consistantes
+power-mizer-mode-auto-description = Laisser le driver choisir le mode de performance.
+power-mizer-mode-adaptive-description = Ajuster les fréquences du GPU en fonction de son utilisation.
+power-mizer-mode-prefer-maximum-performance-description = Privilégier les performances maximales dans les limites des capacités du conducteur.
+power-mizer-mode-prefer-consistent-performance-description = Verrouiller sur les fréquences de base du GPU.
+color-scheme = Palette de couleurs
+color-scheme-auto = Système
+gtt-usage = Utilisation du GTT :
+vf-curve-flatten-selection = Aplatir la selection
+gpu-voltage-boost = Augmentation de la tension du GPU (%)
+gpu-voltage-boost-tooltip = Détermine la part de la marge de tension supplémentaire définie par le pilote qui est disponible. Une valeur de 100 % correspond à la totalité de cette marge, et non à 100 % de la tension totale du GPU. Une marge plus importante peut permettre d'atteindre des fréquences d'horloge plus élevées, mais augmente la consommation électrique et la production de chaleur.
+service-explanation =
+    La configuration des paramètres du GPU nécessite le service système LACT.
+    En son absence, LACT fonctionne en mode autonome, dans lequel seules les fonctions d'information et de surveillance sont disponibles.
+service-connection-status = État de la connexion
+service-status = État du service
+service-permission-denied =
+    Autorisation refusée, le service n'est pas configuré pour autoriser les connexions provenant de votre utilisateur.
+    Consultez <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> pour plus d'informations
+service-connected = connecté
+service-disconnected = déconnecté
+service-version = Version du service
+gui-version = Version de l'interface
+service-version-mismatch = incompatible
+service-logs = Journaux du service
+service-start = Démarrer
+service-stop = Arrêter
+service-restart = Redémarrer
+service-autostart = Démarrer automatiquement au démarrage
+service-autostart-disable = Désactivez également le démarrage automatique
+display-title = Écran { $identifier }
+display-manufacturer = Fabriquant
+display-product-code = Code produit
+display-model = Modèle
+display-physical-size = Taille physique
+display-connection = Connexion
+display-manufacture-date = Date de fabrication
+displays-missing = Aucun écrans détectes

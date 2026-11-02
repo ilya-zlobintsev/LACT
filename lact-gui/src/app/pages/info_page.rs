@@ -1,20 +1,24 @@
-use super::PageUpdate;
-use crate::app::format_friendly_size;
-use crate::app::info_row::InfoRowItem;
-use crate::app::page_section::PageSection;
 use crate::I18N;
+use crate::app::components::{
+    info_row::{InfoRow, InfoRowExt, InfoRowItem},
+    page_section::PageSection,
+};
+use crate::app::pages::PageUpdate;
+use crate::app::utils::ext::FlowBoxExt;
+use crate::app::utils::formatting::fmt_human_bytes;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
-use lact_schema::{CacheInfo, CacheType, DeviceInfo, DeviceStats};
+use lact_schema::{AmdIpInfo, CacheInfo, CacheType, DeviceInfo, DeviceStats};
 use relm4::{
-    prelude::{FactoryComponent, FactoryVecDeque},
     ComponentParts, ComponentSender, RelmWidgetExt,
+    prelude::{FactoryComponent, FactoryVecDeque},
 };
 use std::sync::Arc;
 
 pub struct InformationPage {
     values_list: FactoryVecDeque<InfoRowItem>,
     cache_list: FactoryVecDeque<CacheRow>,
+    ip_list: FactoryVecDeque<AmdIpRow>,
     device_info: Option<Arc<DeviceInfo>>,
     device_stats: Option<Arc<DeviceStats>>,
 }
@@ -26,36 +30,67 @@ impl relm4::SimpleComponent for InformationPage {
     type Output = ();
 
     view! {
-        gtk::ScrolledWindow {
-            set_hscrollbar_policy: gtk::PolicyType::Never,
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 15,
+            set_margin_all: 15,
+            set_margin_top: 20, // align with gpu picker
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 15,
-                set_margin_horizontal: 20,
+            PageSection {
+                append_child = &model.values_list.widget().clone() -> gtk::FlowBox {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_column_spacing: 10,
+                    set_homogeneous: true,
+                    set_min_children_per_line: 2,
+                    set_max_children_per_line: 4,
+                    set_selection_mode: gtk::SelectionMode::None,
 
-                PageSection::new(&fl!(I18N, "hardware-info")) {
-                    append = &model.values_list.widget().clone() -> gtk::Box {
-                        set_spacing: 10,
-                        set_orientation: gtk::Orientation::Vertical,
-                    },
+                    append_child = &InfoRow {
+                        set_value: fl!(I18N, "cache-info"),
+                        set_icon: "go-down-symbolic".to_string(),
 
-                    append = &gtk::Expander {
-                        set_label: Some(&fl!(I18N, "cache-info")),
+                        #[name = "cache_popover"]
+                        set_popover = &gtk::Popover {
+                            model.cache_list.widget().clone() -> gtk::ListBox {
+                                set_margin_all: 10,
+                                set_selection_mode: gtk::SelectionMode::None,
+                            },
+                        },
+
+                        connect_clicked[cache_popover] => move |_| {
+                            cache_popover.popup();
+                        },
+                    } -> cache_row: gtk::FlowBoxChild {
                         #[watch]
                         set_visible: !model.cache_list.is_empty(),
+                    },
 
-                        gtk::Frame {
-                            model.cache_list.widget().clone() -> gtk::Box {
-                                set_spacing: 5,
+                    append_child = &InfoRow {
+                        set_name: fl!(I18N, "hw-ip-info"),
+                        #[watch]
+                        set_value: model.ip_list.iter().map(|item| {
+                            item.ip.ip_type.as_str()
+                        }).collect::<Vec<&str>>().join(", "),
+                        set_icon: "go-down-symbolic".to_string(),
+
+                        #[name = "ip_popover"]
+                        set_popover = &gtk::Popover {
+                            model.ip_list.widget().clone() -> gtk::ListBox {
                                 set_margin_all: 10,
-                                set_orientation: gtk::Orientation::Vertical,
+                                set_selection_mode: gtk::SelectionMode::None,
                             },
-                        }
+                        },
+
+                        connect_clicked[ip_popover] => move |_| {
+                            ip_popover.popup();
+                        },
+                    } -> ip_row: gtk::FlowBoxChild {
+                        #[watch]
+                        set_visible: !model.ip_list.is_empty(),
                     },
                 },
-            }
-        }
+            },
+        },
     }
 
     fn init(
@@ -66,6 +101,7 @@ impl relm4::SimpleComponent for InformationPage {
         let model = Self {
             values_list: FactoryVecDeque::builder().launch_default().detach(),
             cache_list: FactoryVecDeque::builder().launch_default().detach(),
+            ip_list: FactoryVecDeque::builder().launch_default().detach(),
             device_info: None,
             device_stats: None,
         };
@@ -99,7 +135,9 @@ impl InformationPage {
             for (name, value) in info.info_elements(self.device_stats.as_deref()) {
                 if let Some(value) = value {
                     let note = if name == "Card Model" && !value.starts_with("Unknown ") {
-                        Some("The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.")
+                        Some(
+                            "The card displayed here may be of a sibling model, e.g. XT vs XTX variety. This is normal, as such models often use the same device ID, and it is not possible to differentiate between them.",
+                        )
                     } else {
                         None
                     };
@@ -129,7 +167,7 @@ impl InformationPage {
                                     text: fl!(
                                         I18N,
                                         "amd-cache-desc",
-                                        size = format_friendly_size(instance.size.into()),
+                                        size = fmt_human_bytes(instance.size.into(), None),
                                         level = instance.level,
                                         types = cache_types,
                                         shared = instance.cu_count
@@ -143,12 +181,19 @@ impl InformationPage {
                                 text: fl!(
                                     I18N,
                                     "nvidia-cache-desc",
-                                    size = format_friendly_size((*l2).into()),
+                                    size = fmt_human_bytes((*l2).into(), None),
                                     level = 2,
                                 ),
                             });
                         }
                     }
+                }
+
+                let mut ip_list = self.ip_list.guard();
+                ip_list.clear();
+
+                for ip_info in &drm_info.amd_ip_info {
+                    ip_list.push_back(ip_info.clone());
                 }
             }
         }
@@ -162,7 +207,7 @@ struct CacheRow {
 
 #[relm4::factory]
 impl FactoryComponent for CacheRow {
-    type ParentWidget = gtk::Box;
+    type ParentWidget = gtk::ListBox;
     type Init = Self;
     type Input = ();
     type Output = ();
@@ -177,10 +222,59 @@ impl FactoryComponent for CacheRow {
     }
 
     view! {
-        gtk::Label {
-            set_label: &format!("{}x {}", self.count, self.text),
-            set_selectable: true,
-            set_halign: gtk::Align::Start,
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+
+            gtk::Label {
+                set_label: &format!("{}x {}", self.count, self.text),
+                set_selectable: true,
+                set_halign: gtk::Align::Start,
+                set_margin_all: 5,
+            }
+        }
+    }
+}
+
+struct AmdIpRow {
+    ip: AmdIpInfo,
+}
+
+#[relm4::factory]
+impl FactoryComponent for AmdIpRow {
+    type ParentWidget = gtk::ListBox;
+    type Init = AmdIpInfo;
+    type Input = ();
+    type Output = ();
+    type CommandOutput = ();
+
+    fn init_model(
+        ip: Self::Init,
+        _index: &Self::Index,
+        _sender: relm4::FactorySender<Self>,
+    ) -> Self {
+        Self { ip }
+    }
+
+    view! {
+        gtk::ListBoxRow {
+            set_activatable: false,
+            set_selectable: false,
+
+            gtk::Label {
+                set_label: &format!(
+                    "{} {}.{} ({}x, {} {})",
+                    self.ip.ip_type,
+                    self.ip.version_major,
+                    self.ip.version_minor,
+                    self.ip.count,
+                    self.ip.queues,
+                    fl!(I18N, "hw-queues")
+                ),
+                set_selectable: true,
+                set_halign: gtk::Align::Start,
+                set_margin_all: 5,
+            }
         }
     }
 }

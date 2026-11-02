@@ -1,34 +1,34 @@
+#[cfg_attr(test, allow(dead_code))]
 mod drm;
 
+use self::drm::DrmProvider;
+#[cfg(feature = "mock")]
+use self::drm::mock::MockDrmProvider;
+use self::drm::{i915::I915DrmProvider, xe::XeDrmProvider};
 use super::{CommonControllerInfo, GpuController};
 use crate::{
-    bindings::intel::{
-        drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE,
-        drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM, IntelDrm,
-    },
-    server::{
-        gpu_controller::common::fdinfo::{self, DrmUtilMap},
-        opencl::get_opencl_info,
-        vulkan::get_vulkan_info,
-    },
+    bindings::intel::IntelDrm,
+    server::gpu_controller::common::fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{gpu_handle::power_profile_mode::PowerProfileModesTable, hw_mon::Temperature};
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, Error, anyhow, bail, ensure};
 use futures::future::LocalBoxFuture;
+use indexmap::IndexMap;
+use lact_schema::FanControlMode::Static;
 use lact_schema::{
-    config::GpuConfig, ClocksInfo, ClocksTable, ClockspeedStats, DeviceInfo, DeviceStats,
-    DeviceType, DrmInfo, DrmMemoryInfo, FanStats, IntelClocksTable, IntelDrmInfo, LinkInfo,
-    PowerState, PowerStates, PowerStats, ProcessList, ProcessUtilizationType, VoltageStats,
-    VramStats,
+    ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats,
+    DeviceType, DrmInfo, FanControlMode, FanStats, IntelClocksTable, LinkInfo, PowerState,
+    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats,
+    VramStats, config::GpuConfig,
 };
+use lact_schema::{FanCurveMap, config::FanCurve};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap},
     fmt::{self, Display},
     fs,
-    io::{BufRead, BufReader},
-    os::{fd::AsRawFd, raw::c_int},
+    io::{BufRead, BufReader, ErrorKind},
     path::{Path, PathBuf},
     str::FromStr,
     time::Instant,
@@ -49,6 +49,7 @@ const MAX_POWER_CAP_NAMES: &[&str] = &[
     "power1_crit",
     "power2_crit",
 ];
+const PRIMARY_TEMP_LABELS: &[&str] = &["gpu", "pkg", "vram"];
 
 #[derive(Clone, Copy)]
 enum DriverType {
@@ -61,8 +62,7 @@ pub struct IntelGpuController {
     common: CommonControllerInfo,
     tile_gts: Vec<PathBuf>,
     hwmon_path: Option<PathBuf>,
-    drm_file: fs::File,
-    drm: &'static IntelDrm,
+    drm: Box<dyn DrmProvider>,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
     last_gpu_busy: Cell<Option<(Instant, u64)>>,
     #[allow(dead_code)]
@@ -85,20 +85,20 @@ impl IntelGpuController {
             .flatten()
             .flatten()
         {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("tile") {
-                    for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
-                        if let Some(gt_name) = gt_entry.file_name().to_str() {
-                            if gt_name.starts_with("gt") {
-                                let gt_path = gt_entry
-                                    .path()
-                                    .strip_prefix(&common.sysfs_path)
-                                    .unwrap()
-                                    .to_owned();
-                                debug!("initialized GT at '{}'", gt_path.display());
-                                tile_gts.push(gt_path);
-                            }
-                        }
+            if let Some(name) = entry.file_name().to_str()
+                && name.starts_with("tile")
+            {
+                for gt_entry in fs::read_dir(entry.path()).into_iter().flatten().flatten() {
+                    if let Some(gt_name) = gt_entry.file_name().to_str()
+                        && gt_name.starts_with("gt")
+                    {
+                        let gt_path = gt_entry
+                            .path()
+                            .strip_prefix(&common.sysfs_path)
+                            .unwrap()
+                            .to_owned();
+                        debug!("initialized GT at '{}'", gt_path.display());
+                        tile_gts.push(gt_path);
                     }
                 }
             }
@@ -112,15 +112,22 @@ impl IntelGpuController {
             );
             tile_gts.sort();
         }
-        let drm_file = if cfg!(not(test)) {
-            let drm_path = common.get_drm_render()?;
-            fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(drm_path)
-                .context("Could not open DRM file")?
-        } else {
-            fs::File::open("/dev/null").unwrap()
+
+        #[allow(unused_labels)]
+        let drm: Box<dyn DrmProvider> = 'drm: {
+            #[cfg(feature = "mock")]
+            if let Some(mock) = MockDrmProvider::new(&common.sysfs_path) {
+                break 'drm Box::new(mock) as Box<dyn DrmProvider>;
+            }
+
+            let drm_fd = common
+                .open_drm_render()
+                .context("Could not open DRM file")?;
+
+            match driver_type {
+                DriverType::I915 => Box::new(I915DrmProvider::new(drm, drm_fd)),
+                DriverType::Xe => Box::new(XeDrmProvider::new(drm_fd)),
+            }
         };
 
         let hwmon_path = fs::read_dir(common.sysfs_path.join("hwmon"))
@@ -135,7 +142,6 @@ impl IntelGpuController {
             driver_type,
             tile_gts,
             hwmon_path,
-            drm_file,
             drm,
             last_drm_util: RefCell::new(None),
             last_gpu_busy: Cell::new(None),
@@ -175,21 +181,21 @@ impl IntelGpuController {
 
         trace!("reading file from '{}'", file_path.display());
 
-        if file_path.exists() {
-            match fs::read_to_string(&file_path) {
-                Ok(contents) => match contents.trim().parse() {
-                    Ok(value) => return Some(value),
-                    Err(err) => {
-                        error!(
-                            "could not parse value from '{}': {err}",
-                            file_path.display()
-                        );
-                    }
-                },
+        match fs::read_to_string(&file_path) {
+            Ok(contents) => match contents.trim().parse() {
+                Ok(value) => return Some(value),
                 Err(err) => {
-                    error!("could not read file at '{}': {err}", file_path.display());
+                    error!(
+                        "could not parse value from '{}': {err}",
+                        file_path.display()
+                    );
                 }
+            },
+
+            Err(err) if err.kind() != ErrorKind::NotFound => {
+                error!("could not read file at '{}': {err}", file_path.display());
             }
+            Err(_) => {}
         }
         None
     }
@@ -225,15 +231,13 @@ impl IntelGpuController {
             .and_then(|hwmon_path| {
                 let entries = fs::read_dir(hwmon_path).ok()?;
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if let Some(infix) = name
+                    if let Some(name) = entry.file_name().to_str()
+                        && let Some(_infix) = name
                             .strip_prefix(file_prefix)
                             .and_then(|name| name.strip_suffix(file_suffix))
-                        {
-                            if !infix.contains('_') {
-                                files.push(entry.path());
-                            }
-                        }
+                    // && !infix.contains('_')
+                    {
+                        files.push(entry.path());
                     }
                 }
                 files.sort_unstable();
@@ -272,37 +276,6 @@ impl IntelGpuController {
         debug!("writing value '{contents}' to '{}'", path.display());
 
         self.write_file(path, contents)
-    }
-
-    fn get_drm_info_i915(&self) -> IntelDrmInfo {
-        IntelDrmInfo {
-            execution_units: self.drm_try(IntelDrm::drm_intel_get_eu_total),
-            subslices: self.drm_try(IntelDrm::drm_intel_get_subslice_total),
-        }
-    }
-
-    #[allow(clippy::unused_self)]
-    fn get_drm_info_xe(&self) -> IntelDrmInfo {
-        IntelDrmInfo {
-            execution_units: None,
-            subslices: None,
-        }
-    }
-
-    #[cfg_attr(test, allow(unreachable_code, unused_variables))]
-    fn drm_try<T: Default>(&self, f: unsafe fn(&IntelDrm, c_int, *mut T) -> c_int) -> Option<T> {
-        #[cfg(test)]
-        return None;
-
-        unsafe {
-            let mut out = T::default();
-            let result = f(self.drm, self.drm_file.as_raw_fd(), &raw mut out);
-            if result == 0 {
-                Some(out)
-            } else {
-                None
-            }
-        }
     }
 
     #[allow(
@@ -365,28 +338,33 @@ impl IntelGpuController {
         }
     }
 
-    fn get_temperatures(&self) -> HashMap<String, Temperature> {
+    fn get_temperatures(&self) -> IndexMap<String, TemperatureEntry> {
         self.read_hwmon_files::<f32>("temp", "_input")
             .map(|(temp, file)| {
                 let mut key = None;
-                if let Some(filename) = file.to_str() {
-                    if let Some(base_filename) = filename.strip_suffix("_input") {
-                        let label_filename = format!("{base_filename}_label");
+                if let Some(filename) = file.to_str()
+                    && let Some(base_filename) = filename.strip_suffix("_input")
+                {
+                    let label_filename = format!("{base_filename}_label");
 
-                        if let Some(label) = self.read_file(&label_filename) {
-                            key = Some(label);
-                        }
+                    if let Some(label) = self.read_file(&label_filename) {
+                        key = Some(label);
                     }
                 }
 
                 let key = key.unwrap_or_else(|| "gpu".to_owned());
 
-                let temperature = Temperature {
+                let value = Temperature {
                     current: Some(temp / 1000.0),
                     crit: None,
                     crit_hyst: None,
                 };
-                (key, temperature)
+                let entry = TemperatureEntry {
+                    value,
+                    primary: PRIMARY_TEMP_LABELS.contains(&key.as_str()),
+                    display_only: true,
+                };
+                (key, entry)
             })
             .collect()
     }
@@ -453,17 +431,17 @@ impl IntelGpuController {
                 let gt_path = card_path.join("gt").join("gt0");
                 let gt_files = fs::read_dir(gt_path).ok()?;
                 for file in gt_files.flatten() {
-                    if let Some(name) = file.file_name().to_str() {
-                        if let Some(reason) = name.strip_prefix("throttle_reason_") {
-                            if reason == "status" {
-                                continue;
-                            }
+                    if let Some(name) = file.file_name().to_str()
+                        && let Some(reason) = name.strip_prefix("throttle_reason_")
+                    {
+                        if reason == "status" {
+                            continue;
+                        }
 
-                            if let Some(value) = self.read_file::<i32>(file.path()) {
-                                if value != 0 {
-                                    reasons.insert(reason.to_owned(), vec![]);
-                                }
-                            }
+                        if let Some(value) = self.read_file::<i32>(file.path())
+                            && value != 0
+                        {
+                            reasons.insert(reason.to_owned(), vec![]);
                         }
                     }
                 }
@@ -474,91 +452,18 @@ impl IntelGpuController {
 
                     let throttle_files = fs::read_dir(path).ok()?;
                     for file in throttle_files.flatten() {
-                        if let Some(name) = file.file_name().to_str() {
-                            if let Some(reason) = name.strip_prefix("reason_") {
-                                if let Some(value) = self.read_file::<i32>(file.path()) {
-                                    if value != 0 {
-                                        reasons.insert(reason.to_owned(), vec![]);
-                                    }
-                                }
-                            }
+                        if let Some(name) = file.file_name().to_str()
+                            && let Some(reason) = name.strip_prefix("reason_")
+                            && let Some(value) = self.read_file::<i32>(file.path())
+                            && value != 0
+                        {
+                            reasons.insert(reason.to_owned(), vec![]);
                         }
                     }
                 }
             }
         }
         Some(reasons)
-    }
-
-    fn get_vram_info(&self) -> IntelVramInfo {
-        let mut total = 0;
-        let mut used = 0;
-        let mut cpu_accessible_total = 0;
-        let mut cpu_accessible_used = 0;
-
-        match self.driver_type {
-            DriverType::I915 => {
-                if let Ok(Some(query)) = drm::i915::query_memory_regions(&self.drm_file) {
-                    let mut i915_unallocated = 0;
-                    let mut cpu_unallocated = 0;
-
-                    unsafe {
-                        let regions = query.regions.as_slice(query.num_regions as usize);
-                        for region_info in regions {
-                            if u32::from(region_info.region.memory_class)
-                                == drm_i915_gem_memory_class_I915_MEMORY_CLASS_DEVICE
-                            {
-                                total += region_info.probed_size;
-                                i915_unallocated += region_info.unallocated_size;
-
-                                let cpu_region_info = region_info.__bindgen_anon_1.__bindgen_anon_1;
-                                if cpu_region_info.probed_cpu_visible_size > 0 {
-                                    cpu_accessible_total += cpu_region_info.probed_cpu_visible_size;
-                                    cpu_unallocated += cpu_region_info.unallocated_cpu_visible_size;
-                                }
-                            }
-                        }
-                    }
-
-                    if total > 0 {
-                        used = total - i915_unallocated;
-                    }
-
-                    if cpu_accessible_total > 0 {
-                        cpu_accessible_used = cpu_accessible_total - cpu_unallocated;
-                    }
-                }
-            }
-            DriverType::Xe => {
-                if let Ok(Some(query)) = drm::xe::query_mem_regions(&self.drm_file) {
-                    unsafe {
-                        let regions = query.mem_regions.as_slice(query.num_mem_regions as usize);
-                        for region_info in regions {
-                            if u32::from(region_info.mem_class)
-                                == drm_xe_memory_class_DRM_XE_MEM_REGION_CLASS_VRAM
-                            {
-                                total += region_info.total_size;
-                                used += region_info.used;
-
-                                if region_info.cpu_visible_size > 0 {
-                                    cpu_accessible_total += region_info.cpu_visible_size;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        IntelVramInfo {
-            total,
-            used,
-            mem_info: DrmMemoryInfo {
-                cpu_accessible_used,
-                cpu_accessible_total,
-                resizeable_bar: Some(cpu_accessible_total == total),
-            },
-        }
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -568,6 +473,11 @@ impl IntelGpuController {
             .map(|value| value as f64)
     }
 
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn set_power_cap(&self, cap: f64) -> anyhow::Result<()> {
+        self.write_hwmon_file(POWER_CAP_NAMES, &((cap * 1_000_000.0) as u64).to_string())
+    }
+
     #[allow(clippy::cast_precision_loss)]
     fn get_power_cap_max(&self) -> Option<f64> {
         self.read_hwmon_file(MAX_POWER_CAP_NAMES, true)
@@ -575,15 +485,245 @@ impl IntelGpuController {
             .map(|value| value as f64)
             .or_else(|| self.get_power_cap().map(|_| FALLBACK_MAX_POWER_CAP))
     }
+
+    fn has_fan_control(&self) -> bool {
+        self.match_hwmon_files(&["pwm1"]).next().is_some()
+    }
+
+    fn get_hwmon_controllable_points_amount(&self) -> u8 {
+        self.read_hwmon_files::<String>("pwm1_", "_pwm")
+            .count()
+            .try_into()
+            .expect("invalid amount of curve points")
+    }
+
+    // if we need the exact fan curve in the future
+    /* fn get_hwmon_fan_curve(&self) -> Option<FanCurveMap> {
+        let points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+        Some(points.into_iter().collect())
+    } */
+
+    fn get_hwmon_fan_curve_points(&self) -> Option<Vec<(i32, f32)>> {
+        let amount: u8 = self.get_hwmon_controllable_points_amount();
+
+        if amount == 0 {
+            return None;
+        }
+
+        let mut points: Vec<(i32, f32)> = Vec::new();
+
+        for point in 1..=amount {
+            let pwm_file: String = format!("pwm1_auto_point{point}_pwm");
+            let temp_file: String = format!("pwm1_auto_point{point}_temp");
+
+            #[allow(clippy::cast_precision_loss)]
+            let pwm: f32 = self
+                .read_hwmon_file(&[&*pwm_file], false)
+                .map(|value: u64| value as f32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            #[allow(clippy::cast_possible_truncation)]
+            let temp: i32 = self
+                .read_hwmon_file(&[&*temp_file], false)
+                .map(|value: u64| value as i32)
+                .context("Could not read the curve")
+                .unwrap();
+
+            points.push((temp / 1000, pwm / 255.0));
+        }
+
+        Some(points)
+    }
+
+    fn get_truncated_hwmon_fan_curve(&self, config: Option<&GpuConfig>) -> Option<FanCurveMap> {
+        let mut points: Vec<(i32, f32)> = self.get_hwmon_fan_curve_points()?;
+
+        if self.get_hwmon_fan_control_mode() == Some(Static) {
+            let single_point: [(i32, f32); 1] = [*points.first()?];
+            return Some(single_point.into_iter().collect());
+        }
+
+        points = truncate_effective_curve(points, config);
+
+        Some(points.into_iter().collect())
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn get_hwmon_fan_static_speed(&self) -> Option<f32> {
+        self.read_hwmon_file(&["pwm1"], false)
+            .map(|speed: u64| speed as f32 / 255.0)
+    }
+
+    fn get_hwmon_fan_control_mode(&self) -> Option<FanControlMode> {
+        let mode: u64 = self.read_hwmon_file(&["pwm1_enable"], false)?;
+        match mode {
+            0 => Some(FanControlMode::Static),
+            1 => {
+                let mut pwm_files = self
+                    .read_hwmon_files::<String>("pwm1_", "_pwm")
+                    .map(|(pwm, _)| pwm);
+                match pwm_files.next() {
+                    None => Some(FanControlMode::Static),
+                    Some(first) => {
+                        if pwm_files.all(|pwm: String| first == pwm) {
+                            //when you set a static speed, the xe driver will set your table points to the same pwm; if one is different, then we are in a curve
+                            return Some(FanControlMode::Static);
+                        }
+                        Some(FanControlMode::Curve)
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn get_hwmon_fans_amount(&self) -> u8 {
+        self.read_hwmon_files::<String>("fan", "_input")
+            .count()
+            .try_into()
+            .expect("too many fan curve points")
+    }
+
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    fn apply_fan_curve(&self, curve: &FanCurve) -> Result<(), Error> {
+        ensure!(
+            self.has_fan_control(),
+            "Tried to control the fan curve when there is no fan control"
+        );
+
+        self.is_valid_fan_curve(curve)?;
+
+        let fans: u8 = self.get_hwmon_fans_amount();
+
+        for fan_index in 1..=fans {
+            let pwm_enable = format!("pwm{fan_index}_enable");
+            self.write_hwmon_file(&[&pwm_enable], "1")
+                .context("Could not enable manual fan control")?;
+        }
+
+        for (i, (temperature, speed)) in curve.0.iter().enumerate() {
+            let point = i + 1;
+            let pwm = (*speed * 255.0) as u8;
+            let temp = *temperature * 1000;
+
+            for fan_index in 1..=fans {
+                self.write_hwmon_file(
+                    &[&format!("pwm{fan_index}_auto_point{point}_temp")],
+                    &temp.to_string(),
+                )
+                .context("Could not set the temperature for a point in the curve")?;
+                self.write_hwmon_file(
+                    &[&format!("pwm{fan_index}_auto_point{point}_pwm")],
+                    &pwm.to_string(),
+                )
+                .context("Could not set the RPM for a point in the curve")?;
+            }
+        }
+
+        let last_point: Option<(&i32, &f32)> = curve.0.iter().last();
+        let points_amount: usize = self.get_hwmon_controllable_points_amount() as usize;
+
+        if let Some(last_point) = last_point
+            && curve.0.len() < points_amount
+        {
+            for (point, index) in std::iter::zip(curve.0.len() + 1..=points_amount, 1..) {
+                let pwm = (*last_point.1 * 255.0) as u8;
+                let temp = (f64::from(*last_point.0) * 1000.0) as i32 + (index * 1000); //it looks like the xe driver does not accept points with the same temperature or less than 1C apart, so we make the points be 1C from each other
+
+                for fan_index in 1..=fans {
+                    self.write_hwmon_file(
+                        &[&format!("pwm{fan_index}_auto_point{point}_temp")],
+                        &temp.to_string(),
+                    )
+                    .context("Could not set the temperature for a point in the curve")?;
+                    self.write_hwmon_file(
+                        &[&format!("pwm{fan_index}_auto_point{point}_pwm")],
+                        &pwm.to_string(),
+                    )
+                    .context("Could not set the RPM for a point in the curve")?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_valid_fan_curve(&self, curve: &FanCurve) -> anyhow::Result<(), Error> {
+        if curve.0.is_empty()
+            || curve.0.len() > self.get_hwmon_controllable_points_amount() as usize
+        {
+            return Err(anyhow!(
+                "The fan curve needs at least 1 point and up to {} points",
+                self.get_hwmon_controllable_points_amount()
+            ));
+        }
+
+        let mut highest_temperature: i32 = 0;
+        let mut highest_speed: f32 = 0.0;
+
+        for (temperature, speed) in &curve.0 {
+            if *temperature >= highest_temperature {
+                highest_temperature = *temperature;
+            } else {
+                return Err(anyhow!(
+                    "The fan curve temperatures must be in increasing order"
+                ));
+            }
+
+            if *speed >= highest_speed {
+                highest_speed = *speed;
+            } else {
+                return Err(anyhow!("The fan curve speeds must be in increasing order"));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    fn set_fans_static_speed(&self, speed: f32) -> Result<(), anyhow::Error> {
+        if !self.has_fan_control() {
+            return Result::Err(anyhow!(
+                "Tried to set the fans static speed when there is no fan control"
+            ));
+        }
+
+        let pwm_value: u8 = (speed * 255.0) as u8;
+
+        let fans: u8 = self.get_hwmon_fans_amount();
+
+        for fan_index in 1..=fans {
+            let pwm = format!("pwm{fan_index}");
+            let pwm_enable = format!("pwm{fan_index}_enable");
+
+            self.write_hwmon_file(&[&pwm_enable], "1")
+                .context("Could not enable manual fan control")?; //if it is 0 or 2, you wont be able to control the RPM
+            self.write_hwmon_file(&[&pwm], &pwm_value.to_string())
+                .context("Could not set fan RPM")?;
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    fn get_hwmon_fan_max_speed(&self) -> Option<u32> {
+        self.read_hwmon_file(&["fan1_max"], false)
+            .map(|speed| speed as u32)
+    }
 }
 
 impl GpuController for IntelGpuController {
+    fn controller_type(&self) -> &'static str {
+        "intel"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }
 
     fn device_type(&self) -> DeviceType {
-        if self.get_vram_info().total > 0 {
+        if self.drm.get_vram_info().total > 0 {
             DeviceType::Dedicated
         } else {
             DeviceType::Integrated
@@ -594,33 +734,39 @@ impl GpuController for IntelGpuController {
         self.common.pci_info.device_pci_info.model.clone()
     }
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
-                warn!("could not load vulkan info: {err:#}");
-                vec![]
-            });
-            let vram_info = self.get_vram_info();
+            let api_info = if include_api_info {
+                self.get_api_info(unique_vendor).await
+            } else {
+                DeviceApiInfo::default()
+            };
 
             let drm_info = DrmInfo {
-                intel: match self.driver_type {
-                    DriverType::I915 => self.get_drm_info_i915(),
-                    DriverType::Xe => self.get_drm_info_xe(),
-                },
+                intel: self.drm.get_intel_info(),
                 vram_clock_ratio: 1.0,
-                memory_info: Some(vram_info.mem_info),
+                memory_info: Some(self.drm.get_vram_info().mem_info),
                 ..Default::default()
             };
 
+            let mut flags = vec![];
+
+            if self.has_fan_control() {
+                flags.push(DeviceFlag::ConfigurableFanControl);
+            }
+
             DeviceInfo {
                 pci_info: Some(self.common.pci_info.clone()),
-                vulkan_instances,
+                api_info,
                 driver: self.common.driver.clone(),
                 vbios_version: None,
                 link_info: LinkInfo::default(),
                 drm_info: Some(drm_info),
-                opencl_info: get_opencl_info(&self.common),
-                flags: vec![],
+                flags,
             }
         })
     }
@@ -633,7 +779,9 @@ impl GpuController for IntelGpuController {
                     self.write_freq(FrequencyType::Max, max_clock)
                         .context("Could not set max clock")?;
                 } else {
-                    error!("could not apply configured maximum frequency {max_clock}, no maximum frequency file is present");
+                    error!(
+                        "could not apply configured maximum frequency {max_clock}, no maximum frequency file is present"
+                    );
                 }
             }
 
@@ -642,25 +790,54 @@ impl GpuController for IntelGpuController {
                     self.write_freq(FrequencyType::Min, min_clock)
                         .context("Could not set min clock")?;
                 } else {
-                    error!("could not apply configured minimum frequency {min_clock}, no minimum frequency file is present");
+                    error!(
+                        "could not apply configured minimum frequency {min_clock}, no minimum frequency file is present"
+                    );
                 }
             }
 
             if let Some(cap) = config.power_cap {
                 if self.get_power_cap().is_some() {
-                    if let Some(max_cap) = self.get_power_cap_max() {
-                        if cap > max_cap {
-                            bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
-                        }
+                    if let Some(max_cap) = self.get_power_cap_max()
+                        && cap > max_cap
+                    {
+                        bail!("Specified cap {cap} is greated than maximum allowed {max_cap}");
                     }
 
-                    self.write_hwmon_file(
-                        POWER_CAP_NAMES,
-                        &((cap * 1_000_000.0) as u64).to_string(),
-                    )
-                    .context("Could not set power cap")?;
+                    self.set_power_cap(cap).context("Could not set power cap")?;
                 } else {
                     error!("could not apply power cap, no power limit functionality available");
+                }
+            } else if let Some(default_cap) = self.initial_power_cap
+                && self.get_power_cap() != Some(default_cap)
+            {
+                self.set_power_cap(default_cap).with_context(|| {
+                    format!("Failed to set power cap to default cap: {default_cap}")
+                })?;
+            }
+
+            if config.fan_control_enabled {
+                if !self.has_fan_control() {
+                    bail!("Tried to control the fans when there is no available fan control");
+                }
+
+                if let Some(ref settings) = config.fan_control_settings {
+                    match settings.mode {
+                        lact_schema::FanControlMode::Static => {
+                            self.set_fans_static_speed(settings.static_speed)?;
+                        }
+                        lact_schema::FanControlMode::Curve => {
+                            self.apply_fan_curve(&settings.curve)?;
+                        }
+                    }
+                }
+            } else if self.has_fan_control() && self.get_hwmon_fan_control_mode().is_some() {
+                let fans: u8 = self.get_hwmon_fans_amount();
+
+                for fan_index in 1..=fans {
+                    let pwm_enable = format!("pwm{fan_index}_enable");
+                    self.write_hwmon_file(&[&pwm_enable], "2")
+                        .context("Could not enable firmware fan control")?;
                 }
             }
 
@@ -668,17 +845,18 @@ impl GpuController for IntelGpuController {
         })
     }
 
-    fn get_stats(&self, _gpu_config: Option<&GpuConfig>) -> DeviceStats {
-        let current_gfxclk = self.read_freq(FrequencyType::Cur);
+    fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
+        let target_gpu_clockspeed = self.read_freq(FrequencyType::Cur);
         let gpu_clockspeed = self
             .read_freq(FrequencyType::Act)
             .filter(|value| *value != 0)
-            .or(current_gfxclk);
+            .or(target_gpu_clockspeed);
 
         let clockspeed = ClockspeedStats {
             gpu_clockspeed,
-            current_gfxclk,
+            target_gpu_clockspeed,
             vram_clockspeed: None,
+            sensors: IndexMap::new(),
         };
 
         let power = PowerStats {
@@ -688,21 +866,27 @@ impl GpuController for IntelGpuController {
             cap_min: Some(0.0),
             cap_max: self.get_power_cap_max(),
             cap_default: self.initial_power_cap,
+            sensors: HashMap::new(),
         };
 
         let voltage = VoltageStats {
             gpu: self.read_hwmon_file(&["in0_input", "in1_input"], true),
-            northbridge: None,
+            ..Default::default()
         };
 
         let fan = FanStats {
             speed_current: self
                 .read_hwmon_file(&["fan1_input", "fan2_input", "fan3_input"], false)
                 .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+            curve: self.get_truncated_hwmon_fan_curve(gpu_config),
+            static_speed: self.get_hwmon_fan_static_speed(),
+            control_mode: self.get_hwmon_fan_control_mode(),
+            control_enabled: self.get_hwmon_fan_control_mode().is_some(),
+            speed_max: self.get_hwmon_fan_max_speed(),
             ..Default::default()
         };
 
-        let vram_info = self.get_vram_info();
+        let vram_info = self.drm.get_vram_info();
         let vram = VramStats {
             total: match vram_info.total {
                 0 => None,
@@ -712,6 +896,9 @@ impl GpuController for IntelGpuController {
                 0 => None,
                 used => Some(used),
             },
+            // TODO
+            gtt_total_usable: None,
+            gtt_used: None,
         };
 
         DeviceStats {
@@ -763,7 +950,7 @@ impl GpuController for IntelGpuController {
                 enabled: true,
                 min_value: None,
                 value,
-                index: None,
+                id: None,
             })
         })
         .collect();
@@ -771,20 +958,18 @@ impl GpuController for IntelGpuController {
         PowerStates { core, vram: vec![] }
     }
 
-    fn reset_pmfw_settings(&self) {}
-
     #[allow(clippy::cast_possible_truncation)]
     fn reset_clocks(&self) -> anyhow::Result<()> {
-        if let Some(rp0) = self.read_freq(FrequencyType::Rp0) {
-            if let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32) {
-                warn!("could not reset max clock: {err:#}");
-            }
+        if let Some(rp0) = self.read_freq(FrequencyType::Rp0)
+            && let Err(err) = self.write_freq(FrequencyType::Max, rp0 as i32)
+        {
+            warn!("could not reset max clock: {err:#}");
         }
 
-        if let Some(rpn) = self.read_freq(FrequencyType::Rpn) {
-            if let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32) {
-                warn!("could not reset min clock: {err:#}");
-            }
+        if let Some(rpn) = self.read_freq(FrequencyType::Rpn)
+            && let Err(err) = self.write_freq(FrequencyType::Min, rpn as i32)
+        {
+            warn!("could not reset min clock: {err:#}");
         }
 
         Ok(())
@@ -807,6 +992,35 @@ impl GpuController for IntelGpuController {
             &mut last_total_time_map,
         )
     }
+}
+
+#[allow(clippy::float_cmp)]
+fn truncate_effective_curve(
+    mut all_points: Vec<(i32, f32)>,
+    config: Option<&GpuConfig>,
+) -> Vec<(i32, f32)> {
+    let Some(&(_, last_speed)) = all_points.last() else {
+        return all_points;
+    };
+
+    let Some(prev_from_last) = all_points
+        .iter()
+        .rposition(|(_, speed)| *speed != last_speed)
+    else {
+        return all_points;
+    };
+    let mut effective_len = prev_from_last + 2;
+
+    if let Some(config) = config
+        && let Some(fan_settings) = &config.fan_control_settings
+        && !fan_settings.curve.0.is_empty()
+        && fan_settings.curve.0.len() > effective_len
+    {
+        effective_len = fan_settings.curve.0.len();
+    }
+
+    all_points.truncate(effective_len);
+    all_points
 }
 
 #[derive(Clone, Copy)]
@@ -837,17 +1051,18 @@ impl fmt::Display for FrequencyType {
     }
 }
 
-struct IntelVramInfo {
-    total: u64,
-    used: u64,
-    mem_info: DrmMemoryInfo,
-}
-
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{DRM_ENGINES, DRM_VRAM_KEYS};
-    use crate::server::gpu_controller::common::fdinfo::parse_fdinfo;
-    use lact_schema::ProcessUtilizationType;
+    use crate::server::gpu_controller::{
+        common::fdinfo::parse_fdinfo, intel::truncate_effective_curve,
+    };
+    use lact_schema::{
+        ProcessUtilizationType,
+        config::{FanControlSettings, FanCurve, GpuConfig},
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -938,5 +1153,50 @@ drm-engine-capacity-ccs:        4\
         let util = parse_fdinfo(data, DRM_VRAM_KEYS, DRM_ENGINES).unwrap();
         assert_eq!(3, util.client_id);
         assert_eq!(24_567_808, util.memory_used);
+    }
+
+    #[test]
+    fn truncate_fan_curve() {
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                None
+            )
+        );
+
+        assert_eq!(
+            vec![(40, 0.0), (50, 0.2), (60, 0.7), (80, 1.0), (81, 1.0)],
+            truncate_effective_curve(
+                vec![
+                    (40, 0.0),
+                    (50, 0.2),
+                    (60, 0.7),
+                    (80, 1.0),
+                    (81, 1.0),
+                    (82, 1.0)
+                ],
+                Some(&GpuConfig {
+                    fan_control_settings: Some(FanControlSettings {
+                        curve: FanCurve(BTreeMap::from([
+                            (40, 0.0),
+                            (50, 0.2),
+                            (60, 0.7),
+                            (80, 1.0),
+                            (81, 1.0),
+                        ])),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+            )
+        );
     }
 }

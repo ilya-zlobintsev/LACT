@@ -46,7 +46,6 @@ expression: device_info
       "vram_clock_ratio": 1.0
     },
     "flags": [
-      "DumpableVBios",
       "ConfigurableFanControl"
     ],
     "link_info": {
@@ -435,45 +434,72 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 500
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 2660
       }
     ],
     "vram": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 96
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 456
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 673
       },
       {
         "enabled": true,
-        "index": 3,
+        "id": {
+          "Index": 3
+        },
         "value": 1000
       }
     ]
   },
   "stats": {
+    "active_power_states": {
+      "core": {
+        "Index": 0
+      },
+      "memory": {
+        "Index": 3
+      },
+      "pcie": {
+        "Index": 1
+      }
+    },
     "busy_percent": 3,
     "clockspeed": {
       "gpu_clockspeed": 500,
+      "sensors": {
+        "SOCCLK": 800,
+        "UCLK": 1000
+      },
+      "target_gpu_clockspeed": 500,
       "vram_clockspeed": 1000
     },
-    "core_power_state": 0,
     "fan": {
       "control_enabled": false,
       "pmfw_info": {},
@@ -484,8 +510,6 @@ expression: device_info
       "speed_max": 3400,
       "speed_min": 0
     },
-    "memory_power_state": 3,
-    "pcie_power_state": 1,
     "performance_level": "auto",
     "power": {
       "average": 36.0,
@@ -498,20 +522,53 @@ expression: device_info
       "edge": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 56.0
+        "current": 56.0,
+        "display_only": false,
+        "primary": true
       },
       "junction": {
         "crit": 110.0,
         "crit_hyst": -273.1499938964844,
-        "current": 59.0
+        "current": 59.0,
+        "display_only": false,
+        "primary": true
       },
       "mem": {
         "crit": 100.0,
         "crit_hyst": -273.1499938964844,
-        "current": 54.0
+        "current": 54.0,
+        "display_only": false,
+        "primary": true
+      },
+      "vrgfx": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 49.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vrmem": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 51.0,
+        "display_only": true,
+        "primary": false
+      },
+      "vrsoc": {
+        "crit": null,
+        "crit_hyst": null,
+        "current": 49.0,
+        "display_only": true,
+        "primary": false
       }
     },
-    "voltage": {},
+    "throttle_info": {},
+    "voltage": {
+      "sensors": {
+        "mem": 1356,
+        "soc": 818
+      }
+    },
     "vram": {
       "total": 17163091968,
       "used": 668274688

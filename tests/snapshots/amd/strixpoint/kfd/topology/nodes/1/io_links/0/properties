@@ -1,0 +1,13 @@
+type 2
+version_major 0
+version_minor 0
+node_from 1
+node_to 0
+weight 20
+min_latency 0
+max_latency 0
+min_bandwidth 0
+max_bandwidth 32000
+recommended_transfer_size 0
+recommended_sdma_engine_id_mask 1
+flags 1

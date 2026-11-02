@@ -1,41 +1,44 @@
 use super::{
-    gpu_controller::{common::fan_control::FanCurveExt, DynGpuController, GpuController},
+    gpu_controller::{DynGpuController, GpuController, common::fan_control::FanCurveExt},
     profiles::ProfileWatcherCommand,
     system::{self},
 };
+#[cfg(feature = "display-info")]
+use crate::server::display;
+use crate::system::run_command;
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
-    server::{gpu_controller::init_controller, profiles, system::DAEMON_VERSION},
+    server::{
+        ClientContext,
+        gpu_controller::{build_controller_info, init_controller},
+        profiles,
+        system::DAEMON_VERSION,
+    },
 };
-use crate::{server::gpu_controller::NvidiaLibs, system::run_command};
 use amdgpu_sysfs::gpu_handle::{
-    power_profile_mode::PowerProfileModesTable, PerformanceLevel, PowerLevelKind,
+    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
 };
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use lact_schema::{
+    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
+    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    ProfileWatcherState, ProfilesInfo,
     config::{
-        default_fan_static_speed, FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks,
+        FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
     default_fan_curve,
     request::{ClockspeedType, ConfirmCommand, ProfileBase, SetClocksCommand},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, FanControlMode, FanOptions, PmfwOptions,
-    PowerStates, ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
 };
 use libdrm_amdgpu_sys::LibDrmAmdgpu;
 use libflate::gzip;
 use nix::libc;
-#[cfg(all(not(test), feature = "nvidia"))]
-use nvml_wrapper::Nvml;
 use pciid_parser::Database;
+use serde::Serialize;
 use serde_json::json;
-#[cfg(not(test))]
-use std::collections::HashMap;
-#[cfg(all(not(test), feature = "nvidia"))]
-use std::sync::Arc;
 use std::{
     cell::{Cell, RefCell},
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fs::{self, File, Permissions},
     io::{BufWriter, Cursor, Write},
@@ -47,11 +50,13 @@ use std::{
 };
 use tokio::{
     process::Command,
-    sync::{mpsc, oneshot, RwLock, RwLockReadGuard},
+    select,
+    sync::{RwLock, RwLockReadGuard, mpsc, oneshot},
     task::JoinHandle,
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
+use zbus_polkit::policykit1::{self, AuthorityProxy};
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
@@ -80,8 +85,17 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
     "graphics",
     "pcie_bw",
     "msi_irqs",
+    "mtd",
+    "intel_pmt",
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
+
+mod polkit_actions {
+    pub const PROFILE_HOOK: &str = "io.github.ilya_zlobintsev.LACT.profile-hook";
+}
+
+type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
+type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
 
 #[derive(Clone)]
 pub struct Handler {
@@ -92,6 +106,12 @@ pub struct Handler {
     profile_watcher_tx: Rc<RefCell<Option<mpsc::Sender<ProfileWatcherCommand>>>>,
     pub profile_watcher_state: Rc<RefCell<Option<ProfileWatcherState>>>,
     profile_watcher_join_handle: Rc<RefCell<Option<JoinHandle<()>>>>,
+    profile_holds: ProfileHolds,
+    profile_hold_snapshot: ProfileHoldSnapshot,
+    next_hold_cookie: Rc<Cell<u64>>,
+    polkit_proxy: Option<AuthorityProxy<'static>>,
+    ignored_gpu_ids: Rc<RwLock<Vec<String>>>,
+    reload_tx: Rc<mpsc::Sender<Duration>>,
 }
 
 impl<'a> Handler {
@@ -113,32 +133,9 @@ impl<'a> Handler {
         // For such scenarios there is a retry logic when no GPUs were found,
         // or if some of the PCI devices don't have a drm entry yet.
         for i in 1..=CONTROLLERS_LOAD_RETRY_ATTEMPTS {
-            controllers = load_controllers(base_path, pci_db)?;
+            controllers = load_controllers(base_path, pci_db, &[], &config)?;
 
             let mut should_retry = false;
-            #[cfg(not(test))]
-            if let Ok(devices) = fs::read_dir("/sys/bus/pci/devices") {
-                for device in devices.flatten() {
-                    if let Ok(uevent) = fs::read_to_string(device.path().join("uevent")) {
-                        let uevent = uevent.replace('\0', "");
-                        if uevent.contains("amdgpu") || uevent.contains("radeon") {
-                            let slot_name = device
-                                .file_name()
-                                .into_string()
-                                .expect("pci file name should be valid unicode");
-
-                            if controllers.values().any(|controller| {
-                                controller.controller_info().pci_slot_name == slot_name
-                            }) {
-                                debug!("found intialized drm entry for device {:?}", device.path());
-                            } else {
-                                warn!("could not find drm entry for device {:?}", device.path());
-                                should_retry = true;
-                            }
-                        }
-                    }
-                }
-            }
 
             if controllers.is_empty() {
                 warn!("no GPUs were found");
@@ -146,7 +143,9 @@ impl<'a> Handler {
             }
 
             if should_retry {
-                info!("retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})");
+                info!(
+                    "retrying in {CONTROLLERS_LOAD_RETRY_INTERVAL}s (attempt {i}/{CONTROLLERS_LOAD_RETRY_ATTEMPTS})"
+                );
                 sleep(Duration::from_secs(CONTROLLERS_LOAD_RETRY_INTERVAL)).await;
             } else {
                 break;
@@ -161,7 +160,7 @@ impl<'a> Handler {
                     .any(|item| item == CONFIG_RESET_CMDLINE_ARG)
                 {
                     // Save old config in a different file
-                    let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
+                    let datetime = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S");
                     let backup_filename = format!("config.reset-{datetime}.yaml");
 
                     if let Err(err) =
@@ -170,7 +169,9 @@ impl<'a> Handler {
                         error!("could not back up old config: {err:#}");
                     }
 
-                    info!("detected reset boot argument, resetting config (old config backed up to {backup_filename})");
+                    info!(
+                        "detected reset boot argument, resetting config (old config backed up to {backup_filename})"
+                    );
                     config = Config::default();
                     if let Err(err) = config.save(&Cell::new(Instant::now())) {
                         error!("could not save config: {err:#}");
@@ -188,6 +189,15 @@ impl<'a> Handler {
             config.save(&Cell::new(Instant::now()))?;
         }
 
+        let polkit_proxy = connect_polkit_proxy()
+            .await
+            .inspect_err(|err| {
+                warn!("could not connect to polkit, admin checks will not be available: {err:#}");
+            })
+            .ok();
+
+        let (reload_tx, reload_rx) = mpsc::channel(16);
+
         let handler = Self {
             gpu_controllers: Rc::new(RwLock::new(controllers)),
             config: Rc::new(RwLock::new(config)),
@@ -196,7 +206,14 @@ impl<'a> Handler {
             profile_watcher_tx: Rc::new(RefCell::new(None)),
             profile_watcher_state: Rc::new(RefCell::new(None)),
             profile_watcher_join_handle: Rc::new(RefCell::new(None)),
+            profile_holds: Rc::new(RefCell::new(Vec::new())),
+            profile_hold_snapshot: Rc::new(RefCell::new(None)),
+            next_hold_cookie: Rc::new(Cell::new(1)),
+            polkit_proxy,
+            ignored_gpu_ids: Rc::new(RwLock::new(Vec::new())),
+            reload_tx: Rc::new(reload_tx),
         };
+
         if let Err(err) = handler.apply_current_config().await {
             error!("could not apply config: {err:#}");
         }
@@ -208,6 +225,8 @@ impl<'a> Handler {
         if handler.config.read().await.auto_switch_profiles {
             handler.start_profile_watcher().await;
         }
+
+        tokio::task::spawn_local(handle_reload_events(handler.clone(), reload_rx));
 
         // Eagerly release memory
         // `load_controllers` allocates and deallocates the entire PCI ID database,
@@ -226,13 +245,18 @@ impl<'a> Handler {
         apply_config_to_controllers(&controllers, &config).await
     }
 
-    pub async fn reload_gpus(&self) {
+    pub async fn notify_reload_gpus(&self, accum_interval: Duration) {
+        self.reload_tx.send(accum_interval).await.unwrap();
+    }
+
+    async fn reload_gpus(&self) {
         let mut controllers_guard = self.gpu_controllers.write().await;
         let config = self.config.read().await;
+        let detached_ids = self.ignored_gpu_ids.read().await;
 
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
-        match load_controllers(&base_path, &pci_db) {
+        match load_controllers(&base_path, &pci_db, &detached_ids, &config) {
             Ok(new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
@@ -357,6 +381,16 @@ impl<'a> Handler {
                 () = tokio::time::sleep(Duration::from_secs(apply_timer)) => {
                     info!("no confirmation received, reverting settings");
 
+                    let mut config_guard = handler.config.write().await;
+                    match config_guard.gpus_mut() {
+                        Ok(gpus) => {
+                            gpus.insert(id, previous_config.clone());
+                        }
+                        Err(err) => {
+                            error!("could not revert config: {err}") ;
+                        }
+                    }
+
                     if let Err(err) = controller.apply_config(&previous_config).await {
                         error!("could not revert settings: {err:#}");
                     }
@@ -423,8 +457,31 @@ impl<'a> Handler {
         entries
     }
 
-    pub async fn get_device_info(&'a self, id: &str) -> anyhow::Result<DeviceInfo> {
-        Ok(self.controller_by_id(id).await?.get_info().await)
+    pub async fn get_device_info(
+        &'a self,
+        id: &str,
+        include_api_info: Option<bool>,
+    ) -> anyhow::Result<DeviceInfo> {
+        let controllers = self.gpu_controllers.read().await;
+        let controller = controllers
+            .get(id)
+            .ok_or_else(|| anyhow!("Controller '{id}' not found"))?;
+
+        let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+        let include_api_info = include_api_info.unwrap_or(true);
+
+        Ok(controller.get_info(unique_vendor, include_api_info).await)
+    }
+
+    pub async fn get_device_api_info(&'a self, id: &str) -> anyhow::Result<DeviceApiInfo> {
+        let controllers = self.gpu_controllers.read().await;
+        let controller = controllers
+            .get(id)
+            .ok_or_else(|| anyhow!("Controller '{id}' not found"))?;
+
+        let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+
+        Ok(controller.get_api_info(unique_vendor).await)
     }
 
     pub async fn get_gpu_stats(&'a self, id: &str) -> anyhow::Result<DeviceStats> {
@@ -437,6 +494,25 @@ impl<'a> Handler {
         let config = self.config.read().await;
         let gpu_config = config.gpus()?.get(id);
         self.controller_by_id(id).await?.get_clocks_info(gpu_config)
+    }
+
+    #[cfg(feature = "display-info")]
+    pub async fn get_displays_info(&'a self, id: &str) -> anyhow::Result<DisplaysInfo> {
+        let controller = self.controller_by_id(id).await?;
+        let common = controller.controller_info();
+
+        let mut info = display::get_base_displays_info(&common.sysfs_path)?;
+        if let Err(err) = controller.populate_displays_info(&mut info) {
+            warn!("failed to populate displays info: {err:#}");
+        }
+
+        Ok(info)
+    }
+
+    #[cfg(not(feature = "display-info"))]
+    #[expect(clippy::unused_async)]
+    pub async fn get_displays_info(&'a self, _id: &str) -> anyhow::Result<DisplaysInfo> {
+        Err(anyhow!("Daemon is compiled without display info support"))
     }
 
     pub async fn set_fan_control(&'a self, opts: FanOptions<'_>) -> anyhow::Result<u64> {
@@ -573,7 +649,9 @@ impl<'a> Handler {
         }
 
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
-            gpu_config.apply_clocks_command(&command);
+            gpu_config
+                .clocks_configuration
+                .apply_clocks_command(&command);
         })
         .await
         .context("Failed to edit GPU config and set clocks value")
@@ -586,7 +664,9 @@ impl<'a> Handler {
     ) -> anyhow::Result<u64> {
         self.edit_gpu_config(id.to_owned(), |gpu_config| {
             for command in commands {
-                gpu_config.apply_clocks_command(&command);
+                gpu_config
+                    .clocks_configuration
+                    .apply_clocks_command(&command);
             }
         })
         .await
@@ -637,10 +717,10 @@ impl<'a> Handler {
     }
 
     pub async fn generate_snapshot(&self) -> anyhow::Result<String> {
-        let datetime = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let datetime = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S");
         let out_path = format!("/tmp/LACT-v{DAEMON_VERSION}-snapshot-{datetime}.tar.gz");
 
-        let out_file = File::create(&out_path)
+        let out_file = File::create_new(&out_path)
             .with_context(|| "Could not create output file at {out_path}")?;
         let out_writer = gzip::Encoder::new(BufWriter::new(out_file))
             .context("Could not create GZIP encoder")?;
@@ -663,11 +743,11 @@ impl<'a> Handler {
                 .context("Could not read device dir")?
                 .flatten();
             for card_entry in card_files {
-                if let Ok(metadata) = card_entry.metadata() {
-                    if metadata.is_file() {
-                        let full_path = controller_path.join(card_entry.path());
-                        add_path_to_archive(&mut archive, &full_path)?;
-                    }
+                if let Ok(metadata) = card_entry.metadata()
+                    && metadata.is_file()
+                {
+                    let full_path = controller_path.join(card_entry.path());
+                    add_path_to_archive(&mut archive, &full_path)?;
                 }
             }
 
@@ -682,7 +762,8 @@ impl<'a> Handler {
             }
         }
 
-        let service_journal_output = run_command("journalctl", &["-u", "lactd", "-b"]).await;
+        let service_journal_output =
+            run_command("journalctl", &["--no-hostname", "-u", "lactd", "-b"]).await;
 
         match service_journal_output {
             Ok(output) => {
@@ -719,6 +800,19 @@ impl<'a> Handler {
 
         archive.append_data(&mut info_header, "info.json", Cursor::new(info_data))?;
 
+        if let Ok(clinfo_output) = Command::new("clinfo").arg("--json").output().await {
+            let mut clinfo_header = tar::Header::new_gnu();
+            clinfo_header.set_size(clinfo_output.stdout.len().try_into().unwrap());
+            clinfo_header.set_mode(0o755);
+            clinfo_header.set_cksum();
+
+            archive.append_data(
+                &mut clinfo_header,
+                "clinfo.json",
+                Cursor::new(clinfo_output.stdout),
+            )?;
+        }
+
         let mut writer = archive.into_inner().context("Could not finish archive")?;
         writer.flush().context("Could not flush output file")?;
 
@@ -735,7 +829,7 @@ impl<'a> Handler {
 
     pub(crate) async fn generate_snapshot_device_info(
         &self,
-    ) -> BTreeMap<String, serde_json::Value> {
+    ) -> BTreeMap<String, SnapshotDeviceInfo> {
         let controllers = self.gpu_controllers.read().await;
         let config = self.config.read().await;
 
@@ -744,14 +838,16 @@ impl<'a> Handler {
         for (id, controller) in controllers.iter() {
             let gpu_config = config.gpus().ok().and_then(|gpus| gpus.get(id));
 
-            let data = json!({
-                "pci_info": controller.controller_info().pci_info.clone(),
-                "info": controller.get_info().await,
-                "stats": controller.get_stats(gpu_config),
-                "clocks_info": controller.get_clocks_info(gpu_config).ok(),
-                "power_profile_modes": controller.get_power_profile_modes().ok(),
-                "power_states": controller.get_power_states(gpu_config),
-            });
+            let unique_vendor = controller_vendor_is_unique(controller, id, &controllers);
+
+            let data = SnapshotDeviceInfo {
+                pci_info: controller.controller_info().pci_info.clone(),
+                info: controller.get_info(unique_vendor, true).await,
+                stats: controller.get_stats(gpu_config),
+                clocks_info: controller.get_clocks_info(gpu_config).ok(),
+                power_profile_modes: controller.get_power_profile_modes().ok(),
+                power_states: controller.get_power_states(gpu_config),
+            };
 
             map.insert(id.clone(), data);
         }
@@ -799,6 +895,9 @@ impl<'a> Handler {
         name: Option<Rc<str>>,
         auto_switch: bool,
     ) -> anyhow::Result<()> {
+        if !self.profile_holds.borrow().is_empty() {
+            bail!("Cannot change profile while a hold is active");
+        }
         if auto_switch {
             self.start_profile_watcher().await;
         } else {
@@ -824,10 +923,10 @@ impl<'a> Handler {
                 activation_hook.clone_from(&new_profile.hooks.activated);
             }
 
-            if let Some(old_profile) = &config.current_profile {
-                if let Some(old_profile) = config.profiles.get(old_profile) {
-                    deactivation_hook.clone_from(&old_profile.hooks.deactivated);
-                }
+            if let Some(old_profile) = &config.current_profile
+                && let Some(old_profile) = config.profiles.get(old_profile)
+            {
+                deactivation_hook.clone_from(&old_profile.hooks.deactivated);
             }
         }
 
@@ -846,7 +945,12 @@ impl<'a> Handler {
         Ok(())
     }
 
-    pub async fn create_profile(&self, name: String, base: ProfileBase) -> anyhow::Result<()> {
+    pub async fn create_profile(
+        &self,
+        name: String,
+        base: ProfileBase,
+        ctx: &ClientContext,
+    ) -> anyhow::Result<()> {
         {
             let mut config = self.config.write().await;
             if config.profiles.contains_key(name.as_str()) {
@@ -857,7 +961,18 @@ impl<'a> Handler {
                 ProfileBase::Empty => Profile::default(),
                 ProfileBase::Default => config.default_profile(),
                 ProfileBase::Profile(name) => config.profile(&name)?.clone(),
-                ProfileBase::Provided(profile) => profile,
+                ProfileBase::Provided(profile) => {
+                    if !profile.hooks.is_empty() {
+                        self.check_auth(
+                            polkit_actions::PROFILE_HOOK,
+                            "User was not authorized to set profile rule hooks",
+                            ctx,
+                        )
+                        .await?;
+                    }
+
+                    profile
+                }
             };
             config.profiles.insert(name.into(), profile);
             config.save(&self.config_last_saved)?;
@@ -872,6 +987,14 @@ impl<'a> Handler {
     }
 
     pub async fn delete_profile(&self, name: String) -> anyhow::Result<()> {
+        if self
+            .profile_holds
+            .borrow()
+            .iter()
+            .any(|(_, n, _)| n.as_ref() == name.as_str())
+        {
+            bail!("Cannot delete profile '{name}' while it is held");
+        }
         if self.config.read().await.current_profile.as_deref() == Some(&name) {
             self.set_current_profile(None).await?;
         }
@@ -904,7 +1027,49 @@ impl<'a> Handler {
                 bail!("Provided index is out of bounds");
             }
 
-            config.profiles.swap_indices(current_index, new_position);
+            config.profiles.move_index(current_index, new_position);
+            config.save(&self.config_last_saved)?;
+        }
+
+        let tx = self.profile_watcher_tx.borrow().clone();
+        if let Some(tx) = tx {
+            let _ = tx.send(ProfileWatcherCommand::Update).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn rename_profile(&self, name: &str, new_name: String) -> anyhow::Result<()> {
+        if self
+            .profile_holds
+            .borrow()
+            .iter()
+            .any(|(_, n, _)| n.as_ref() == name)
+        {
+            bail!("Cannot rename profile '{name}' while it is held");
+        }
+
+        {
+            let mut config = self.config.write().await;
+
+            if config.profiles.contains_key(new_name.as_str()) {
+                bail!("Profile {new_name} already exists");
+            }
+
+            let (index, _, profile) = config
+                .profiles
+                .shift_remove_full(name)
+                .with_context(|| format!("Profile {name} not found"))?;
+
+            let new_name = Rc::<str>::from(new_name);
+            config
+                .profiles
+                .shift_insert(index, new_name.clone(), profile);
+
+            if config.current_profile.as_deref() == Some(name) {
+                config.current_profile = Some(new_name);
+            }
+
             config.save(&self.config_last_saved)?;
         }
 
@@ -921,7 +1086,17 @@ impl<'a> Handler {
         name: &str,
         rule: Option<ProfileRule>,
         hooks: ProfileHooks,
+        ctx: &ClientContext,
     ) -> anyhow::Result<()> {
+        if !hooks.is_empty() {
+            self.check_auth(
+                polkit_actions::PROFILE_HOOK,
+                "User was not authorized to set profile rule hooks",
+                ctx,
+            )
+            .await?;
+        }
+
         {
             let mut config = self.config.write().await;
             let profile = config
@@ -967,6 +1142,24 @@ impl<'a> Handler {
         }
     }
 
+    pub async fn detach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        self.ignored_gpu_ids.write().await.push(gpu_id.to_owned());
+        self.reload_gpus().await;
+
+        Ok(())
+    }
+
+    pub async fn reattach_gpu(&self, gpu_id: &str) -> anyhow::Result<()> {
+        self.ignored_gpu_ids.write().await.retain(|id| id != gpu_id);
+        self.reload_gpus().await;
+
+        let _ = self.controller_by_id(gpu_id).await?;
+
+        Ok(())
+    }
+
     pub fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         if let Some(tx) = self
             .confirm_config_tx
@@ -979,6 +1172,113 @@ impl<'a> Handler {
         } else {
             Err(anyhow!("No pending config changes"))
         }
+    }
+
+    pub async fn hold_profile(
+        &self,
+        name: String,
+        disconnect_notify: std::sync::Arc<tokio::sync::Notify>,
+    ) -> anyhow::Result<u64> {
+        {
+            let config = self.config.read().await;
+            config.profile(&name)?;
+        }
+
+        // On the first hold, snapshot the current state and stop the watcher.
+        if self.profile_holds.borrow().is_empty() {
+            let (snapshot_profile, snapshot_auto_switch) = {
+                let config = self.config.read().await;
+                (config.current_profile.clone(), config.auto_switch_profiles)
+            };
+            self.config.write().await.auto_switch_profiles = false;
+            self.stop_profile_watcher().await;
+            *self.profile_hold_snapshot.borrow_mut() =
+                Some((snapshot_profile, snapshot_auto_switch));
+        }
+
+        let name_rc: Rc<str> = Rc::from(name.as_str());
+
+        let cookie = self.next_hold_cookie.get();
+        self.next_hold_cookie.set(cookie + 1);
+
+        let (release_tx, mut release_rx) = mpsc::channel::<()>(1);
+        self.profile_holds
+            .borrow_mut()
+            .push((cookie, name_rc.clone(), release_tx));
+
+        if let Err(err) = self.set_current_profile(Some(name_rc)).await {
+            self.profile_holds
+                .borrow_mut()
+                .retain(|(c, _, _)| *c != cookie);
+            if self.profile_holds.borrow().is_empty() {
+                self.profile_hold_snapshot.borrow_mut().take();
+            }
+            return Err(err);
+        }
+
+        info!("profile hold {cookie} acquired for profile '{name}'");
+
+        let handler = self.clone();
+        tokio::task::spawn_local(async move {
+            tokio::select! {
+                () = disconnect_notify.notified() => {
+                    debug!("connection for profile hold {cookie} dropped, auto-releasing");
+                }
+                _ = release_rx.recv() => {
+                    return;
+                }
+            }
+            if let Err(err) = handler.release_profile(cookie).await {
+                error!("could not auto-release profile hold {cookie}: {err:#}");
+            }
+        });
+
+        Ok(cookie)
+    }
+
+    pub async fn release_profile(&self, cookie: u64) -> anyhow::Result<()> {
+        let (idx, was_top) = {
+            let holds = self.profile_holds.borrow();
+            match holds.iter().rposition(|(c, _, _)| *c == cookie) {
+                Some(idx) => (idx, idx == holds.len() - 1),
+                None => bail!("Unknown profile hold cookie {cookie}"),
+            }
+        };
+
+        let (_, _, release_tx) = self.profile_holds.borrow_mut().remove(idx);
+        let _ = release_tx.send(()).await;
+
+        info!("releasing profile hold {cookie}");
+
+        if self.profile_holds.borrow().is_empty() {
+            // Last hold released, restore the previous state.
+            let (profile, auto_switch) = self
+                .profile_hold_snapshot
+                .borrow_mut()
+                .take()
+                .expect("snapshot missing while holds were active");
+
+            self.set_current_profile(profile).await?;
+
+            if auto_switch {
+                self.start_profile_watcher().await;
+            }
+
+            let mut config = self.config.write().await;
+            config.auto_switch_profiles = auto_switch;
+            config.save(&self.config_last_saved)?;
+        } else if was_top {
+            // Active hold released, activate the hold beneath it.
+            let target = self
+                .profile_holds
+                .borrow()
+                .last()
+                .map(|(_, name, _)| name.clone())
+                .unwrap();
+            self.set_current_profile(Some(target)).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn reset_config(&self) {
@@ -1013,6 +1313,55 @@ impl<'a> Handler {
             controller.cleanup().await;
         }
     }
+
+    async fn check_auth(
+        &self,
+        action: &str,
+        error_msg: &str,
+        ctx: &ClientContext,
+    ) -> anyhow::Result<()> {
+        let polkit_proxy = self
+            .polkit_proxy
+            .as_ref()
+            .context("Polkit not available, cannot ask for authorization")?;
+
+        let uid = ctx.uid.context("No client UID available")?;
+        let pid = ctx.pid.context("No client PID available")?;
+
+        let subject = match &ctx.pid_fd {
+            Some(pid_fd) => policykit1::Subject::new_for_owner(pid_fd, uid)?,
+            None => policykit1::Subject::new_for_pid(pid, None, Some(uid))?,
+        };
+
+        let result = polkit_proxy
+            .check_authorization(
+                &subject,
+                action,
+                &HashMap::new(),
+                policykit1::CheckAuthorizationFlags::ALLOW_USER_INTERACTION,
+                "",
+            )
+            .await
+            .context("Authorization could not be granted")?;
+
+        if result.is_authorized {
+            Ok(())
+        } else {
+            bail!("{error_msg}");
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[cfg_attr(feature = "mock", derive(serde::Deserialize))]
+pub(crate) struct SnapshotDeviceInfo {
+    pub pci_info: GpuPciInfo,
+    pub info: DeviceInfo,
+    pub stats: DeviceStats,
+    #[serde(default)]
+    pub clocks_info: Option<ClocksInfo>,
+    pub power_profile_modes: Option<PowerProfileModesTable>,
+    pub power_states: PowerStates,
 }
 
 async fn apply_config_to_controllers(
@@ -1036,13 +1385,13 @@ async fn apply_config_to_controllers(
 
 #[cfg(all(test, not(miri)))]
 pub(crate) fn read_pci_db() -> Database {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/tests/data/pci.ids");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/snapshots/pci.ids");
     Database::read_from_file(&path).unwrap()
 }
 
 #[cfg(all(test, miri))]
 pub(crate) fn read_pci_db() -> Database {
-    let bytes = include_bytes!("../../src/tests/data/pci.ids");
+    let bytes = include_bytes!("../../../tests/snapshots/pci.ids");
     Database::parse_db(std::io::Cursor::new(bytes)).unwrap()
 }
 
@@ -1064,48 +1413,6 @@ pub(crate) fn read_pci_db() -> Database {
         }
     })
 }
-
-#[cfg(any(test, not(feature = "nvidia")))]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> = LazyLock::new(|| None);
-
-#[cfg(all(not(test), feature = "nvidia"))]
-// SAFETY: We use global LazyLock to make sure it's safe.
-// Loading of shared libaries is unsafe
-// https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
-#[allow(unused_unsafe)]
-pub(crate) static NVML: LazyLock<Option<NvidiaLibs>> =
-    LazyLock::new(|| match unsafe { Nvml::init() } {
-        Ok(nvml) => {
-            use crate::server::gpu_controller::NvApi;
-
-            // The config has to be re-read here, because a LazyLock cannot capture external variables into the init closure
-            let disable_nvapi = Config::load()
-                .ok()
-                .flatten()
-                .and_then(|config| config.daemon.disable_nvapi);
-
-            info!("Nvidia management library loaded");
-            let nvapi = if disable_nvapi == Some(true) {
-                info!("NvAPI support is disabled");
-                None
-            } else {
-                NvApi::new()
-                    .inspect(|_| {
-                        info!("NvAPI library loaded");
-                    })
-                    .inspect_err(|err| {
-                        error!("could not load NvAPI library: {err:#}");
-                    })
-                    .ok()
-            };
-
-            Some((Arc::new(nvml), Arc::new(nvapi)))
-        }
-        Err(err) => {
-            error!("could not load Nvidia management library: {err}");
-            None
-        }
-    });
 
 pub(crate) static AMD_DRM: LazyLock<Option<LibDrmAmdgpu>> = LazyLock::new(|| {
     // SAFETY: We use global LazyLock to make sure it's safe.
@@ -1143,6 +1450,8 @@ pub(crate) static INTEL_DRM: LazyLock<Option<IntelDrm>> = LazyLock::new(|| {
 fn load_controllers(
     base_path: &Path,
     pci_db: &Database,
+    detached_ids: &[String],
+    config: &Config,
 ) -> anyhow::Result<BTreeMap<String, DynGpuController>> {
     let mut controllers = BTreeMap::new();
 
@@ -1160,15 +1469,36 @@ fn load_controllers(
             trace!("trying gpu controller at {:?}", entry.path());
             let device_path = entry.path().join("device");
 
-            match init_controller(device_path.clone(), pci_db) {
+            let info = match build_controller_info(device_path.clone(), pci_db) {
+                Ok(info) => info,
+                Err(err) => {
+                    error!(
+                        "could not read GPU info at '{}': {err:#}",
+                        device_path.display()
+                    );
+                    continue;
+                }
+            };
+            let id = info.build_id();
+
+            if detached_ids.contains(&id) {
+                info!("skipping GPU '{id}', as it is currently detached");
+                continue;
+            }
+
+            match init_controller(info, config) {
                 Ok(controller) => {
                     let info = controller.controller_info();
-                    let id = info.build_id();
 
                     info!(
-                        "initialized {} controller for GPU {id} at '{}'",
-                        info.driver,
-                        info.sysfs_path.display()
+                        "initialized {} controller for GPU {id} at '{}' ({})",
+                        controller.controller_type(),
+                        info.sysfs_path.display(),
+                        info.pci_info
+                            .device_pci_info
+                            .model
+                            .as_deref()
+                            .unwrap_or("<Unknown>"),
                     );
 
                     controllers.insert(id, controller);
@@ -1224,11 +1554,11 @@ fn add_path_recursively(
                 }
             }
         }
-    } else if let Ok(metadata) = fs::metadata(entry_path) {
-        if metadata.is_file() {
-            let full_path = prefix.join(entry_path);
-            add_path_to_archive(archive, &full_path)?;
-        }
+    } else if let Ok(metadata) = fs::metadata(entry_path)
+        && metadata.is_file()
+    {
+        let full_path = prefix.join(entry_path);
+        add_path_to_archive(archive, &full_path)?;
     }
 
     Ok(())
@@ -1290,4 +1620,65 @@ async fn run_hook_command(command: &str) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn controller_vendor_is_unique(
+    controller: &DynGpuController,
+    id: &str,
+    controllers: &BTreeMap<String, DynGpuController>,
+) -> bool {
+    let vendor_id = &controller
+        .controller_info()
+        .pci_info
+        .device_pci_info
+        .vendor_id;
+
+    !controllers.iter().any(|(other_id, controller)| {
+        other_id != id
+            && controller
+                .controller_info()
+                .pci_info
+                .device_pci_info
+                .vendor_id
+                == *vendor_id
+    })
+}
+
+async fn connect_polkit_proxy() -> anyhow::Result<AuthorityProxy<'static>> {
+    let conn = zbus::Connection::system()
+        .await
+        .context("Could not establish dbus connection")?;
+
+    let proxy = AuthorityProxy::new(&conn)
+        .await
+        .context("Could not connect to polkit")?;
+
+    Ok(proxy)
+}
+
+async fn handle_reload_events(handler: Handler, mut rx: mpsc::Receiver<Duration>) {
+    // Reload events often come in quick succession (usually from DRM devices initializing),
+    // this accumulation avoids unnecessarily reloading multiple times in such cases.
+    while let Some(interval) = rx.recv().await {
+        let timeout = sleep(interval);
+        tokio::pin!(timeout);
+
+        loop {
+            select! {
+                () = &mut timeout => {
+                    break
+                },
+                Some(new_interval) = rx.recv() => {
+                    let new_deadline = tokio::time::Instant::now() + new_interval;
+                    if new_deadline > timeout.deadline() {
+                        debug!("got another reload event in shrot interval, delaying reload");
+                        timeout.as_mut().reset(new_deadline);
+                    }
+                }
+            }
+        }
+
+        info!("got reload event, reloading GPUs");
+        handler.reload_gpus().await;
+    }
 }

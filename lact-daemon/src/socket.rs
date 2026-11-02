@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use nix::{
-    sys::stat::{umask, Mode},
-    unistd::{chown, getuid, Gid, Group, User},
+    sys::stat::{Mode, umask},
+    unistd::{Gid, Group, User, chown, getuid},
 };
 use std::{
     env, fs,
@@ -13,7 +13,7 @@ use tracing::{debug, info};
 
 use crate::{
     config,
-    system::{run_command, IS_FLATBOX},
+    system::{IS_FLATBOX, run_command},
 };
 
 pub fn get_socket_path() -> PathBuf {
@@ -42,9 +42,10 @@ pub fn listen() -> anyhow::Result<(UnixListener, PathBuf)> {
 
     if socket_path.exists() {
         return Err(anyhow!(
-            "Socket {socket_path:?} already exists. \
+            "Socket {} already exists. \
             This probably means that another instance of lact-daemon is currently running. \
-            If you are sure that this is not the case, please remove the file"
+            If you are sure that this is not the case, please remove the file",
+            socket_path.display()
         ));
     }
 

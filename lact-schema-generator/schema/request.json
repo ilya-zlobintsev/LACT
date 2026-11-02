@@ -46,6 +46,12 @@
           "properties": {
             "id": {
               "type": "string"
+            },
+            "include_api_info": {
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           "required": [
@@ -78,7 +84,55 @@
         },
         "command": {
           "type": "string",
+          "const": "device_api_info"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
           "const": "device_stats"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "displays_info"
         }
       },
       "required": [
@@ -601,6 +655,84 @@
         "args": {
           "type": "object",
           "properties": {
+            "name": {
+              "type": "string"
+            },
+            "new_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "new_name"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "rename_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "hold_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "cookie": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "cookie"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "release_profile"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
             "rule": {
               "$ref": "#/$defs/ProfileRule"
             }
@@ -736,6 +868,54 @@
     {
       "type": "object",
       "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "detach_gpu"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "const": "reattach_gpu"
+        }
+      },
+      "required": [
+        "command",
+        "args"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
         "command": {
           "type": "string",
           "const": "enable_overdrive"
@@ -805,12 +985,13 @@
           "type": "string",
           "enum": [
             "max_core_clock",
-            "max_memory_clock",
-            "max_voltage",
             "min_core_clock",
-            "min_memory_clock",
             "min_voltage",
+            "max_voltage",
             "voltage_offset",
+            "voltage_boost",
+            "max_memory_clock",
+            "min_memory_clock",
             "reset"
           ]
         },
@@ -860,21 +1041,6 @@
         {
           "type": "object",
           "properties": {
-            "mem_vf_curve_clock": {
-              "type": "integer",
-              "format": "uint8",
-              "maximum": 255,
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "mem_vf_curve_clock"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
             "gpu_vf_curve_voltage": {
               "type": "integer",
               "format": "uint8",
@@ -885,6 +1051,21 @@
           "additionalProperties": false,
           "required": [
             "gpu_vf_curve_voltage"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mem_vf_curve_clock": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mem_vf_curve_clock"
           ]
         },
         {
@@ -1186,6 +1367,15 @@
           ],
           "format": "int32"
         },
+        "nvidia_gpu_vf_curve": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/NvidiaCurvePoint"
+          }
+        },
+        "nvidia_thermal_options": {
+          "$ref": "#/$defs/NvidiaThermalOptions"
+        },
         "performance_level": {
           "type": "string"
         },
@@ -1198,6 +1388,19 @@
             "null"
           ],
           "format": "double"
+        },
+        "power_mizer_mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Adaptive",
+            "PreferMaximumPerformance",
+            "Auto",
+            "PreferConsistentPerformance",
+            null
+          ]
         },
         "power_profile_mode_index": {
           "type": [
@@ -1220,6 +1423,21 @@
             }
           }
         },
+        "uma_carveout": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "voltage_boost": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
         "voltage_offset": {
           "type": [
             "integer",
@@ -1227,10 +1445,40 @@
           ],
           "format": "int32"
         }
+      }
+    },
+    "NvidiaCurvePoint": {
+      "type": "object",
+      "properties": {
+        "clockspeed_offset": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "voltage": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
       },
       "required": [
-        "performance_level"
+        "clockspeed_offset"
       ]
+    },
+    "NvidiaThermalOptions": {
+      "type": "object",
+      "properties": {
+        "target_temperature": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
     },
     "PmfwOptions": {
       "type": "object",

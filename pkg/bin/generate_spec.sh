@@ -94,9 +94,10 @@ make install PREFIX=/usr DESTDIR=%{buildroot}
 /usr/bin/lact
 /usr/lib/systemd/system/lactd.service
 /usr/share/applications/io.github.ilya_zlobintsev.LACT.desktop
+/usr/share/icons/hicolor/512x512/apps/io.github.ilya_zlobintsev.LACT.png
 /usr/share/icons/hicolor/scalable/apps/io.github.ilya_zlobintsev.LACT.svg
-/usr/share/pixmaps/io.github.ilya_zlobintsev.LACT.png
 /usr/share/metainfo/io.github.ilya_zlobintsev.LACT.metainfo.xml
+/usr/share/polkit-1/actions/io.github.ilya_zlobintsev.LACT.policy
 
 %changelog
 * $(date +"%a %b %d %Y") - $MAINTAINER - $GH_RELEASE_TAG

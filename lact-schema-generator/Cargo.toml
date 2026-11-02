@@ -1,7 +1,7 @@
 [package]
 name = "lact-schema-generator"
-version = "0.8.2"
-edition = "2021"
+version = "0.10.1"
+edition.workspace = true
 
 [lib]
 

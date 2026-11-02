@@ -3,9 +3,9 @@ oc-page = Разгон
 platform-name = Имя платформы
 instance = Инстанция
 api-version = Версия API
-info-page = Информация
+info-page = Сведения об оборудовании
 lact-daemon = Сервис LACT
-software-page = ПО
+software-page = Сведения о ПО
 hardware-info = Сведения об оборудовании
 lact-gui = Графический интерфейс LACT
 compute-units = Вычислительные блоки (Compute Units)
@@ -15,17 +15,15 @@ device-name = Имя устройства
 system-section = Система
 monitoring-section = Мониторинг
 amd-oc-status =
-    Статус разгона AMD: <b>{ $status ->
+    Состояние разгона AMD: <b>{ $status ->
         [true] вкл.
-        [false] выкл.
+        [false] откл.
        *[other] неизвестен
     }</b>
 enable-amd-oc = Включить разгон AMD
 min-fan-speed = Минимальная скорость вентиляторов (%)
-amd-oc-disabled =
-    Разгон AMD выключен!
-    Вы можете изменить базовые параметры, но управление частотами и напряжением будет недоступно.
-gpu-clock-target = Целевая частота ядра GPU
+amd-oc-disabled = Разгон AMD не задействован! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Некоторые функции будут недоступны.</a>
+gpu-clock-target = Целевая частота ядра ГП
 local-memory = Локальная память
 driver-name = Название драйвера
 cl-c-version = Версия OpenCL C
@@ -39,7 +37,7 @@ throttling = Троттлинг
 static-page = Фиксированно
 target-temp = Целевая температура (°C)
 acoustic-target = Акустическая цель (об/мин)
-zero-rpm = Режим нулевых об/мин (Zero RPM)
+zero-rpm = Режим нулевых оборотов (Zero RPM)
 static-speed = Фиксированная скорость (%)
 reset-button = Сброс
 amd-oc = Разгон AMD
@@ -48,31 +46,31 @@ amd-oc-detected-system-config =
         [unsupported] не поддерживается
        *[other] { $config }
     }</b>
-enable-amd-oc-description = Функция разгона драйвера amdgpu будет включена путем создания файла по адресу <b>{ $path }</b> и обновления initramfs. Вы уверены, что хотите продолжить?
-disable-amd-oc = Выключить разгон AMD
+enable-amd-oc-description = Функция разгона драйвера amdgpu будет включена путём создания файла по адресу <b>{ $path }</b> и обновления initramfs. Уверены, что хотите продолжить?
+disable-amd-oc = Отключить разгон AMD
 amd-oc-updating-configuration = Обновление конфигурации (может занять некоторое время)
 amd-oc-updating-done = Конфигурация была обновлена, пожалуйста, перезагрузите систему для применения изменений.
 watt = Вт
 ghz = ГГц
 mebibyte = МиБ
 stats-section = Статистика
-gpu-clock = Частота ядра GPU
-gpu-clock-avg = Средняя частота ядра GPU
-gpu-voltage = Напряжение GPU
-gpu-usage = Использование GPU
+gpu-clock = Частота ядра ГП
+gpu-clock-avg = Средняя частота ядра ГП
+gpu-voltage = Напряжение ГП
+gpu-usage = Использование ГП
 power-usage = Потребляемая мощность
 no-throttling = Нет
 missing-stat = Н/Д
 performance-level-high = Максимальные частоты
 performance-level-low = Минимальные частоты
-performance-level-low-description = Всегда использовать минимальные тактовые частоты для GPU и VRAM.
-performance-level-manual-description = Ручное управление производительностью.
+performance-level-low-description = Всегда использовать минимальные тактовые частоты для ГП и видеопамяти
+performance-level-manual-description = Ручное управление производительностью
 workgroup-size = Размер рабочей группы
 features = Функции
 cache-info = Информация о кэше
 nvidia-cache-desc = { $size } L{ $level }
-reset-config-description = Вы уверены, что хотите сбросить все настройки GPU?
-zero-rpm-stop-temp = Выключение режима Zero RPM (°C)
+reset-config-description = Это сбросит все настройки ГП до значений по умолчанию и безвозвратно удалит все профили
+zero-rpm-stop-temp = Температура остановки нулевых оборотов (°C)
 show-button = Показать
 disable-amd-oc-description = Разгон AMD будет выключен при следующей перезагрузке.
 fan-control-section = Настройка вентиляторов
@@ -87,38 +85,38 @@ pmfw-reset-warning = Внимание: настройки прошивки ве�
 reset-config = Сбросить конфигурацию
 amd-oc-description =
     { $config ->
-        [rpm-ostree] Эта опция включит поддержку разгона AMD путем установки флагов запуска через  <b>rpm-ostree</b>.
+        [rpm-ostree] Эта опция включит поддержку разгона AMD путём установки флагов запуска через  <b>rpm-ostree</b>.
         [unsupported]
             Текущая система не распознана как поддерживаемая для автоматической настройки разгона.
             Вы можете попробовать включить разгон через LACT, но для вступления изменений в силу может потребоваться ручная регенерация initramfs.
             Если это не сработает, альтернативно можно добавить параметр загрузки <b>amdgpu.ppfeaturemask=0xffffffff</b>  в загрузчик ОС.
-       *[other] Эта опция включит разгон AMD путем создания файла в <b>{ $path }</b> и обновления initramfs.
+       *[other] Эта опция включит разгон AMD путём создания файла в <b>{ $path }</b> и обновления initramfs.
     }
 
     См. <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">вики</a> для получения дополнительной информации.
-power-cap = Порог потребляемой мощности
+power-cap = Порог энергопотребления
 gpu-temp = Температура
 unknown-throttling = Неизвестно
-vram-clock = Частота VRAM
-performance-level-auto-description = Автоматическая регулировка частот GPU и VRAM (по умолчанию).
-performance-level-high-description = Всегда использовать максимальные тактовые частоты для GPU и VRAM.
+vram-clock = Частота видеопамяти
+performance-level-auto-description = Авторегулировка частот ГП и VRAM (по умолчанию).
+performance-level-high-description = Всегда использовать максимальные тактовые частоты для ГП и видеопамяти
 auto-page = Автоматически
 performance-level-auto = Автоматически
 performance-level-manual = Вручную
-vram-pstates = Состояния питания VRAM
+vram-pstates = Состояния питания видеопамяти
 profile-hook-deactivated = Деактивирован:
 power-profile-mode = Режим профиля питания:
 overclock-section = Частота и напряжение
 show-all-pstates = Показать все P-States
-enable-gpu-locked-clocks = Включить фиксированные частоты GPU
-gpu-clock-offset = Смещение частоты GPU (МГц)
-max-vram-clock = Максимальная частота VRAM (МГц)
-max-gpu-voltage = Максимальное напряжение GPU (мВ)
-gpu-voltage-offset = Смещение напряжения GPU (мВ)
-gpu-pstate-clock = Частота GPU для P-State { $pstate } (МГц)
-mem-pstate-clock = Частота VRAM для P-State { $pstate } (МГц)
-gpu-pstate-clock-voltage = Напряжение GPU для P-State { $pstate } (мВ)
-mem-pstate-clock-voltage = Напряжение VRAM для P-State { $pstate } (мВ)
+enable-gpu-locked-clocks = Включить фиксированные частоты ГП
+gpu-clock-offset = Смещение частоты ГП (МГц)
+max-vram-clock = Максимальная частота видеопамяти (МГц)
+max-gpu-voltage = Максимальное напряжение ГП (мВ)
+gpu-voltage-offset = Смещение напряжения ГП (мВ)
+gpu-pstate-clock = Частота ГП для P-State { $pstate } (МГц)
+mem-pstate-clock = Частота видеопамяти для P-State { $pstate } (МГц)
+gpu-pstate-clock-voltage = Напряжение ГП для P-State { $pstate } (мВ)
+mem-pstate-clock-voltage = Напряжение видеопамяти для P-State { $pstate } (мВ)
 pstates = Состояния питания (P-States)
 enable-pstate-config = Включить настройку состояний питания
 settings-profile = Профиль настроек
@@ -136,45 +134,43 @@ profile-rule-gamemode-tab = Игровой режим (gamemode) активен
 profile-rule-process-name = Имя процесса:
 profile-rule-args-contain = Аргументы содержат:
 profile-rule-specific-process = С определенным процессом:
-nvidia-oc-info = Информация о разгоне Nvidia
-min-gpu-clock = Минимальная частота GPU (МГц)
-min-vram-clock = Минимальная частота VRAM (МГц)
-gpu-pstate-clock-offset = Смещение частоты GPU для P-State { $pstate } (МГц)
-vram-pstate-clock-offset = Смещение частоты VRAM для P-State { $pstate } (МГц)
-gpu-pstates = Состояния питания GPU
+nvidia-oc-info = Информация о разгоне
+min-gpu-clock = Минимальная частота ГП (МГц)
+min-vram-clock = Минимальная частота видеопамяти (МГц)
+gpu-pstate-clock-offset = Смещение частоты ГП для P-State { $pstate } (МГц)
+vram-pstate-clock-offset = Смещение частоты видеопамяти для P-State { $pstate } (МГц)
+gpu-pstates = Состояния питания ГП
 rename-profile-from = Переименовать профиль <b>{ $old_name }</b>:
 pstate-list-description = <b>Следующие значения являются смещениями частоты для каждого P-State, от самого высокого к самому низкому.</b>
-max-gpu-clock = Максимальная частота GPU (МГц)
+max-gpu-clock = Максимальная частота ГП (МГц)
 edit-rules = Изменить правила
 export-to-file = Экспорт в файл
 no-clocks-data = Данные о частотах недоступны
 manual-level-needed = Чтобы использовать режимы питания, уровень производительности должен быть установлен на «вручную»
-oc-warning = Внимание: изменение этих значений может привести к нестабильной работе системы, а также повредить ваше оборудование!
-enable-vram-locked-clocks = Включить фиксированные частоты VRAM
+oc-warning = Изменение этих значений может нарушить стабильность системы и повредить оборудование!
+enable-vram-locked-clocks = Включить фиксированные частоты видеопамяти
 profile-hook-command = Выполнить команду, когда профиль '{ $cmd }':
 profile-hook-activated = Активирован:
 nvidia-oc-description =
-    Разгон на видеокартах Nvidia включает возможность задавать смещения для частот GPU и VRAM, а также ограничивать потенциальный диапазон частот с помощью функции «locked clocks» (фиксированные частоты).
+    Разгон на видеокартах Nvidia включает возможность задавать смещения для частот ГП и видеопамяти, а также ограничивать потенциальный диапазон частот с помощью функции «locked clocks» (фиксированные частоты).
 
     На многих моделях видеокарт смещение частоты видеопамяти фактически влияет на реальную скорость памяти только наполовину от заданного значения.
-    Например, при установке смещения +1000 МГц прирост измеренной частоты VRAM может составить всего +500 МГц.
+    Например, при установке смещения +1000 МГц прирост измеренной частоты видеопамяти может составить всего +500 МГц.
     Это нормальное поведение, связанное с тем, как Nvidia обрабатывает скорость передачи данных GDDR. Учитывайте это при настройке разгона.
 
-    Прямое управление напряжением недоступно, так как оно отсутствует в драйвере Nvidia для Linux.
-
-    Можно сделать «псевдо-андервольт» с помощью комбинации «locked clocks» и положительного смещения частоты.
-    В этом случае GPU будет работать на напряжении, ограниченном фиксированными частотами, но при этом достигнет более высокой частоты за счет смещения.
+    Можно сделать «псевдо-андервольт» с помощью комбинации фиксированных частот и положительного смещения частоты.
+    В этом случае ГП будет работать на напряжении, ограниченном фиксированными частотами, но при этом достигнет более высокой частоты за счёт смещения.
     Чрезмерное увеличение параметров может привести к нестабильности системы.
 import-profile = Импорт профиля из файла
 reset-oc-tooltip = Внимание: все настройки частот будут сброшены к значениям по умолчанию!
-auto-switch-profiles = Автоматическое переключение
+auto-switch-profiles = Переключать автоматически
 add-profile = Добавить новый профиль
 profile-activation = Активация
 profile-activation-desc = Активировать профиль '{ $name }' при:
-show-historical-charts = Показать графики сенсоров
+show-historical-charts = Показать графики
 move-down = Вниз
-min-gpu-voltage = Минимальное напряжение GPU (мВ)
-pstates-manual-needed = Примечание: уровень производительности должен быть установлен на «вручную» для переключения состояний питания
+min-gpu-voltage = Минимальное напряжение ГП (мВ)
+pstates-manual-needed = Уровень производительности должен быть установлен на «вручную» для переключения состояний питания
 profile-hooks = Хуки
 activation-settings-status =
     Выбранные настройки активации в данный момент <b>{ $matched ->
@@ -194,11 +190,132 @@ amd-cache-desc =
         [1] локальный для каждого CU
        *[other] общий между { $shared } CU
     }
-generate-debug-snapshot = Сгенерировать дебаг-лог
-dump-vbios = Сделать дамп VBIOS
+generate-debug-snapshot = Создать отладочный снимок
+dump-vbios = Сохранить дамп VBIOS
 reset-all-config = Сбросить все настройки
-stats-update-interval = Интервал обновления (мс)
-reconnecting-to-daemon = Потеряно соединение с сервисом, переподключение...
+stats-update-interval = Период обновления (мс)
+reconnecting-to-daemon = Потеряно соединение со службой, переподключение…
 daemon-connection-lost = Соединение потеряно
 plot-show-detailed-info = Показать подробную информацию
 show-process-monitor = Показать диспетчер задач
+temperature-sensor = Датчик температуры
+spindown-delay = Задержка снижения оборотов (мс)
+speed-change-threshold = Порог изменения скорости (°C)
+automatic-mode-threshold = Порог автоматического режима (°C)
+spindown-delay-tooltip = Время удержания температуры ГП ниже порога перед снижением оборотов вентилятора
+automatic-mode-threshold-tooltip =
+    Переключает управление вентиляторами в автоматический режим, когда температура опускается ниже указанного значения.
+
+    Многие видеокарты Nvidia поддерживают полную остановку вентилятора (Zero RPM) только в автоматическом режиме управления, тогда как при использовании пользовательской кривой скорость вращения ограничена, например, диапазоном 30-100 %.
+
+    Эта настройка позволяет обойти это ограничение: при температуре выше заданного порога используется пользовательская кривая, а при более низкой — автоматический режим видеокарты с поддержкой режима Zero RPM.
+revert-button = Сбросить
+vram-usage = Использование видеопамяти:
+performance-level = Уровень производительности
+historical-data-title = История показаний сенсоров
+graphs-per-row = Графиков в строке:
+reset-all-graphs-tooltip = Сбросить все графики к значениям по умолчанию
+add-graph = Добавить график
+delete-graph = Удалить график
+export-csv = Экспорт в CSV
+edit-graph-sensors = Редактировать сенсоры графика
+apply-button = Применить
+edit-graphs = Редактировать
+time-period-seconds = Период времени (секунды):
+theme = Тема
+theme-auto = Автоматическая
+crash-page-title = Сбой приложения
+exit = Выход
+hw-ip-info = Информация о IP аппаратного обеспечения
+hw-queues = Очереди
+bytes = байты
+kibibyte = КиБ
+gibibyte = ГиБ
+confirm = Подтвердить
+confirm-settings = Подтвердить настройки
+settings-confirmation = Сохранить новые настройки? (Возврат через { $seconds_left } с)
+vf-curve-editor = Редактор кривой напряжение-частота
+nvidia-vf-curve-warning =
+    Редактор кривой напряжение-частота использует недокументированные возможности драйвера.
+    <span weight = "heavy" underline = "single">Используйте на свой страх и риск</span>.
+voltage = Напряжение
+frequency = Частота
+vf-active-curve = Активная кривая
+vf-base-curve = Базовая кривая
+vf-curve-visible-range = Видимый диапазон (%):
+vf-curve-visible-range-to = до
+vf-curve-flatten-right = Выровнять кривую вправо
+menu = Меню
+error-heading = Ошибка
+daemon-info-heading = Информация о демоне
+version-mismatch-description =
+    Несоответствие версий между графическим интерфейсом и демоном ({ $gui_version }-{ $gui_commit } против { $daemon_version }-{ $daemon_commit })!
+    Если вы обновили LACT, вам необходимо перезапустить службу.
+close = Закрыть
+preferences = Настройки
+ui = Интерфейс
+daemon = Демон
+about = О программе
+displays-page = Сведения о дисплеях
+thresholds-section = Пороговые значения и ограничения
+gtt-usage = Использование GTT:
+vf-curve-flatten-selection = Выровнять выделение
+display-title = Дисплей { $identifier }
+display-manufacturer = Производитель
+display-product-code = Код продукта
+display-model = Модель
+display-physical-size = Физический размер
+display-connection = Подключение
+display-manufacture-date = Дата производства
+displays-missing = Дисплеи не обнаружены
+color-scheme = Цветовая схема
+color-scheme-auto = Система
+color-scheme-light = Светлый
+color-scheme-dark = Тёмный
+power-mizer-mode = Режим PowerMizer
+power-mizer-mode-auto = Авто
+power-mizer-mode-adaptive = Адаптивный
+power-mizer-mode-prefer-maximum-performance = Предпочитать максимальную производительность
+power-mizer-mode-prefer-consistent-performance = Предпочитать стабильную производительность
+power-mizer-mode-auto-description = Позволить драйверу выбирать политику производительности.
+power-mizer-mode-adaptive-description = Регулировать частоты ГП в зависимости от нагрузки.
+power-mizer-mode-prefer-maximum-performance-description = Обеспечивать максимальную производительность в рамках ограничений драйвера.
+power-mizer-mode-prefer-consistent-performance-description = Фиксировать базовые частоты ГП.
+service-explanation =
+    Для применения настроек ГП требуется системная служба LACT.
+    Без неё LACT работает в автономном режиме, доступны только информация и мониторинг.
+service-connection-status = Состояние подключения
+service-status = Состояние службы
+service-permission-denied =
+    Отказано в доступе, служба не настроена на разрешение подключений от вашего пользователя.
+    Подробности см. на <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-connected = подключено
+service-version = Версия службы
+service-version-mismatch = не совпадает
+service-logs = Журналы службы
+service-start = Запустить
+service-stop = Остановить
+service-restart = Перезапустить
+service-disconnected = нет подключения
+gui-version = Версия ГП
+gpu-voltage-boost = Повышение напряжения ГП (%)
+gpu-voltage-boost-tooltip = Определяет, какая часть дополнительного запаса напряжения, заданного драйвером, доступна. 100% означает весь этот запас, а не 100% общего напряжения ГП. Больший запас может поддерживать более высокие частоты, но увеличивает энергопотребление и нагрев.
+no-fan-detected = Вентилятор не обнаружен
+no-sensors-found = Датчики не найдены
+service-autostart = Автозапуск при загрузке
+service-autostart-disable = Также отключить автозапуск
+reset-now-button = Сбросить сейчас
+default-button = По умолчанию
+extra-clocks = Дополнительные тактовые частоты
+performance-level-profile-standard = Стандартный профиль
+performance-level-profile-min-sclk = Минимальная частота ГП
+performance-level-profile-min-mclk = Минимальная частота видеопамяти
+performance-level-profile-peak = Максимальная производительность
+performance-level-profile-standard-description = Фиксированный режим профилирования
+performance-level-profile-min-sclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту ГП
+performance-level-profile-min-mclk-description = Режим профилирования, принудительно устанавливающий минимальную частоту видеопамяти
+performance-level-profile-peak-description = Режим профилирования, принудительно устанавливающий максимальные частоты ГП и видеопамяти
+enable-vf-curve = Включить редактирование кривой напряжения-частоты
+vf-curve-editing-disabled = Редактирование кривой напряжения-частоты отключено на странице разгона
+service-setup-title = Настройка службы
+setup-error = Ошибка настройки: { $error }

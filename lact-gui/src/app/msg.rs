@@ -1,18 +1,22 @@
-use super::{
-    confirmation_dialog::ConfirmationOptions,
-    header::profile_rule_window::{profile_row::ProfileRuleRowMsg, ProfileRuleWindowMsg},
+use super::profiles::profile_rule_window::{
+    ProfileRuleWindowMsg, profile_rule_row::ProfileRuleRowMsg,
 };
 use lact_client::ConnectionStatusMsg;
-use lact_schema::{config::ProfileHooks, request::ProfileBase, DeviceStats, ProfileRule};
+use lact_schema::{
+    DeviceStats, ProfileRule, ProfilesInfo, config::ProfileHooks, request::ProfileBase,
+};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum AppMsg {
     Error(Arc<anyhow::Error>),
+    SelectGpu(String),
     ReloadData {
         full: bool,
     },
+    ReloadApiInfo,
     Stats(Arc<DeviceStats>),
+    ProfilesPolled(Arc<ProfilesInfo>),
     ApplyChanges,
     RevertChanges,
     SettingsChanged,
@@ -22,10 +26,18 @@ pub enum AppMsg {
     ShowProcessMonitor,
     DumpVBios,
     DebugSnapshot,
+    ShowPreferencesDialog,
+    ExperimentalFeaturesChanged,
+    ShowAboutDialog,
     ShowOverdriveDialog,
+    ShowServiceSetupDialog,
+    ServiceSetupDialogClosed,
     EnableOverdrive,
     DisableOverdrive,
     ResetConfig,
+    ResetConfigConfirmed,
+    EnablePstateConfig,
+    EnablePstateConfigConfirmed,
     FetchProcessList,
     ReloadProfiles {
         state_sender: Option<relm4::Sender<ProfileRuleRowMsg>>,
@@ -47,23 +59,6 @@ pub enum AppMsg {
     ImportProfile,
     ExportProfile(Option<String>),
     ConnectionStatus(ConnectionStatusMsg),
-    AskConfirmation(ConfirmationOptions, Box<AppMsg>),
-}
-
-impl AppMsg {
-    pub fn ask_confirmation(
-        inner: AppMsg,
-        title: String,
-        message: impl Into<String>,
-        buttons_type: gtk::ButtonsType,
-    ) -> Self {
-        Self::AskConfirmation(
-            ConfirmationOptions {
-                title,
-                message: message.into(),
-                buttons_type,
-            },
-            Box::new(inner),
-        )
-    }
+    Crash(String),
+    Quit,
 }

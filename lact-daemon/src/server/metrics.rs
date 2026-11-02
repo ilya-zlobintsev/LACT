@@ -4,9 +4,9 @@ use crate::{
     config,
     server::{handler::Handler, metrics::schema::NumberValue},
 };
-use chrono::Local;
 use indexmap::IndexMap;
-use lact_schema::DeviceStats;
+use jiff::Zoned;
+use lact_schema::{DeviceStats, clean_gpu_name};
 use schema::{
     Attribute, Gauge, GaugeDataPoint, Metric, MetricsPayload, Resource, ResourceMetric, Scope,
     ScopeMetric, Value,
@@ -36,10 +36,7 @@ pub fn setup(handler: Handler, config: config::Metrics) {
                 Ok(devices) => {
                     debug!("collecting metrics for {} devices", devices.len());
                     let mut metrics = Vec::with_capacity(10);
-                    let timestamp = Local::now()
-                        .timestamp_nanos_opt()
-                        .expect("Invalid timestamp")
-                        .to_string();
+                    let timestamp = Zoned::now().timestamp().as_nanosecond().to_string();
 
                     for (gpu_id, (gpu_name, stats)) in &devices {
                         collect_metrics(gpu_id, gpu_name, stats, &mut metrics, &timestamp);
@@ -165,7 +162,7 @@ fn collect_metrics<'a>(
             value: Value::String(key),
         });
 
-        if let Some(current) = temp.current {
+        if let Some(current) = temp.value.current {
             metrics.push(make_metric(
                 "lact_gpu_temperature",
                 f64::from(current).into(),
@@ -176,7 +173,7 @@ fn collect_metrics<'a>(
             ));
         }
 
-        if let Some(crit) = temp.crit {
+        if let Some(crit) = temp.value.crit {
             metrics.push(make_metric(
                 "lact_gpu_temperature_crit",
                 f64::from(crit).into(),
@@ -205,7 +202,7 @@ fn collect_metrics<'a>(
         ));
     }
 
-    if let Some(gpu_target_clock) = stats.clockspeed.current_gfxclk {
+    if let Some(gpu_target_clock) = stats.clockspeed.target_gpu_clockspeed {
         let mut attrs = base_attrs.clone();
         attrs.push(Attribute {
             key: "clockspeed_type",
@@ -338,7 +335,15 @@ async fn get_stats(handler: &Handler) -> anyhow::Result<IndexMap<String, (String
     for device in device_list {
         let stats = handler.get_gpu_stats(&device.id).await?;
 
-        devices.insert(device.id, (device.name.unwrap_or_default(), stats));
+        devices.insert(
+            device.id,
+            (
+                device
+                    .name
+                    .map_or_else(String::new, |name| clean_gpu_name(&name).to_owned()),
+                stats,
+            ),
+        );
     }
 
     Ok(devices)

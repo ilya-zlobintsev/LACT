@@ -1,7 +1,7 @@
-info-page = Tiedot
+info-page = Laitteistotiedot
 oc-page = Ylikellotus
 thermals-page = Lämmönhallintaan liittyvät näkökohdat
-software-page = Ohjelmisto
+software-page = Ohjelmistotiedot
 hardware-info = Laitteistotiedot
 system-section = Järjestelmä
 lact-daemon = LACT-daemon
@@ -59,9 +59,7 @@ automatic-mode-threshold-tooltip =
 
     Tämän asetuksen avulla voidaan kiertää tämä rajoitus käyttämällä mukautettua käyrää vain tietyn lämpötilan yläpuolella, kortin sisäänrakennetulla automaattitilalla, joka tukee nollan kierroksen minuutissa käyttöä sen alapuolella.
 amd-oc = AMD-ylikellotus
-amd-oc-disabled =
-    AMD-ylikellotustukea ei ole otettu käyttöön!
-    Voit edelleen muuttaa perusasetuksia, mutta edistyneemmät kellotaajuudet ja jännitteen säätö eivät ole käytettävissä.
+amd-oc-disabled = AMD:n ylikellotus ei ole käytössä! <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Jotkin toiminnot eivät ole käytettävissä.</a>
 amd-oc-status =
     AMD-ylikellotus on tällä hetkellä: <b>{ $status ->
         [true] otettu käyttöön
@@ -69,7 +67,7 @@ amd-oc-status =
        *[other] Tuntematon
     }</b>
 apply-button = Toteuta
-revert-button = Peruuta
+revert-button = Palauta
 mebibyte = Mit
 unknown-throttling = Tuntematon
 missing-stat = Ei saatavilla
@@ -131,20 +129,18 @@ performance-level = Suorituskykytaso
 power-profile-mode = Virtaprofiilitila:
 manual-level-needed = Suorituskykytaso on asetettava "käsin":ksi, virrankäyttötilojen ja -tilojen käyttämiseksi
 overclock-section = Kellotaajuus ja jännite
-nvidia-oc-info = Nvidia-ylikellotustiedot
+nvidia-oc-info = Ylikellotustiedot
 nvidia-oc-description =
-    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellotaajuudet" -ominaisuuden avulla.
+    Nvidian ylikellotustoimintoihin kuuluu GPU/VRAM-kellotaajuuspoikkeamien asettaminen ja mahdollisen kellotaajuuksien alueen rajoittaminen "lukitut kellot" -ominaisuutta käyttäen.
 
-    Monilla korteilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
+    Monilla näytönohjaimilla VRAM-kellotaajuuspoikkeama vaikuttaa muistin todelliseen kellotaajuuteen vain puolella poikkeaman arvosta.
     Esimerkiksi +1000 MHz:n VRAM-poikkeama voi lisätä mitattua VRAM-nopeutta vain 500 MHz:llä.
     Tämä on normaalia, ja näin Nvidia käsittelee GDDR-tiedonsiirtonopeuksia. Säädä ylikellotusta vastaavasti.
 
-    Suoraa jännitteen säätöä ei tueta, koska sitä ei ole Nvidian Linux-ajurissa.
-    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukittujen kellojen asetus positiiviseen kellotaajuuspoikkeamaan.
+    On mahdollista saavuttaa näennäisalijännite yhdistämällä lukitut kellot -vaihtoehto positiiviseen kellotaajuuspoikkeamaan.
     Tämä pakottaa GPU:n toimimaan lukittujen kellojen rajoittamalla jännitteellä, samalla kun saavutetaan korkeampi kellotaajuus poikkeaman ansiosta.
-
-    Tämä voi aiheuttaa järjestelmän epävakautta, jos sitä painetaan liian korkeaksi.
-oc-warning = Varoitus: Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
+    Tämä voi aiheuttaa järjestelmän epävakautta, jos sen asetusarvoa nostetaan liian korkealle.
+oc-warning = Näiden arvojen muuttaminen voi johtaa järjestelmän epävakauteen ja mahdollisesti vahingoittaa laitteistoasi!
 show-all-pstates = Näytä kaikki P-tilat
 enable-gpu-locked-clocks = Ota GPU:n lukitut kellotaajuudet käyttöön
 enable-vram-locked-clocks = Ota VRAM:n lukitut kellotaajuudet käyttöön
@@ -154,9 +150,9 @@ reset-oc-tooltip = Varoitus: tämä palauttaa kaikki kellojen asetukset oletusas
 pstates = Virtatilat
 gpu-pstates = GPU:n virtatilat
 vram-pstates = VRAM:n virtatilat
-pstates-manual-needed = Huomautus: suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
+pstates-manual-needed = Suorituskykytason on oltava asetettu 'käsin':ksi virrankäyttötilojen vaihtamiseksi
 enable-pstate-config = Ota virtatilan määritys käyttöön
-show-historical-charts = Näytä historialliset kaaviot
+show-historical-charts = Näytä kaaviot
 show-process-monitor = Näytä prosessien valvonta
 generate-debug-snapshot = Luo viankorjaustilannevedos
 reset-all-config = Nollaa koko kokoonpano
@@ -214,9 +210,51 @@ min-vram-clock = VRAM:n vähimmäiskellotaajuus (MHz)
 min-gpu-voltage = GPU:n vähimmäisjännite (mV)
 gpu-clock-offset = GPU-kellotaajuuspoikkeama (MHz)
 gpu-voltage-offset = GPU-jännitepoikkeama (mV)
-gpu-pstate-clock-offset = VRAM:n P-tila { $pstate } kellotaajuuspoikkeama (MHz)
-vram-pstate-clock-offset = VRAM:n P-tila { $pstate } kellotaajuuspoikkeama (MHz)
+gpu-pstate-clock-offset = GPU:n P-tila { $pstate } kellopoikkeama (MHz)
+vram-pstate-clock-offset = VRAM:n P-tila { $pstate } kellopoikkeama (MHz)
 gpu-pstate-clock = GPU:n P-tila { $pstate } kellotaajuus (MHz)
 mem-pstate-clock = VRAM:n P-tila { $pstate } kellotaajuus (MHz)
 gpu-pstate-clock-voltage = GPU:n P-tila { $pstate } jännite (mV)
 mem-pstate-clock-voltage = VRAM:n P-tila { $pstate } jännite (mV)
+cache-data = Data
+cache-instruction = Data
+watt = W
+ghz = GHz
+mhz = MHz
+nvidia-cache-desc = { $size } L{ $level }
+gibibyte = GiB
+crash-page-title = Ohjelma kaatui
+exit = Poistu
+bytes = tavua
+kibibyte = Kit
+theme-auto = Automaattinen
+hw-ip-info = Laitteiston IP-tiedot
+hw-queues = Jonot
+theme = Teema
+vf-curve-editor = VF-käyrän muokkain
+nvidia-vf-curve-warning =
+    Jännite-taajuuskäyrän muokkain perustuu dokumentoimattomaan ajuritoimintoon.
+    Sen toiminnasta, turvallisuudesta tai saatavuudesta ei ole takeita.
+    <span weight = "heavy" underline = "single">Käytä omalla vastuullasi</span>.
+voltage = Jännite
+frequency = Taajuus
+vf-active-curve = Aktiivinen käyrä
+vf-base-curve = Peruskäyrä
+vf-curve-visible-range = Näkyvä alue (%):
+vf-curve-visible-range-to = asti
+vf-curve-flatten-right = Litistä käyrää oikealle
+preferences = Asetukset
+about = Tietoja
+confirm = Vahvista
+confirm-settings = Vahvista asetukset
+settings-confirmation = Haluatko säilyttää uudet asetukset? (Palautetaan { $seconds_left } sekunnin kuluttua)
+menu = Valikko
+error-heading = Virhe
+daemon-info-heading = Daemonin tiedot
+version-mismatch-description =
+    Käyttöliittymän ja daemonin välinen versioristiriita ({ $gui_version }-{ $gui_commit } vastaan { $daemon_version }-{ $daemon_commit })!
+    Jos olet päivittänyt LACT:n, sinun on käynnistettävä palvelu uudelleen näin:
+close = Sulje
+ui = Käyttöliittymä
+daemon = Daemoni
+displays-page = Näytä info

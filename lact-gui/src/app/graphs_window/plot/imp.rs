@@ -1,5 +1,5 @@
-use super::render_thread::{RenderRequest, RenderThread};
 use super::PlotColorScheme;
+use super::render_thread::{RenderRequest, RenderThread};
 use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
@@ -49,9 +49,9 @@ impl WidgetImpl for Plot {
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
         let width = self.obj().width() as u32;
         let height = self.obj().height() as u32;
+        let scale_factor = self.obj().scale_factor();
 
-        let style_context = self.obj().style_context();
-        let colors = PlotColorScheme::from_context(&style_context).unwrap_or_default();
+        let colors = PlotColorScheme::current();
 
         if width == 0 || height == 0 {
             return;
@@ -69,6 +69,7 @@ impl WidgetImpl for Plot {
                 stats: self.stats.borrow().clone(),
                 width,
                 height,
+                scale_factor,
                 colors,
                 title: self.title.borrow().clone(),
                 print_extra_info: self.print_extra_info.get(),
@@ -94,16 +95,21 @@ impl Plot {
 mod benches {
     use crate::app::graphs_window::{
         plot::{
-            render_thread::{process_request, RenderRequest},
             PlotColorScheme,
+            render_thread::{RenderRequest, process_request},
         },
         stat::{StatType, StatsData},
     };
-    use amdgpu_sysfs::{gpu_handle::PerformanceLevel, hw_mon::Temperature};
-    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-    use divan::{counter::ItemsCount, Bencher};
+    use amdgpu_sysfs::{
+        gpu_handle::{PerformanceLevel, PowerLevelId},
+        hw_mon::Temperature,
+    };
+    use divan::{Bencher, counter::ItemsCount};
+    use indexmap::IndexMap;
+    use jiff::Timestamp;
     use lact_schema::{
-        ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats, VoltageStats, VramStats,
+        ActivePowerStates, ClockspeedStats, DeviceStats, FanStats, PmfwInfo, PowerStats,
+        TemperatureEntry, VoltageStats, VramStats,
     };
     use std::{
         collections::HashMap,
@@ -124,6 +130,7 @@ mod benches {
                     data,
                     width: 1920,
                     height: 1080,
+                    scale_factor: 1,
                     time_period_seconds: 60,
                     print_extra_info: false,
                     stats: vec![
@@ -144,19 +151,21 @@ mod benches {
         // Simulate 1 minute plot with 4 values per second
         for sec in 0..60 {
             for milli in [0, 250, 500, 750] {
-                let datetime = NaiveDateTime::new(
-                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
-                    NaiveTime::from_hms_milli_opt(0, 0, sec, milli).unwrap(),
-                );
+                let timestamp = Timestamp::from_millisecond(sec * 1000 + milli).unwrap();
 
                 let stats = DeviceStats {
                     busy_percent: Some(3),
                     clockspeed: ClockspeedStats {
                         gpu_clockspeed: Some(500),
                         vram_clockspeed: Some(1000),
-                        current_gfxclk: None,
+                        target_gpu_clockspeed: None,
+                        sensors: IndexMap::new(),
                     },
-                    core_power_state: Some(0),
+                    active_power_states: Some(ActivePowerStates {
+                        core: Some(PowerLevelId::Index(0)),
+                        memory: Some(PowerLevelId::Index(3)),
+                        pcie: Some(PowerLevelId::Index(1)),
+                    }),
                     fan: FanStats {
                         control_enabled: false,
                         pmfw_info: PmfwInfo::default(),
@@ -168,8 +177,9 @@ mod benches {
                         speed_min: Some(0),
                         ..Default::default()
                     },
-                    memory_power_state: Some(3),
-                    pcie_power_state: Some(1),
+                    nvidia_thermal_info: Default::default(),
+                    active_power_mizer_mode: None,
+                    supported_power_mizer_modes: None,
                     performance_level: Some(PerformanceLevel::Auto),
                     power: PowerStats {
                         average: Some(36.0),
@@ -178,24 +188,31 @@ mod benches {
                         cap_max: Some(332.0),
                         cap_min: Some(0.0),
                         current: None,
+                        sensors: HashMap::new(),
                     },
-                    temps: HashMap::from([(
+                    temps: IndexMap::from([(
                         "edge".to_owned(),
-                        Temperature {
-                            crit: Some(100.0),
-                            crit_hyst: None,
-                            current: Some(56.0),
+                        TemperatureEntry {
+                            value: Temperature {
+                                crit: Some(100.0),
+                                crit_hyst: None,
+                                current: Some(56.0),
+                            },
+                            primary: true,
+                            display_only: false,
                         },
                     )]),
                     voltage: VoltageStats::default(),
                     vram: VramStats {
                         total: Some(17163091968),
                         used: Some(668274688),
+                        gtt_total_usable: None,
+                        gtt_used: None,
                     },
                     throttle_info: None,
                 };
 
-                data.update_with_timestamp(&stats, 1.0, datetime.and_utc().timestamp_millis());
+                data.update_with_timestamp(&stats, 1.0, timestamp.as_millisecond());
             }
         }
 

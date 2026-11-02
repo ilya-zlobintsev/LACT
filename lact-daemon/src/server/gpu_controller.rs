@@ -7,43 +7,70 @@ mod nvidia;
 
 use amd::AmdGpuController;
 use intel::IntelGpuController;
+use lact_schema::DeviceApiInfo;
 use lact_schema::DeviceType;
 use lact_schema::ProcessList;
 #[cfg(feature = "nvidia")]
 use nvidia::NvidiaGpuController;
+use tokio::join;
 
-pub const VENDOR_AMD: &str = "1002";
 pub const VENDOR_NVIDIA: &str = "10DE";
 
-use crate::server::handler::{AMD_DRM, INTEL_DRM, NVML};
+use crate::config::Config;
+use crate::server::handler::{AMD_DRM, INTEL_DRM};
+use crate::server::opencl::get_opencl_info;
+use crate::server::vulkan::get_vulkan_info;
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
-use anyhow::anyhow;
 use anyhow::Context;
-use futures::{future::LocalBoxFuture, FutureExt};
+use anyhow::anyhow;
+use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
-    config::GpuConfig, ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates,
+    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
-#[cfg(feature = "nvidia")]
-use std::sync::Arc;
+use std::os::fd::OwnedFd;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, warn};
-
-#[cfg(feature = "nvidia")]
-pub use nvidia::nvapi::NvApi;
-#[cfg(feature = "nvidia")]
-use nvml_wrapper::Nvml;
 
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
 pub trait GpuController {
+    fn controller_type(&self) -> &'static str;
+
     fn controller_info(&self) -> &CommonControllerInfo;
 
     fn device_type(&self) -> DeviceType;
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo>;
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo>;
+
+    fn get_api_info(&self, unique_vendor: bool) -> LocalBoxFuture<'_, DeviceApiInfo> {
+        async move {
+            let common = self.controller_info();
+
+            let (vulkan_result, opencl_instances) = join!(
+                get_vulkan_info(common),
+                get_opencl_info(common, unique_vendor)
+            );
+            let vulkan_instances = vulkan_result.unwrap_or_else(|err| {
+                warn!("could not load vulkan info: {err:#}");
+                vec![]
+            });
+
+            DeviceApiInfo {
+                vulkan_instances,
+                opencl_instances,
+            }
+        }
+        .boxed_local()
+    }
 
     fn friendly_name(&self) -> Option<String>;
 
@@ -55,7 +82,7 @@ pub trait GpuController {
 
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates;
 
-    fn reset_pmfw_settings(&self);
+    fn reset_pmfw_settings(&self) {}
 
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()
@@ -68,6 +95,11 @@ pub trait GpuController {
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 
     fn process_list(&self) -> anyhow::Result<ProcessList>;
+
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, _info: &mut lact_schema::DisplaysInfo) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -119,11 +151,20 @@ impl CommonControllerInfo {
         ))
     }
 
+    pub fn open_drm_render(&self) -> io::Result<OwnedFd> {
+        fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.get_drm_render()?)
+            .map(OwnedFd::from)
+    }
+
     pub fn get_drm_card(&self) -> io::Result<PathBuf> {
         fs::canonicalize(format!("/dev/dri/by-path/pci-{}-card", self.pci_slot_name))
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct PciSlotInfo {
     pub domain: u16,
     pub bus: u16,
@@ -131,18 +172,10 @@ pub struct PciSlotInfo {
     pub func: u16,
 }
 
-#[cfg(feature = "nvidia")]
-pub type NvidiaLibs = (Arc<Nvml>, Arc<Option<NvApi>>);
-#[cfg(not(feature = "nvidia"))]
-pub type NvidiaLibs = ();
-
-pub(crate) fn init_controller(
+pub(crate) fn build_controller_info(
     path: PathBuf,
     pci_db: &pciid_parser::Database,
-) -> anyhow::Result<Box<dyn GpuController>> {
-    #[cfg(not(feature = "nvidia"))]
-    let _ = NVML;
-
+) -> anyhow::Result<CommonControllerInfo> {
     let uevent_path = path.join("uevent");
     let uevent = fs::read_to_string(uevent_path).context("Could not read 'uevent'")?;
     let mut uevent_map = parse_uevent(&uevent);
@@ -204,12 +237,76 @@ pub(crate) fn init_controller(
     pci_info.subsystem_pci_info.model =
         get_embedded_device_name(&pci_info).or(pci_info.subsystem_pci_info.model);
 
-    let common = CommonControllerInfo {
+    Ok(CommonControllerInfo {
         sysfs_path: path,
         pci_info,
         pci_slot_name,
         driver,
-    };
+    })
+}
+
+#[cfg_attr(any(not(feature = "nvidia"), test), allow(unused_variables))]
+pub(crate) fn init_controller(
+    common: CommonControllerInfo,
+    config: &Config,
+) -> anyhow::Result<Box<dyn GpuController>> {
+    static INIT_MUTEX: Mutex<()> = Mutex::new(());
+
+    #[cfg(not(feature = "nvidia"))]
+    let _ = config;
+
+    // SAFETY: We use global LazyLock to make sure it's safe.
+    // Loading of shared libaries is unsafe
+    // https://docs.rs/libloading/0.8.8/libloading/struct.Library.html#method.new
+    let _guard = INIT_MUTEX.lock().unwrap();
+
+    #[cfg(feature = "nvidia")]
+    #[allow(unused_unsafe)]
+    let nvml = LazyLock::new(|| unsafe {
+        use nvml_wrapper::Nvml;
+        use tracing::info;
+
+        Nvml::init()
+            .map(|nvml| {
+                info!(
+                    "Nvidia management library {} loaded",
+                    nvml.sys_nvml_version()
+                        .unwrap_or_else(|err| err.to_string())
+                );
+                Rc::new(nvml)
+            })
+            .inspect_err(|err| {
+                error!("could not load Nvidia management library: {err}");
+            })
+            .ok()
+    });
+
+    #[cfg(not(feature = "nvidia"))]
+    let nvml: LazyLock<Option<()>> = LazyLock::new(|| None);
+
+    #[cfg(feature = "nvidia")]
+    let nvapi = LazyLock::new(|| {
+        use crate::server::gpu_controller::nvidia::nvapi::NvApi;
+        use tracing::info;
+
+        if config.daemon.disable_nvapi == Some(true) {
+            info!("NvAPI support is disabled");
+            None
+        } else {
+            NvApi::new()
+                .map(|nvapi| {
+                    info!("NvAPI library loaded");
+                    Rc::new(nvapi)
+                })
+                .inspect_err(|err| {
+                    warn!("could not load NvAPI library: {err:#}");
+                })
+                .ok()
+        }
+    });
+
+    #[cfg(not(feature = "nvidia"))]
+    let nvapi: LazyLock<Option<()>> = LazyLock::new(|| None);
 
     match common.driver.as_str() {
         "amdgpu" | "radeon" => {
@@ -230,14 +327,15 @@ pub(crate) fn init_controller(
         }
         #[cfg(feature = "nvidia")]
         "nvidia" => {
-            if let Some((nvml, nvapi)) = NVML.as_ref() {
-                match NvidiaGpuController::new(common.clone(), nvml, nvapi.as_ref().as_ref()) {
+            if let Some(nvml) = nvml.clone() {
+                match NvidiaGpuController::new(common.clone(), nvml, nvapi.clone()) {
                     Ok(controller) => {
                         return Ok(Box::new(controller));
                     }
                     Err(err) => error!("could not initialize Nvidia controller: {err:#}"),
                 }
             } else {
+                #[cfg(not(test))]
                 error!("NVML is missing, Nvidia controls will not be available");
             }
         }
@@ -281,4 +379,15 @@ fn get_embedded_device_name(pci_info: &GpuPciInfo) -> Option<String> {
         })
         .and_then(|subsys_device| subsys_device.as_str())
         .map(str::to_owned)
+}
+
+#[cfg(feature = "mock")]
+pub fn read_mock_snapshot(
+    device_path: &std::path::Path,
+) -> Option<super::handler::SnapshotDeviceInfo> {
+    let info_path = device_path.parent()?.parent()?.join("info.json");
+    let raw_snapshot = std::fs::read_to_string(&info_path).ok()?;
+    let snapshot = serde_json::from_str(&raw_snapshot).expect("could not parse snapshot");
+
+    Some(snapshot)
 }

@@ -9,3 +9,4 @@ pkg/output
 build/
 .flatpak-builder/
 .vscode
+.idea

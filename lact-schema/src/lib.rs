@@ -11,17 +11,19 @@ pub use request::Request;
 pub use response::Response;
 pub use response::ResponseData;
 #[cfg(feature = "schema")]
-use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 
 use amdgpu_sysfs::{
     gpu_handle::{
+        PerformanceLevel, PowerLevelId, UmaCarveoutOption,
         fan_control::FanInfo,
         overdrive::{ClocksTable as _, ClocksTableGen as AmdClocksTableGen},
-        PerformanceLevel,
     },
     hw_mon::Temperature,
 };
 use indexmap::{IndexMap, IndexSet};
+use nvml_wrapper::enums::device::PowerMizerMode;
+
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
@@ -62,6 +64,37 @@ pub fn default_fan_curve() -> FanCurveMap {
     [(40, 0.3), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
+pub fn bytes_to_mib(bytes: u64) -> f64 {
+    bytes as f64 / 1024.0 / 1024.0
+}
+
+const GPU_VENDOR_PREFIXES: &[&str] = &["AMD ", "NVIDIA ", "Intel "];
+
+pub fn clean_gpu_name(name: &str) -> &str {
+    let mut short = name.trim();
+
+    if let Some(marketing_name) = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+    {
+        short = marketing_name
+            .split_once('[')
+            .map_or(marketing_name, |(model, _)| model.trim_end());
+    } else if let Some((_, bracketed)) = short.split_once('[')
+        && let Some((model, _)) = bracketed.split_once(']')
+    {
+        // PCI device names carry the marketing name in brackets, e.g. "DG2 [Arc A770]"
+        short = model.trim();
+    }
+
+    short = GPU_VENDOR_PREFIXES
+        .iter()
+        .find_map(|&prefix| short.strip_prefix(prefix))
+        .unwrap_or(short);
+
+    short
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct Pong;
@@ -70,15 +103,14 @@ pub struct Pong;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct SystemInfo {
-    pub version: String,
-    pub commit: Option<String>,
-    pub profile: String,
+    #[serde(flatten)]
+    pub version: VersionInfo,
     pub distro: Option<String>,
     pub kernel_version: String,
     pub amdgpu_overdrive_enabled: Option<bool>,
     #[cfg_attr(
         feature = "schema",
-        schemars(schema_with = "amdgpu_params_configurator_schema")
+        schemars(schema_with = "amdgpu_params_configurator_schema", default)
     )]
     pub amdgpu_params_configurator: Option<AmdgpuParamsConfigurator>,
 }
@@ -126,6 +158,35 @@ fn amdgpu_params_configurator_schema(_gen: &mut SchemaGenerator) -> Schema {
 }
 
 #[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct VersionInfo {
+    pub version: String,
+    pub commit: Option<String>,
+    pub profile: String,
+}
+
+impl VersionInfo {
+    pub fn current() -> Self {
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+        .to_owned();
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            commit: Some(GIT_COMMIT.to_owned()),
+            profile,
+        }
+    }
+
+    pub fn is_current(&self) -> bool {
+        *self == Self::current()
+    }
+}
+
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceListEntry {
@@ -138,7 +199,7 @@ pub struct DeviceListEntry {
 impl Display for DeviceListEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.name {
-            Some(name) => Display::fmt(name, f),
+            Some(name) => Display::fmt(clean_gpu_name(name), f),
             None => Display::fmt(&self.id, f),
         }
     }
@@ -183,9 +244,8 @@ pub enum DeviceFlag {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceInfo {
     pub pci_info: Option<GpuPciInfo>,
-    #[serde(default)]
-    pub vulkan_instances: Vec<VulkanInfo>,
-    pub opencl_info: Option<OpenCLInfo>,
+    #[serde(flatten)]
+    pub api_info: DeviceApiInfo,
     pub driver: String,
     pub vbios_version: Option<String>,
     pub link_info: LinkInfo,
@@ -273,7 +333,7 @@ impl DeviceInfo {
                 stats
                     .vram
                     .total
-                    .map(|size| format!("{} MiB", size / 1024 / 1024)),
+                    .map(|size| format!("{} MiB", bytes_to_mib(size))),
             ));
         }
 
@@ -293,10 +353,10 @@ impl DeviceInfo {
                     write!(vram_type, " ({vram_vendor})").unwrap();
                 }
 
-                if let Some(bw) = &drm_info.vram_max_bw {
-                    if bw != "0" {
-                        write!(vram_type, " {bw} GiB/s").unwrap();
-                    }
+                if let Some(bw) = &drm_info.vram_max_bw
+                    && bw != "0"
+                {
+                    write!(vram_type, " {bw} GiB/s").unwrap();
                 }
             }
 
@@ -359,23 +419,33 @@ impl DeviceInfo {
 
                 elements.push((
                     fl!(LANGUAGE_LOADER, "cpu-vram"),
-                    Some((memory_info.cpu_accessible_total / 1024 / 1024).to_string()),
+                    Some(format!(
+                        "{} MiB",
+                        memory_info.cpu_accessible_total / 1024 / 1024
+                    )),
                 ));
             }
         }
 
         if let (Some(max_link_speed), Some(max_link_width)) =
             (&self.link_info.max_speed, &self.link_info.max_width)
-        {
-            if let (Some(current_link_speed), Some(current_link_width)) =
+            && let (Some(current_link_speed), Some(current_link_width)) =
                 (&self.link_info.current_speed, &self.link_info.current_width)
-            {
-                elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
-            }
+        {
+            elements.push((fl!(LANGUAGE_LOADER, "pcie-speed"), Some(format!("{current_link_speed} x{current_link_width} (Max: {max_link_speed} x{max_link_width})"))));
         }
 
         elements
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DeviceApiInfo {
+    #[serde(default)]
+    pub vulkan_instances: Vec<VulkanInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opencl_instances: Vec<OpenCLInfo>,
 }
 
 #[skip_serializing_none]
@@ -400,8 +470,34 @@ pub struct DrmInfo {
     pub cache_info: Option<CacheInfo>,
     pub rop_info: Option<RopInfo>,
     pub memory_info: Option<DrmMemoryInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub amd_ip_info: Vec<AmdIpInfo>,
+    pub amd_uma_carveout: Option<AmdUmaCarveout>,
     #[serde(flatten)]
     pub intel: IntelDrmInfo,
+}
+
+/// Options for iGPU UMA allocation
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct AmdUmaCarveout {
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "uma_carveout_option_schema")
+    )]
+    pub options: Vec<UmaCarveoutOption>,
+    pub current: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct AmdIpInfo {
+    pub ip_type: String,
+    pub version_major: u32,
+    pub version_minor: u32,
+    pub queues: u32,
+    pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -445,7 +541,7 @@ pub struct IntelDrmInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DrmMemoryInfo {
     pub cpu_accessible_used: u64,
@@ -474,12 +570,12 @@ pub enum ClocksTable {
 }
 
 #[cfg(feature = "schema")]
-fn amd_clocks_table_schema(gen: &mut SchemaGenerator) -> Schema {
+fn amd_clocks_table_schema(rec: &mut SchemaGenerator) -> Schema {
     let range_schema = json_schema!({
         "type": "object",
         "properties": {
-            "min": gen.subschema_for::<Option<i32>>(),
-            "max": gen.subschema_for::<Option<i32>>(),
+            "min": rec.subschema_for::<Option<i32>>(),
+            "max": rec.subschema_for::<Option<i32>>(),
         }
     });
 
@@ -495,8 +591,8 @@ fn amd_clocks_table_schema(gen: &mut SchemaGenerator) -> Schema {
     let clocks_level_schema = json_schema!({
         "type": "object",
         "properties": {
-            "clockspeed": gen.subschema_for::<i32>(),
-            "voltage": gen.subschema_for::<i32>(),
+            "clockspeed": rec.subschema_for::<i32>(),
+            "voltage": rec.subschema_for::<i32>(),
         }
     });
 
@@ -594,6 +690,31 @@ pub struct NvidiaClocksTable {
     pub gpu_clock_range: Option<(u32, u32)>,
     #[serde(default)]
     pub vram_clock_range: Option<(u32, u32)>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gpu_vf_curve: Vec<NvidiaVfPoint>,
+    #[serde(default)]
+    pub voltage_boost: Option<NvidiaVoltageBoost>,
+}
+
+/// Nvidia core voltage boost, in percent
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct NvidiaVoltageBoost {
+    pub current: i32,
+    pub min: i32,
+    pub max: i32,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct NvidiaVfPoint {
+    pub index: u8,
+    pub freq: u32,
+    pub voltage: u32,
+    pub base_freq: u32,
+    pub base_voltage: u32,
+    #[serde(default)]
+    pub freq_offset: i32,
 }
 
 /// Doc from `xe_gt_freq.c`
@@ -692,6 +813,8 @@ pub struct PciInfo {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct DeviceStats {
     pub fan: FanStats,
+    #[serde(default, skip_serializing_if = "NvidiaThermalInfo::is_empty")]
+    pub nvidia_thermal_info: NvidiaThermalInfo,
     pub clockspeed: ClockspeedStats,
     pub voltage: VoltageStats,
     pub vram: VramStats,
@@ -700,16 +823,24 @@ pub struct DeviceStats {
         feature = "schema",
         schemars(schema_with = "temperatures_schema", default)
     )]
-    pub temps: HashMap<String, Temperature>,
+    pub temps: IndexMap<String, TemperatureEntry>,
     pub busy_percent: Option<u8>,
     #[cfg_attr(
         feature = "schema",
         schemars(schema_with = "performance_level_schema", default)
     )]
     pub performance_level: Option<PerformanceLevel>,
-    pub core_power_state: Option<usize>,
-    pub memory_power_state: Option<usize>,
-    pub pcie_power_state: Option<usize>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_mizer_mode_schema", default)
+    )]
+    pub active_power_mizer_mode: Option<PowerMizerMode>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_mizer_mode_list_schema", default)
+    )]
+    pub supported_power_mizer_modes: Option<Vec<PowerMizerMode>>,
+    pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
 }
 
@@ -732,6 +863,12 @@ fn temperatures_schema(_gen: &mut SchemaGenerator) -> Schema {
                 "current": optional_float,
                 "crit": optional_float,
                 "crit_hyst": optional_float,
+                "primary": {
+                    "type": "boolean"
+                },
+                "display_only": {
+                    "type": "boolean"
+                },
             }
         }
     })
@@ -754,6 +891,43 @@ fn performance_level_schema(_gen: &mut SchemaGenerator) -> Schema {
         "enum": enum_values,
         "optional": true
     })
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ActivePowerStates {
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_level_id_schema", default)
+    )]
+    pub core: Option<PowerLevelId>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_level_id_schema", default)
+    )]
+    pub memory: Option<PowerLevelId>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_level_id_schema", default)
+    )]
+    pub pcie: Option<PowerLevelId>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemperatureEntry {
+    #[serde(flatten)]
+    pub value: Temperature,
+    /// Classify "important" temperature values (for display purposes)
+    #[serde(default = "default_temp_primary")]
+    pub primary: bool,
+    /// If the temperature can be used for fan control
+    #[serde(default)]
+    pub display_only: bool,
+}
+
+fn default_temp_primary() -> bool {
+    true
 }
 
 #[skip_serializing_none]
@@ -781,6 +955,13 @@ pub struct FanStats {
     pub pmfw_info: PmfwInfo,
 }
 
+impl FanStats {
+    pub fn percent(&self) -> Option<u64> {
+        self.pwm_current
+            .map(|pwm| ((pwm as f64 / u8::MAX as f64) * 100.0).round() as u64)
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -799,32 +980,126 @@ pub struct PmfwInfo {
 }
 
 #[cfg(feature = "schema")]
-fn fan_info_schema(gen: &mut SchemaGenerator) -> Schema {
+fn fan_info_schema(rec: &mut SchemaGenerator) -> Schema {
     json_schema!({
         "type": "object",
         "properties": {
-            "current": gen.subschema_for::<u32>(),
-            "allowed_range": gen.subschema_for::<Option<(u32, u32)>>(),
+            "current": rec.subschema_for::<u32>(),
+            "allowed_range": rec.subschema_for::<Option<(u32, u32)>>(),
+        }
+    })
+}
+
+#[cfg(feature = "schema")]
+fn uma_carveout_option_schema(_rec: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": ["string", "null"]
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0
+                }
+            },
+            "required": ["name", "size_bytes"]
+        }
+    })
+}
+
+#[cfg(feature = "schema")]
+fn power_level_id_schema(_rec: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "Index": {
+                        "type": "integer",
+                        "format": "uint8",
+                        "minimum": 0,
+                        "maximum": 255
+                    }
+                },
+                "required": ["Index"]
+            },
+            {
+                "type": "string",
+                "enum": ["Sleep"]
+            }
+        ]
+    })
+}
+
+#[cfg(feature = "schema")]
+fn power_mizer_mode_schema(_rec: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": ["string", "null"],
+        "enum": [
+            "Adaptive",
+            "PreferMaximumPerformance",
+            "Auto",
+            "PreferConsistentPerformance",
+            null
+        ]
+    })
+}
+
+#[cfg(feature = "schema")]
+fn power_mizer_mode_list_schema(_rec: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": ["array", "null"],
+        "items": {
+            "type": "string",
+            "enum": [
+                "Adaptive",
+                "PreferMaximumPerformance",
+                "Auto",
+                "PreferConsistentPerformance"
+            ]
         }
     })
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct NvidiaThermalInfo {
+    #[cfg_attr(feature = "schema", schemars(schema_with = "fan_info_schema", default))]
+    pub target_temp: Option<FanInfo>,
+    pub target_temp_default: Option<u32>,
+}
+
+impl NvidiaThermalInfo {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ClockspeedStats {
     pub gpu_clockspeed: Option<u64>,
     /// Target clock
-    pub current_gfxclk: Option<u64>,
+    #[serde(alias = "current_gfxclk")]
+    pub target_gpu_clockspeed: Option<u64>,
     pub vram_clockspeed: Option<u64>,
+    #[serde(default)]
+    pub sensors: IndexMap<String, u64>,
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct VoltageStats {
     pub gpu: Option<u64>,
-    pub northbridge: Option<u64>,
+    #[serde(default)]
+    pub sensors: HashMap<String, u64>,
 }
 
 #[skip_serializing_none]
@@ -833,10 +1108,12 @@ pub struct VoltageStats {
 pub struct VramStats {
     pub total: Option<u64>,
     pub used: Option<u64>,
+    pub gtt_total_usable: Option<u64>,
+    pub gtt_used: Option<u64>,
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PowerStats {
     pub average: Option<f64>,
@@ -845,6 +1122,8 @@ pub struct PowerStats {
     pub cap_max: Option<f64>,
     pub cap_min: Option<f64>,
     pub cap_default: Option<f64>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub sensors: HashMap<String, f64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -858,6 +1137,28 @@ impl PowerStates {
     pub fn is_empty(&self) -> bool {
         self.core.is_empty() && self.vram.is_empty()
     }
+
+    pub fn max_gpu_clock(&self) -> Option<u64> {
+        self.core.iter().map(|s| s.value).max()
+    }
+
+    pub fn min_gpu_clock(&self) -> Option<u64> {
+        self.core
+            .iter()
+            .filter_map(|s| s.min_value.or(Some(s.value)))
+            .min()
+    }
+
+    pub fn max_vram_clock(&self) -> Option<u64> {
+        self.vram.iter().map(|s| s.value).max()
+    }
+
+    pub fn min_vram_clock(&self) -> Option<u64> {
+        self.vram
+            .iter()
+            .filter_map(|s| s.min_value.or(Some(s.value)))
+            .min()
+    }
 }
 
 #[skip_serializing_none]
@@ -867,7 +1168,11 @@ pub struct PowerState {
     pub enabled: bool,
     pub min_value: Option<u64>,
     pub value: u64,
-    pub index: Option<u8>,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "power_level_id_schema", default)
+    )]
+    pub id: Option<PowerLevelId>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -902,6 +1207,19 @@ pub struct PmfwOptions {
 }
 
 impl PmfwOptions {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct NvidiaThermalOptions {
+    pub target_temperature: Option<u32>,
+}
+
+impl NvidiaThermalOptions {
     pub fn is_empty(&self) -> bool {
         *self == Self::default()
     }
@@ -1036,4 +1354,45 @@ impl ProcessUtilizationType {
 pub enum ProcessType {
     Graphics,
     Compute,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DisplaysInfo {
+    pub displays: BTreeMap<String, DisplayInfo>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DisplayInfo {
+    pub model: Option<String>,
+    pub manufacturer: Option<String>,
+    pub product_code: u16,
+    pub manufacture_date: Option<DisplayManufactureDate>,
+    pub size: Option<(u32, u32)>,
+    pub connector_type: DisplayConnector,
+    pub connector_id: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct DisplayManufactureDate {
+    pub year: u16,
+    pub week: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum DisplayConnector {
+    DisplayPort {
+        lanes: Option<u16>,
+        /// Per-lane bandwidth in Mbps
+        bandwidth: Option<u32>,
+        embedded: bool,
+    },
+    Hdmi,
+    Dvi,
+    Vga,
+    Other,
 }

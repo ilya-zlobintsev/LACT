@@ -1,6 +1,6 @@
 use super::ProfileWatcherEvent;
 use lact_schema::{ProfileProcessInfo, ProfileWatcherState};
-use libcopes::{ProcessEventsConnector, PID};
+use libcopes::{PID, ProcessEventsConnector};
 use std::{ffi::OsString, fs};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
@@ -43,8 +43,8 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
                                     .is_err()
                                 {
                                     debug!(
-                                    "profile watcher channel closed, exiting process event listener"
-                                );
+                                        "profile watcher channel closed, exiting process event listener"
+                                    );
                                     break;
                                 }
                             }
@@ -64,6 +64,11 @@ pub fn start_listener(event_tx: mpsc::Sender<ProfileWatcherEvent>) {
 
 pub fn get_pid_info(pid: PID) -> std::io::Result<ProfileProcessInfo> {
     let cmdline = libcopes::io::cmdline_reader(pid)?;
+
+    if cmdline.as_ref().is_empty() {
+        return Err(std::io::Error::other("empty cmdline"));
+    }
+
     let exe = libcopes::io::exe_reader(pid).unwrap_or_else(|_| {
         let arg0 = cmdline.as_ref().first().cloned().unwrap_or_default();
         arg0.to_str()

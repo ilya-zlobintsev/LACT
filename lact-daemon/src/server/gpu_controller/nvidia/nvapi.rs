@@ -1,14 +1,22 @@
 #![cfg_attr(test, allow(unused))]
-#![allow(clippy::unreadable_literal)]
+#![allow(
+    clippy::unreadable_literal,
+    unsafe_op_in_unsafe_fn,
+    clippy::large_stack_arrays
+)]
+
 use crate::bindings::nvidia::{
-    NvAPI_Status, NvPhysicalGpuHandle, NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX,
+    NVAPI_MAX_PHYSICAL_GPUS, NVAPI_SHORT_STRING_MAX, NvAPI_Status, NvPhysicalGpuHandle, NvS32,
+    NvU8, NvU16, NvU32, NvU64,
 };
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
+use nvml_wrapper::enums::device::DeviceArchitecture;
 use std::{
-    ffi::{c_char, CStr},
+    ffi::{CStr, c_char, c_uint},
     mem::{self, transmute},
     ptr,
 };
+use tracing::error;
 
 const LIBARY_NAME: &str = "libnvidia-api.so.1";
 const QUERY_INTERFACE_FN: &[u8] = b"nvapi_QueryInterface\0";
@@ -16,10 +24,24 @@ const QUERY_INTERFACE_FN: &[u8] = b"nvapi_QueryInterface\0";
 const QUERY_NVAPI_INITIALIZE: u32 = 0x0150e828;
 const QUERY_NVAPI_UNLOAD: u32 = 0xd22bdd7e;
 const QUERY_NVAPI_ENUM_PHYSICAL_GPUS: u32 = 0xe5ac921f;
-const QUERY_NVAPI_GET_BUS_ID: u32 = 0x1be0b8e5;
+const QUERY_NVAPI_GPU_GET_BUS_ID: u32 = 0x1be0b8e5;
 const QUERY_NVAPI_GET_ERROR_MESSAGE: u32 = 0x6c2d048c;
-const QUERY_NVAPI_THERMALS: u32 = 0x65fe3aad; // Undocumented call
-const QUERY_NVAPI_VOLTAGE: u32 = 0x465f9bcf; // Undocumented call
+// Undocumented calls
+const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO: u32 = 0x0bc8163d;
+const QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS: u32 = 0x65fe3aad;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS: u32 = 0x465f9bcf;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL: u32 = 0x9df23ca1;
+const QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_SET_CONTROL: u32 = 0xb9306d9b;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
+const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
+const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
+const QUERY_NVAPI_GPU_GET_ALL_CLOCKS: u32 = 0x1bd69f49;
+
+const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
+
+pub const CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG: NvU32 = 0;
 
 pub struct NvApi {
     lib: libloading::Library,
@@ -49,7 +71,7 @@ impl NvApi {
         unsafe {
             let handles = self.enum_physical_gpus()?;
             for handle in handles {
-                let f = self.query_interface(QUERY_NVAPI_GET_BUS_ID)?;
+                let f = self.query_interface(QUERY_NVAPI_GPU_GET_BUS_ID)?;
                 let f: unsafe extern "C" fn(
                     handle: NvPhysicalGpuHandle,
                     id: &mut u32,
@@ -63,85 +85,164 @@ impl NvApi {
                     return Ok(Some(handle));
                 }
             }
-
-            Ok(None)
         }
+
+        Ok(None)
     }
 
-    pub unsafe fn get_thermals(
+    pub unsafe fn therm_channel_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvApiThermChannelInfo> {
+        let mut thermals_info = NvApiThermChannelInfo::default();
+        self.physical_gpu_query(
+            handle,
+            &mut thermals_info,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_INFO,
+        )?;
+        Ok(thermals_info)
+    }
+
+    pub unsafe fn therm_channel_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
         mask: i32,
     ) -> anyhow::Result<NvApiThermals> {
-        let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
-
         let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
             mask,
-            values: [0; 40],
+            ..Default::default()
         };
 
-        let status = f(handle, &mut sensors);
-        self.handle_status(status)?;
+        self.physical_gpu_query(
+            handle,
+            &mut sensors,
+            QUERY_NVAPI_GPU_THERM_CHANNEL_GET_STATUS,
+        )?;
 
         Ok(sensors)
     }
 
-    pub unsafe fn get_voltage(&self, handle: NvPhysicalGpuHandle) -> anyhow::Result<u32> {
-        let f = self.query_interface(QUERY_NVAPI_VOLTAGE)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            data: &mut NvApiVoltage,
-        ) -> NvAPI_Status = transmute(f);
-
-        let mut data = NvApiVoltage {
-            #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiVoltage>() | (1 << 16)) as u32,
-            flags: 0,
-            padding_1: [0; 8],
-            value_uv: 0,
-            padding_2: [0; 8],
-        };
-        let status = f(handle, &mut data);
-        self.handle_status(status)?;
-
-        Ok(data.value_uv)
-    }
-
-    pub unsafe fn calculate_thermals_mask(
+    pub unsafe fn client_volt_rails_get_status(
         &self,
         handle: NvPhysicalGpuHandle,
-    ) -> anyhow::Result<i32> {
-        let f = self.query_interface(QUERY_NVAPI_THERMALS)?;
-        let f: unsafe extern "C" fn(
-            handle: NvPhysicalGpuHandle,
-            sensors: &mut NvApiThermals,
-        ) -> NvAPI_Status = transmute(f);
+    ) -> anyhow::Result<u32> {
+        let mut data = ClientVoltRailsStatusV1::default();
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_STATUS,
+        )?;
 
-        let mut sensors = NvApiThermals {
-            #[allow(clippy::cast_possible_truncation)]
-            version: (mem::size_of::<NvApiThermals>() | (2 << 16)) as u32,
-            mask: 1,
-            values: [0; 40],
+        Ok(data.rails[0].current_voltage_uv)
+    }
+
+    pub unsafe fn client_volt_rails_get_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u8> {
+        let mut data = ClientVoltRailsControlV1::default();
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_GET_CONTROL,
+        )?;
+
+        Ok(data.percent_delta)
+    }
+
+    pub unsafe fn get_all_clocks(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<NvGpuClockInfoV2> {
+        let mut data = NvGpuClockInfoV2::default();
+        self.physical_gpu_query(handle, &mut data, QUERY_NVAPI_GPU_GET_ALL_CLOCKS)?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn client_volt_rails_set_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        percent: u8,
+    ) -> anyhow::Result<()> {
+        let mut data = ClientVoltRailsControlV1 {
+            percent_delta: percent,
+            ..Default::default()
+        };
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLIENT_VOLT_RAILS_SET_CONTROL,
+        )?;
+
+        Ok(())
+    }
+
+    pub unsafe fn clock_client_clk_vf_points_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<ClockClientClkVfPointsInfoV1> {
+        let mut data = ClockClientClkVfPointsInfoV1::default();
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_client_clk_vf_points_get_status(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vf_points_mask: [NvU32; 8],
+    ) -> anyhow::Result<ClockClientClkVfPointsStatusV3> {
+        let mut data = ClockClientClkVfPointsStatusV3 {
+            vf_points_mask,
+            ..Default::default()
         };
 
-        let initial_status = f(handle, &mut sensors);
-        self.handle_status(initial_status)?;
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS,
+        )?;
 
-        for bit in 0..32 {
-            sensors.mask = 1 << bit;
-            let status = f(handle, &mut sensors);
-            if status != 0 {
-                return Ok(sensors.mask - 1);
-            }
-        }
+        Ok(data)
+    }
 
-        bail!("Could not find suitable mask");
+    pub unsafe fn clock_client_clk_vf_points_get_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vf_points_mask: [NvU32; 8],
+    ) -> anyhow::Result<ClockClientClkVfPointsControlV1> {
+        let mut data = ClockClientClkVfPointsControlV1 {
+            vf_points_mask,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_client_clk_vf_points_set_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        mut control: ClockClientClkVfPointsControlV1,
+    ) -> anyhow::Result<()> {
+        self.physical_gpu_query(
+            handle,
+            &mut control,
+            QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL,
+        )?;
+
+        Ok(())
     }
 
     unsafe fn enum_physical_gpus(&self) -> anyhow::Result<Vec<NvPhysicalGpuHandle>> {
@@ -159,6 +260,142 @@ impl NvApi {
         self.handle_status(status)?;
 
         Ok(handles.into_iter().take(count as usize).collect())
+    }
+
+    pub fn read_vram_temps(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        vram_type: Option<&str>,
+    ) -> anyhow::Result<Vec<(String, u64)>> {
+        const REG_OFFSET_GDDR_TEMP_DATA_BASE: u32 = 0x009024C0;
+        const REG_OFFSET_GDDR_TEMP_STATUS_BASE: u32 = 0x009024D0;
+        const REG_OFFSET_GDDR_CLAMSHELL: u32 = 0x00900200;
+
+        fn parse_temp(raw: u64) -> u64 {
+            2 * raw.min(0x50) - 40
+        }
+
+        let mut temps = Vec::new();
+
+        if let Some("GDDR6x" | "GDDR7") = vram_type {
+            let is_clamshell = unsafe {
+                self.read_u32_register(handle, REG_OFFSET_GDDR_CLAMSHELL)
+                    .is_ok_and(|value| (value >> 22) & 1 == 1)
+            };
+
+            for partition in 0..=8 {
+                let data_offset = REG_OFFSET_GDDR_TEMP_DATA_BASE + partition * 0x4000;
+                let status_offset = REG_OFFSET_GDDR_TEMP_STATUS_BASE + partition * 0x4000;
+
+                unsafe {
+                    let Ok(status) = self.read_u32_register(handle, status_offset) else {
+                        continue;
+                    };
+
+                    // Explicit poison data
+                    if status & 0xFFFF0000 == 0xBADF0000 {
+                        continue;
+                    }
+
+                    let mut i = 0;
+                    'pairs: for slot_pair in [[(0x0, 24), (0x8, 26)], [(0x4, 25), (0xC, 27)]] {
+                        for (slot, status_bit) in slot_pair {
+                            if (status >> status_bit) & 1 == 1 {
+                                let data = self.read_u32_register(handle, data_offset + slot)?;
+
+                                if data == 0
+                                    || data == u64::from(u32::MAX)
+                                    || data & 0xFFFF0000 == 0xBADF0000
+                                {
+                                    continue;
+                                }
+
+                                let pc0 = (data >> 16) & 0xFF;
+                                let pc1 = (data >> 24) & 0xFF;
+
+                                if pc0 == 0 || pc0 == u64::from(u8::MAX) {
+                                    continue;
+                                }
+
+                                let partition_letter = char::from_u32(('A' as u32) + partition)
+                                    .context("Invalid partition")?;
+                                let label_base = format!("{partition_letter}{i}");
+
+                                let front_label = if is_clamshell {
+                                    format!("{label_base} (Front)")
+                                } else {
+                                    label_base.clone()
+                                };
+
+                                temps.push((front_label, parse_temp(pc0)));
+
+                                if is_clamshell && pc1 != 0 && pc1 != u64::from(u8::MAX) {
+                                    temps.push((format!("{label_base} (Back)"), parse_temp(pc1)));
+                                }
+
+                                i += 1;
+
+                                continue 'pairs;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(temps)
+    }
+
+    pub unsafe fn read_blackwell_hotspot(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<u64> {
+        self.read_temp_register(handle, REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED)
+    }
+
+    unsafe fn read_temp_register(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        offset: u32,
+    ) -> anyhow::Result<u64> {
+        let raw = self.read_u32_register(handle, offset)?;
+        let value = (raw & 0xFFFF) / 256;
+        if value == 0 || value >= u64::from(u8::MAX) {
+            bail!("Invalid temperature reported: {value}");
+        }
+        Ok(value)
+    }
+
+    unsafe fn read_u32_register(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        offset: u32,
+    ) -> anyhow::Result<u64> {
+        let f = self.query_interface(QUERY_NVAPI_GPU_REGISTER_OP)?;
+        let f: unsafe extern "C" fn(
+            handle: NvPhysicalGpuHandle,
+            params: &mut NvGpuRegisterOpDataV1,
+        ) -> NvAPI_Status = transmute(f);
+
+        let mut op = [NvGpuRegisterOp::default(); 256];
+        op[0] = NvGpuRegisterOp {
+            offset,
+            flags: (REG_OP_FLAG_READ | REG_OP_FLAG_32BIT | REG_OP_FLAG_TYPE_GLOBAL)
+                .try_into()
+                .unwrap(),
+            ..Default::default()
+        };
+
+        let mut params = NvGpuRegisterOpDataV1 {
+            op_count: 1,
+            op,
+            ..Default::default()
+        };
+
+        let status = f(handle, &mut params);
+        self.handle_status(status)?;
+
+        Ok(params.op[0].value)
     }
 
     unsafe fn query_interface(&self, id: u32) -> anyhow::Result<*const ()> {
@@ -201,6 +438,40 @@ impl NvApi {
             );
         }
     }
+
+    unsafe fn physical_gpu_query<T>(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        data: &mut T,
+        query_id: u32,
+    ) -> anyhow::Result<()> {
+        let f = self.query_interface(query_id)?;
+        let f: unsafe extern "C" fn(NvPhysicalGpuHandle, *mut T) -> NvAPI_Status = transmute(f);
+
+        let status = f(handle, data);
+        self.handle_status(status)?;
+
+        Ok(())
+    }
+
+    /// Gets the value from `NvApiThermals` if possible, otherwise reads from register
+    pub fn read_hotspot(
+        &self,
+        thermals: &NvApiThermals,
+        channel: Option<usize>,
+        handle: NvPhysicalGpuHandle,
+        arch: Option<&DeviceArchitecture>,
+    ) -> Option<i32> {
+        if arch.is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()) {
+            unsafe {
+                self.read_blackwell_hotspot(handle)
+                    .ok()
+                    .and_then(|value| value.try_into().ok())
+            }
+        } else {
+            channel.and_then(|channel| thermals.get_value(channel))
+        }
+    }
 }
 
 impl Drop for NvApi {
@@ -208,7 +479,10 @@ impl Drop for NvApi {
         unsafe {
             let unload = self.query_interface(QUERY_NVAPI_UNLOAD).unwrap();
             let unload: unsafe extern "C" fn() -> NvAPI_Status = transmute(unload);
-            unload();
+            let status = unload();
+            if let Err(err) = self.handle_status(status) {
+                error!("could not unload NvAPI: {err}");
+            }
         }
     }
 }
@@ -218,32 +492,427 @@ impl Drop for NvApi {
 pub struct NvApiThermals {
     version: u32,
     mask: i32,
-    values: [i32; 40],
+    rsvd: [NvU8; 32],
+    temps: [i32; 32],
+}
+
+impl Default for NvApiThermals {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            temps: [0; 32],
+        }
+    }
 }
 
 impl NvApiThermals {
-    fn get_value(&self, index: usize) -> Option<i32> {
-        self.values
-            .get(index)
+    pub fn get_value(&self, channel: usize) -> Option<i32> {
+        self.temps
+            .get(channel)
             .map(|&value| value / 256)
             .filter(|&value| value > 0 && value < 255)
     }
+}
 
-    pub fn hotspot(&self) -> Option<i32> {
-        self.get_value(9)
+const THERM_CHANNEL_TYPE_HOTSPOT: usize = 1;
+const THERM_CHANNEL_TYPE_MEMORY: usize = 3;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvApiThermChannel {
+    class: NvU32,
+    channel_type: NvU32,
+    rel_loc: NvU32,
+    target_gpu: NvU32,
+    scaling: NvS32,
+    offset_sw: NvS32,
+    min_temp: NvS32,
+    max_temp: NvS32,
+    is_temp_sim_supported: NvU8,
+    flags: NvU8,
+    offset_hw: NvS32,
+    rsvd: [NvU8; 28],
+    data: [NvU8; 16],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct NvApiThermChannelInfo {
+    version: NvU32,
+    mask: i32,
+    rsvd: [NvU8; 32],
+    channels: [NvApiThermChannel; 32],
+    primary_channel_idx: [NvU8; 5],
+}
+
+impl NvApiThermChannelInfo {
+    pub fn mask(&self) -> i32 {
+        self.mask
     }
 
-    pub fn vram(&self) -> Option<i32> {
-        self.get_value(15)
+    pub fn hotspot_channel(&self) -> Option<usize> {
+        self.primary_channel(THERM_CHANNEL_TYPE_HOTSPOT)
+    }
+
+    pub fn vram_channel(&self) -> Option<usize> {
+        self.primary_channel(THERM_CHANNEL_TYPE_MEMORY)
+    }
+
+    fn primary_channel(&self, channel_type: usize) -> Option<usize> {
+        self.primary_channel_idx
+            .get(channel_type)
+            .map(|&channel| usize::from(channel))
+            .filter(|&channel| channel < 32 && self.mask & (1 << channel) != 0)
+    }
+}
+
+impl Default for NvApiThermChannelInfo {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            mask: 0,
+            rsvd: [0; 32],
+            channels: [NvApiThermChannel::default(); 32],
+            primary_channel_idx: [u8::MAX; 5],
+        }
     }
 }
 
 #[repr(C)]
 #[derive(Debug)]
-struct NvApiVoltage {
-    version: u32,
-    flags: u32,
-    padding_1: [u32; 8],
-    value_uv: u32,
-    padding_2: [u32; 8],
+struct ClientVoltRailsStatusV1 {
+    version: NvU32,
+    rsvd: [NvU8; 32],
+    rails: [ClientVoltRailStatusV1; 1],
+}
+
+impl Default for ClientVoltRailsStatusV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            rsvd: [0; 32],
+            rails: [ClientVoltRailStatusV1::default()],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default)]
+struct ClientVoltRailStatusV1 {
+    rail_id: NvU32,
+    current_voltage_uv: NvU32,
+    rsvd: [NvU8; 32],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct ClientVoltRailsControlV1 {
+    version: NvU32,
+    percent_delta: NvU8,
+    rsvd: [NvU8; 32],
+}
+
+impl Default for ClientVoltRailsControlV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            percent_delta: 0,
+            rsvd: [0; 32],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClockClientClkVfPointsStatusV3 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub b_vf_tuple_base_supported: NvU8,
+    pub rsvd: [NvU8; 64],
+    pub vf_points: [ClockClientClkVfPointStatusV3; 255],
+}
+
+impl Default for ClockClientClkVfPointsStatusV3 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(3),
+            vf_points_mask: [0; 8],
+            b_vf_tuple_base_supported: 0,
+            rsvd: [0; 64],
+            vf_points: [ClockClientClkVfPointStatusV3::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClientClkVfPointStatusV3 {
+    pub type_: NvU32,
+    pub freq_khz: NvU32,
+    pub voltage_uv: NvU32,
+    pub vf_tuple_base: ClockClientClkVfPointTupleV1,
+    pub vf_tuple_offset: ClockClientClkVfPointTupleV1,
+    pub rsvd: [NvU8; 256],
+}
+
+impl Default for ClockClientClkVfPointStatusV3 {
+    fn default() -> Self {
+        Self {
+            type_: Default::default(),
+            freq_khz: Default::default(),
+            voltage_uv: Default::default(),
+            vf_tuple_base: ClockClientClkVfPointTupleV1::default(),
+            vf_tuple_offset: ClockClientClkVfPointTupleV1::default(),
+            rsvd: [0; 256],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ClockClientClkVfPointTupleV1 {
+    pub freq_khz: NvU32,
+    pub voltage_uv: NvU32,
+    pub rsvd: [NvU8; 32usize],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClientClkVfPointsInfoV1 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub rsvd: [NvU8; 32],
+    pub vf_points: [ClockClientClkVfPointInfoV1; 255],
+}
+
+impl Default for ClockClientClkVfPointsInfoV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            vf_points_mask: Default::default(),
+            rsvd: Default::default(),
+            vf_points: [ClockClientClkVfPointInfoV1::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ClockClientClkVfPointInfoV1 {
+    pub type_: NvU32,
+    pub b_voltage_based: NvU8,
+    pub rsvd: [NvU8; 16],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ClockClientClkVfPointsControlV1 {
+    pub version: NvU32,
+    pub vf_points_mask: [NvU32; 8],
+    pub rsvd: [NvU8; 32usize],
+    pub vf_points: [ClockClientClkVfPointControlV1; 255usize],
+}
+
+impl Default for ClockClientClkVfPointsControlV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            vf_points_mask: [0; 8],
+            rsvd: [0; 32],
+            vf_points: [ClockClientClkVfPointControlV1::default(); 255],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Default)]
+pub struct ClockClientClkVfPointControlV1 {
+    pub type_: NvU32,
+    pub rsvd: [NvU8; 16usize],
+    pub data: ClockClientClkVfPointControlDataV1,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union ClockClientClkVfPointControlDataV1 {
+    pub prog: ClockClientClkVfPointControlProgV1,
+    pub rsvd: [NvU8; 16usize],
+}
+
+impl Default for ClockClientClkVfPointControlDataV1 {
+    fn default() -> Self {
+        Self { rsvd: [0; 16] }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ClockClientClkVfPointControlProgV1 {
+    pub freq_offset_khz: NvS32,
+}
+
+const REG_OP_FLAG_READ: c_uint = 1;
+const REG_OP_FLAG_32BIT: c_uint = 4;
+const REG_OP_FLAG_TYPE_GLOBAL: c_uint = 16;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+struct NvGpuRegisterOp {
+    pub flags: NvU16,
+    pub status: NvU16,
+    pub offset: NvU32,
+    pub write_mask: NvU64,
+    pub value: NvU64,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct NvGpuRegisterOpDataV1 {
+    pub version: NvU32,
+    pub op_count: NvU32,
+    pub op: [NvGpuRegisterOp; 256usize],
+}
+
+impl Default for NvGpuRegisterOpDataV1 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(1),
+            op_count: 0,
+            op: [NvGpuRegisterOp::default(); 256],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct NvGpuClockInfoV2 {
+    version: NvU32,
+    domain: [NvGpuClockInfoDomain; 32usize],
+    extended_domain: [NvGpuClockInfoV2ExtendedDomain; 32usize],
+}
+
+impl NvGpuClockInfoV2 {
+    pub fn get_domain(&self, domain: NvGpuClockDomainId) -> Option<NvGpuClockInfoDomain> {
+        self.domain
+            .get(domain as usize)
+            .filter(|domain| domain.bitfield & 1 != 0 && domain.frequency != 0)
+            .copied()
+    }
+}
+
+impl Default for NvGpuClockInfoV2 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            domain: Default::default(),
+            extended_domain: Default::default(),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct NvGpuClockInfoDomain {
+    pub frequency: NvU32,
+    bitfield: NvU32,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct NvGpuClockInfoV2ExtendedDomain {
+    effective_frequency: NvU32,
+    ratio_domain: NvGpuClockDomainId,
+    ratio: NvU32,
+    reserved: [NvU32; 4usize],
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum NvGpuClockDomainId {
+    // Gpc = 0,
+    Xbar = 1,
+    Sys = 2,
+    Hub = 3,
+    // M = 4,
+    Host = 5,
+    Disp = 6,
+    Pclk0 = 8,
+    Pclk1 = 9,
+    Xclk = 11,
+    Leg = 19,
+    Pwr = 20,
+    Msd = 21,
+    Utils = 22,
+    _2D = 26,
+    _3D = 27,
+    Host1x = 28,
+    Disp0 = 29,
+    Disp1 = 30,
+    // Pciegen = 31,
+    #[default]
+    Undefined = 32,
+}
+
+impl NvGpuClockDomainId {
+    /// Excludes the domains already reported through NVML
+    pub const EXTRA: [Self; 17] = [
+        // Self::Gpc,
+        Self::Xbar,
+        Self::Sys,
+        Self::Hub,
+        // Self::M,
+        Self::Host,
+        Self::Disp,
+        Self::Pclk0,
+        Self::Pclk1,
+        Self::Xclk,
+        Self::Leg,
+        Self::Pwr,
+        Self::Msd,
+        Self::Utils,
+        Self::_2D,
+        Self::_3D,
+        Self::Host1x,
+        Self::Disp0,
+        Self::Disp1,
+    ];
+
+    pub fn into_str(self) -> &'static str {
+        match self {
+            // Self::Gpc => "GPC",
+            Self::Xbar => "XBAR",
+            Self::Sys => "SYS",
+            Self::Hub => "HUB",
+            // Self::M => "Memory",
+            Self::Host => "Host",
+            Self::Disp => "Display",
+            Self::Pclk0 => "Pixel Clock 0",
+            Self::Pclk1 => "Pixel Clock 1",
+            Self::Xclk => "External Clock",
+            Self::Leg => "Legacy",
+            Self::Pwr => "Power",
+            Self::Msd => "MSD",
+            Self::Utils => "Utils",
+            Self::_2D => "2D",
+            Self::_3D => "3D",
+            Self::Host1x => "Host1x",
+            Self::Disp0 => "Display 0",
+            Self::Disp1 => "Display 1",
+            // Self::Pciegen => "PCIe",
+            Self::Undefined => "Undefined",
+        }
+    }
+}
+
+impl std::fmt::Display for NvGpuClockDomainId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.into_str().fmt(f)
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+const fn make_version<T>(version: usize) -> u32 {
+    (mem::size_of::<T>() | (version << 16)) as u32
 }

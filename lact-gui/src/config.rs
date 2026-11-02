@@ -1,20 +1,63 @@
-use crate::app::graphs_window::stat::StatType;
-use serde::{Deserialize, Serialize};
+use crate::app::{
+    graphs_window::stat::StatType,
+    pages::PageId,
+    utils::{color_scheme::AppColorScheme, styles::AppTheme},
+};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::{debug, error};
 
-#[derive(Default, Serialize, Deserialize)]
+pub const MIN_STATS_POLL_INTERVAL_MS: i64 = 250;
+pub const MAX_STATS_POLL_INTERVAL_MS: i64 = 5000;
+
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize)]
 pub struct UiConfig {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default = "default_tab")]
+    pub selected_tab: String,
     pub selected_gpu: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plots_time_period: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plots_per_row: Option<u64>,
-    #[serde(default = "default_stats_poll_interval")]
+    #[serde(
+        default = "default_stats_poll_interval",
+        deserialize_with = "deserialize_poll_interval"
+    )]
     pub stats_poll_interval_ms: i64,
     #[serde(default)]
     pub gpus: HashMap<String, UiGpuConfig>,
+    #[serde(default)]
+    pub theme: AppTheme,
+    #[serde(default)]
+    pub color_scheme: AppColorScheme,
+    #[serde(default)]
+    pub experimental_nvidia_pstate_offsets: bool,
+    pub language: Option<String>,
+    pub window_size: Option<WindowSize>,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            selected_tab: default_tab(),
+            selected_gpu: None,
+            plots_time_period: None,
+            plots_per_row: None,
+            stats_poll_interval_ms: default_stats_poll_interval(),
+            gpus: HashMap::new(),
+            theme: AppTheme::Automatic,
+            color_scheme: AppColorScheme::default(),
+            experimental_nvidia_pstate_offsets: false,
+            language: None,
+            window_size: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct WindowSize {
+    pub width: i32,
+    pub height: i32,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -33,11 +76,11 @@ impl UiConfig {
         let path = config_path();
         debug!("saving config to {}", path.display());
         let config_dir = path.parent().unwrap();
-        if !config_dir.exists() {
-            if let Err(err) = fs::create_dir_all(config_dir) {
-                error!("could not create config dir: {err}");
-                return;
-            }
+        if !config_dir.exists()
+            && let Err(err) = fs::create_dir_all(config_dir)
+        {
+            error!("could not create config dir: {err}");
+            return;
         }
 
         let raw_config = serde_norway::to_string(self).unwrap();
@@ -78,4 +121,13 @@ fn config_path() -> PathBuf {
 
 fn default_stats_poll_interval() -> i64 {
     500
+}
+
+fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
+    let value = i64::deserialize(deserializer)?;
+    Ok(value.clamp(MIN_STATS_POLL_INTERVAL_MS, MAX_STATS_POLL_INTERVAL_MS))
+}
+
+fn default_tab() -> String {
+    PageId::Info.as_str().to_owned()
 }

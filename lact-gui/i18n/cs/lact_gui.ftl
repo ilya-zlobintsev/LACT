@@ -28,10 +28,10 @@ edit-rule = Upravit pravidlo
 remove-rule = Odebrat pravidlo
 profile-hook-activated = Aktivováno:
 profile-hook-deactivated = Deaktivováno:
-info-page = Informace
-oc-page = Přetakt.
+info-page = Informace o hardware
+oc-page = Přetaktování
 thermals-page = Teplotní
-software-page = Software
+software-page = Informace o software
 lact-daemon = Proces služby LACT
 lact-gui = Grafické uživ. rozhraní LACT
 instance = Instance
@@ -80,7 +80,7 @@ disable-amd-oc-description = Toto při příštím startu systému vypne podporu
 amd-oc-updating-configuration = Nastavení se aktualizuje (toto může chvíli trvat)
 amd-oc-updating-done = Nastavení zaktualizováno – restartujte, aby se změny projevily.
 reset-config = Vrátit nastavení na výchozí hodnoty
-reset-config-description = Opravdu chcete vrátit veškerá nastavení GPU na výchozí hodnoty?
+reset-config-description = Toto vrátí veškerá nastavení GPU na jejich výchozí hodnoty a nevratně smaže všechny profily
 power-cap = Limit elektrického příkonu
 watt = W
 ghz = GHz
@@ -99,15 +99,15 @@ vram-usage = Využití videopaměti:
 performance-level-high = Nejvyšší takty
 performance-level-low = Nejnižší takty
 performance-level-auto-description = Automaticky přizpůsobit takty GPU a videopaměti (výchozí).
-performance-level-high-description = Vždy pro GPU a videopaměť používat nejvyšší takty.
-performance-level-low-description = Pro GPU a videopaměť vždy používat nejnižší takty.
-performance-level-manual-description = Ruční řízení výkonu.
+performance-level-high-description = Vždy pro GPU a videopaměť používat vždy nejvyšší takty
+performance-level-low-description = Pro GPU a videopaměť používat vždy nejnižší takty
+performance-level-manual-description = Ruční řízení výkonu
 performance-level = Výkonnostní stupeň
 power-profile-mode = Režim profilu napájení:
 manual-level-needed = Výkonnostní stupeň byl nastaven na „ručně“, aby bylo možné používat stavy a režimy napájení
 overclock-section = Takt a napětí
-nvidia-oc-info = Informace o přetaktování Nvidia
-oc-warning = Varování: změna těchto hodnot může vést k nestabilitě systému a případně poškodit váš hardware!
+nvidia-oc-info = Informace o přetaktování
+oc-warning = Změna těchto hodnot může vést k nestabilitě systému a případně poškodit váš hardware!
 show-all-pstates = Zobrazit veškeré P-stavy
 enable-gpu-locked-clocks = Povolit GPU uzamčené takty
 enable-vram-locked-clocks = Povolit uzamčené takty videopaměti
@@ -130,9 +130,9 @@ mem-pstate-clock-voltage = Napětí (mV) P-stavu videopaměti { $pstate }
 pstates = Stavy napájení
 gpu-pstates = Stavy napájení GPU
 vram-pstates = Stavy napájení videopaměti
-pstates-manual-needed = Pozn.: aby bylo možné přepínat stavy napájení, je třeba výkonnostní úroveň nastavit na „ručně“
+pstates-manual-needed = Aby bylo možné přepínat stavy napájení, je třeba výkonnostní úroveň nastavit na „ručně“
 enable-pstate-config = Povolit nastavování stavu napájení
-show-historical-charts = Zobrazit historické grafy
+show-historical-charts = Zobrazit grafy
 show-process-monitor = Zobrazit monitor procesů
 generate-debug-snapshot = Vytvořit ladící zachycený stav
 dump-vbios = Pořídit výpis VBIOS firmware
@@ -181,9 +181,7 @@ automatic-mode-threshold-tooltip =
     Mnohá GPU od Nvidia podporují zastavení ventilátorů pouze v režimu automatického řízení ventilátorů, zatímco uživatelsky určená křivka má omezený rozsah otáček jako např. 30-100%.
 
     Tato předvolba umožňuje toto omezení obejít použitím uživatelsky určené křivky pouze při překročení určité teploty s tím, že pod ní je použit automatický režim vestavěný v kartě, který podporuje nulové otáčky.
-amd-oc-disabled =
-    Podpora pro přetaktování AMD není zapnutá.
-    I tak je možné měnit základní nastavení, ale pokročilejší řízení taktů a napětí nebude k dispozici.
+amd-oc-disabled = Podpora pro přetaktování AMD není zapnutá.<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">Některé funkce nebudou k dispozici.</a>
 amd-oc-status =
     Přetaktování AMD je v tuto chvíli: <b>{ $status ->
         [true] Zapnuto
@@ -221,8 +219,103 @@ nvidia-oc-description =
     Například, posun +1000MHz videopaměti může zvýšit měřenou rychlost paměti pouze o 500MHz.
     Toto je normální a plyne z toho, jak Nvidia zachází s takty GDDR. Přizpůsobte tomu příslušně svá nastavení přetaktování.
 
-    Přímé ovládání napětí není podporováno, protože v linuxovém ovladači od Nvidia není přítomno.
-
     Je možné dosáhnout svého druhu snížení napětí kombinací předvolby uzamčené takt a kladného posunu taktu.
     Toto GPU přinutí běžet na napětí, které je omezeno uzamčenými takty a přitom dosahovat vyšších taktů (díky posunu).
     Pokud nastaveno příliš vysoko, může toto ale způsobovat nestabilitu systému.
+gibibyte = GiB
+crash-page-title = Aplikace zhavarovala
+exit = Ukončit
+bytes = bajtů
+kibibyte = KiB
+hw-ip-info = Informace o licencovaných obvodech
+hw-queues = Fronty
+theme = Motiv vzhledu
+theme-auto = Automatické
+vf-curve-editor = Editor křivky napětí-frekvence
+voltage = Napětí
+frequency = Frekvence
+vf-active-curve = Aktivní křivka
+vf-base-curve = Základní křivka
+vf-curve-visible-range = Viditelný rozsah (%):
+vf-curve-visible-range-to = k
+vf-curve-flatten-right = Zploštit křivku doprava
+nvidia-vf-curve-warning =
+    Editor křivky napětí-frekvence využívá nedokumentovanou funkci ovladače.
+    <span weight = "heavy" underline = "single">Použijte jen na vlastní nebezpečí</span>.
+confirm = Potvrdit
+confirm-settings = Potvrďte nastavení
+settings-confirmation = Chcete nová nastavení zachovat? (návrat k předchozím za { $seconds_left } sekund)
+error-heading = Chyba
+daemon-info-heading = Informace o procesu služby
+close = Zavřít
+ui = Uživatelské rozhraní
+daemon = Proces služby
+about = O aplikaci
+version-mismatch-description =
+    Neshoda verzí mezi grafickým uživatelským rozhraním a procesem služby ({ $gui_version }-{ $gui_commit } oproti { $daemon_version }-{ $daemon_commit })!
+    Pokud jste LACT aktualizovali, je třeba službu restartovat.
+preferences = Předvolby
+displays-page = Informace o displeji
+thresholds-section = Prahové hodnoty a hranice
+vf-curve-flatten-selection = Zploštit výběr
+menu = Nabídka
+display-title = Displej { $identifier }
+display-product-code = Kód produktu
+display-model = Model
+display-physical-size = Fyzická velikost
+display-connection = Připojení
+display-manufacture-date = Datum výroby
+displays-missing = Nezjištěny žádné displeje
+display-manufacturer = Výrobce
+color-scheme = Schéma barev
+color-scheme-auto = Systémové
+color-scheme-light = Světlé
+color-scheme-dark = Tmavé
+gtt-usage = Využití GTT:
+power-mizer-mode = Režim PowerMizer
+power-mizer-mode-auto = Automaticky
+power-mizer-mode-adaptive = Přizpůsobivý
+power-mizer-mode-prefer-maximum-performance = Upřednostňovat co nejvyšší výkon
+power-mizer-mode-prefer-consistent-performance = Upřednostňovat konzistentní výkon
+power-mizer-mode-auto-description = Nechat ovladač zvolit zásadu pro výkon.
+power-mizer-mode-adaptive-description = Přizpůsobit frekvence GPU na základě jeho využívání.
+power-mizer-mode-prefer-maximum-performance-description = Dávat přednost co nejvyššímu výkonu (v rámci limitů ovladače).
+power-mizer-mode-prefer-consistent-performance-description = Uzamknout GPU na základních taktech.
+service-connection-status = Stav připojení
+service-connected = připojeno
+service-version = Verze služby
+service-version-mismatch = neshodné
+service-explanation =
+    Uplatnění nastavení pro GPU vyžaduje systémovou službu LACT.
+    Bez ní je LACT provozováno v samostatném režimu, kdy jsou k dispozici pouze informace a monitorování.
+service-status = Stav služby
+service-permission-denied =
+    Oprávnění odepřeno – služba není nastavená tak, aby umožňovala připojování od uživatele.
+    Další informace viz <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a>
+service-logs = Záznamy událostí služby
+service-start = Spustit
+service-stop = Zastavit
+service-restart = Restartovat
+gui-version = Verze grafického uživ. rozhraní
+service-disconnected = nepřipojeno
+gpu-voltage-boost = Posílení napětí GPU (%)
+gpu-voltage-boost-tooltip = Ovládá kolik dodatečné rezervy napětí, definované ovladačem, je k dispozici. 100% znamená všechna rezerva, nikoli 100% celkového napětí GPU. Vyšší rezerva může ustát vyšší takty, ale zvýší nároky na napájení a chlazení.
+no-fan-detected = Nezjištěn žádný ventilátor
+no-sensors-found = Nenalezeny žádné senzory
+service-autostart = Automaticky spouštět při startu systému
+service-autostart-disable = Také zakázat automatické spouštění
+reset-now-button = Resetovat nyní
+default-button = Výchozí
+service-setup-title = Nastavení služby
+setup-error = Chyba nastavení: { $error }
+extra-clocks = Další takty
+performance-level-profile-standard = Profilování standardu
+performance-level-profile-min-sclk = Profilování nejnižšího taktu GPU
+performance-level-profile-min-mclk = Profilování nejnižšího taktu VRAM
+performance-level-profile-peak = Profilování špičky
+performance-level-profile-standard-description = Pevný režim profilování
+performance-level-profile-min-sclk-description = Režim profilování, který vynutí takty GPU na nejnižší úroveň
+performance-level-profile-min-mclk-description = Režim profilování, který vynutí takty videopaměti na nejnižší úroveň
+performance-level-profile-peak-description = Režim profilování, který vynutí takty GPU a videopaměti na nejvyšší úrovně
+enable-vf-curve = Povolit upravování křivky napětí a frekvence
+vf-curve-editing-disabled = Upravování křivky napětí a frekvence je zakázáno na stránce Přetaktování

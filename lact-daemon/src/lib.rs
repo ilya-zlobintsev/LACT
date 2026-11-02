@@ -13,25 +13,26 @@ mod tests;
 use anyhow::Context;
 use config::Config;
 use futures::future::select_all;
-use server::{handle_stream, handler::Handler, Server};
+use server::{Server, handle_stream, handler::Handler};
+use std::os::unix::net::UnixStream as StdUnixStream;
 use std::sync::Arc;
-use std::{os::unix::net::UnixStream as StdUnixStream, time::Duration};
+use std::time::Duration;
 use tokio::net::UnixStream;
+use tokio::runtime::LocalOptions;
 use tokio::sync::Notify;
-use tokio::time::timeout;
 use tokio::{
     runtime,
-    signal::unix::{signal, SignalKind},
-    task::LocalSet,
+    signal::unix::{SignalKind, signal},
 };
 use tracing::level_filters::LevelFilter;
-use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing::{Instrument, debug_span, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
+use crate::server::ClientContext;
 pub use system::BASE_MODULE_CONF_PATH;
 
-const MIN_SYSTEM_UPTIME_SECS: f32 = 15.0;
-const DRM_EVENT_TIMEOUT_PERIOD_MS: u64 = 100;
+const DRM_EVENT_COLLECT_DURATION: Duration = Duration::from_millis(500);
+
 const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
     SignalKind::terminate(),
     SignalKind::interrupt(),
@@ -46,7 +47,7 @@ const SHUTDOWN_SIGNALS: [SignalKind; 4] = [
 pub fn run() -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
+        .build_local(LocalOptions::default())
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
         let config = Config::load_or_create()?;
@@ -57,22 +58,16 @@ pub fn run() -> anyhow::Result<()> {
             .context("Invalid log level")?;
         tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
-        ensure_sufficient_uptime().await;
+        let server = Server::new(config).await?;
+        let handler = server.handler.clone();
 
-        LocalSet::new()
-            .run_until(async move {
-                let server = Server::new(config).await?;
-                let handler = server.handler.clone();
+        tokio::task::spawn_local(listen_config_changes(handler.clone()));
+        tokio::task::spawn_local(listen_exit_signals(handler.clone()));
+        tokio::task::spawn_local(listen_device_events(handler.clone()));
+        tokio::task::spawn_local(suspend::listen_events(handler));
 
-                tokio::task::spawn_local(listen_config_changes(handler.clone()));
-                tokio::task::spawn_local(listen_exit_signals(handler.clone()));
-                tokio::task::spawn_local(listen_device_events(handler.clone()));
-                tokio::task::spawn_local(suspend::listen_events(handler));
-
-                server.run().await;
-                Ok(())
-            })
-            .await
+        server.run().await;
+        Ok(())
     })
 }
 
@@ -84,18 +79,15 @@ pub fn run() -> anyhow::Result<()> {
 pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
+        .build_local(LocalOptions::default())
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
-        LocalSet::new()
-            .run_until(async move {
-                let config = Config::default();
-                let handler = Handler::new(config).await?;
-                let stream = UnixStream::try_from(stream)?;
+        let config = Config::default();
+        let handler = Handler::new(config).await?;
+        let stream = UnixStream::try_from(stream)?;
+        let ctx = ClientContext::default();
 
-                handle_stream(stream, handler).await
-            })
-            .await
+        handle_stream(stream, handler, ctx).await
     })
 }
 
@@ -143,45 +135,7 @@ async fn listen_device_events(handler: Handler) {
     loop {
         notify.notified().await;
 
-        // Wait until the timeout has passed with no new events coming in
-        while timeout(
-            Duration::from_millis(DRM_EVENT_TIMEOUT_PERIOD_MS),
-            notify.notified(),
-        )
-        .await
-        .is_ok()
-        {}
-
-        info!("got kernel drm subsystem event, reloading GPUs");
-        handler.reload_gpus().await;
+        info!("got kernel drm subsystem event, queueing GPU reload");
+        handler.notify_reload_gpus(DRM_EVENT_COLLECT_DURATION).await;
     }
-}
-
-async fn ensure_sufficient_uptime() {
-    match get_uptime() {
-        Ok(current_uptime) => {
-            debug!("current system uptime: {current_uptime:.1}s");
-
-            let diff = MIN_SYSTEM_UPTIME_SECS - current_uptime;
-            if diff > 0.0 {
-                info!("service started too early, waiting {diff:.1} seconds");
-
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                tokio::time::sleep(Duration::from_millis((diff * 1000.0) as u64)).await;
-            }
-        }
-        Err(err) => {
-            warn!("could not get system uptime: {err:#?}");
-        }
-    }
-}
-
-fn get_uptime() -> anyhow::Result<f32> {
-    let raw_uptime = std::fs::read_to_string("/proc/uptime").context("Could not read uptime")?;
-    raw_uptime
-        .split_whitespace()
-        .next()
-        .context("Could not parse the uptime file")?
-        .parse()
-        .context("Invalid uptime value")
 }

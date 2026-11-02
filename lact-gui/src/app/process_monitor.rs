@@ -1,22 +1,23 @@
 use std::collections::HashMap;
 
-use crate::app::{format_friendly_size, msg::AppMsg, APP_BROKER};
+use crate::app::{APP_BROKER, msg::AppMsg, utils::formatting};
+use adw::prelude::AdwWindowExt;
 use gtk::{
     glib::{
-        object::{Cast, ObjectExt},
         GString,
+        object::{Cast, ObjectExt},
     },
     pango,
-    prelude::{EditableExt, GtkWindowExt, OrientableExt, SorterExt, WidgetExt},
+    prelude::{EditableExt, GtkWindowExt, SorterExt, WidgetExt},
 };
 use lact_schema::{ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType};
 use relm4::{
+    ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt,
     binding::{Binding, StringBinding, U32Binding, U64Binding},
     typed_view::{
-        column::{LabelColumn, RelmColumn, TypedColumnView},
         OrdFn,
+        column::{LabelColumn, RelmColumn, TypedColumnView},
     },
-    ComponentParts, ComponentSender, RelmObjectExt,
 };
 
 pub struct ProcessMonitorWindow {
@@ -38,17 +39,21 @@ impl relm4::Component for ProcessMonitorWindow {
     type CommandOutput = ();
 
     view! {
-        gtk::Window {
+        adw::Window {
             set_title: Some("Process Monitor"),
             set_default_height: 600,
             set_default_width: 900,
             set_hide_on_close: true,
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
+            #[wrap(Some)]
+            set_content = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {},
 
                 #[name = "search_entry"]
-                gtk::SearchEntry {
+                add_top_bar = &gtk::SearchEntry {
+                    set_margin_all: 10,
+                    set_margin_top: 0,
+
                     connect_search_changed[sender] => move |entry| {
                         sender.input(ProcessMonitorWindowMsg::FilterChanged(entry.text()));
                     },
@@ -58,7 +63,8 @@ impl relm4::Component for ProcessMonitorWindow {
                     },
                 },
 
-                gtk::ScrolledWindow {
+                #[wrap(Some)]
+                set_content = &gtk::ScrolledWindow {
                     set_hscrollbar_policy: gtk::PolicyType::Automatic,
                     set_vscrollbar_policy: gtk::PolicyType::Automatic,
                     set_vexpand: true,
@@ -252,8 +258,8 @@ impl RelmColumn for NameColumn {
         let label = gtk::Label::builder()
             .halign(gtk::Align::Start)
             .use_markup(true)
+            .single_line_mode(true)
             .ellipsize(pango::EllipsizeMode::End)
-            .max_width_chars(70)
             .build();
 
         (label, ())
@@ -308,7 +314,7 @@ impl RelmColumn for VramColumn {
     fn bind(item: &mut Self::Item, _widgets: &mut Self::Widgets, label: &mut Self::Root) {
         item.memory_usage
             .bind_property(U64Binding::property_name(), label, "label")
-            .transform_to(|_binding, value: u64| Some(format_friendly_size(value)))
+            .transform_to(|_binding, value: u64| Some(formatting::fmt_human_bytes(value, None)))
             .sync_create()
             .build();
     }

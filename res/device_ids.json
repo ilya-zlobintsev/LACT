@@ -16,6 +16,7 @@
       "1849": {
         "5401": "ASRock RX 9070 XT Taichi",
         "5411": "ASRock RX 9070 XT Taichi",
+        "5403": "ASRock RX 9070 XT Steel Legend",
         "5405": "ASRock RX 9070 Steel Legend",
         "5406": "ASRock RX 9070 Challenger"
       },
@@ -35,7 +36,9 @@
       },
       "1458": {
         "2424": "GIGABYTE RX 9070 XT Gaming OC",
-        "2426": "GIGABYTE RX 9070 XT Elite"
+        "2425": "GIGABYTE RX 9070 Gaming OC",
+        "2426": "GIGABYTE RX 9070 XT Elite",
+        "2437": "GIGABYTE RX 9070 XT Gaming OC ICE"
       }
     },
     "744c": {
@@ -215,6 +218,9 @@
       "1458": {
         "2409": "GIGABYTE RX 6950 XT Gaming OC"
       },
+      "148c": {
+        "2420": "PowerColor Red Devil RX 6950 XT"
+      },
       "1849": {
         "5230": "ASRock RX 6950 XT OC Formula"
       }
@@ -390,6 +396,11 @@
       },
       "1569": {
         "f296": "Palit RTX 4090 GameRock OC"
+      }
+    },
+    "2689": {
+      "1458": {
+        "4162": "GIGABYTE RTX 4070 Ti SUPER WindForce MAX OC"
       }
     },
     "2704": {
@@ -601,7 +612,8 @@
     },
     "2c05": {
       "1043": {
-        "89f4": "ASUS RTX 5070 Ti TUF OC"
+        "89f4": "ASUS RTX 5070 Ti TUF OC",
+        "89f6": "ASUS RTX 5070 Ti PRIME OC"
       },
       "1462": {
         "5310": "MSI RTX 5070 Ti Ventus 3X OC",
@@ -829,6 +841,9 @@
       },
       "172f": {
         "4215": "Sparkle Arc B580 Titan OC"
+      },
+      "1025": {
+        "1877": "Acer Arc B580 Nitro"
       }
     },
     "56a0": {
@@ -853,6 +868,11 @@
       },
       "172f": {
         "4216": "Sparkle Arc B570 Guardian OC"
+      }
+    },
+    "56a6" : {
+      "172f": {
+        "4019": "Sparkle Arc A310 ECO"
       }
     },
     "56a5": {

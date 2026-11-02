@@ -10,7 +10,6 @@ expression: device_info
       "vram_clock_ratio": 1.0
     },
     "flags": [
-      "DumpableVBios",
       "ConfigurableFanControl"
     ],
     "link_info": {
@@ -54,7 +53,8 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "gpu_clockspeed": 300
+      "gpu_clockspeed": 300,
+      "sensors": {}
     },
     "fan": {
       "control_enabled": false,
@@ -68,10 +68,14 @@ expression: device_info
       "1": {
         "crit": 120.0,
         "crit_hyst": 90.0,
-        "current": 27.0
+        "current": 27.0,
+        "display_only": false,
+        "primary": true
       }
     },
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

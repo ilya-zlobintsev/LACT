@@ -1,21 +1,24 @@
 use crate::server::gpu_controller::{GpuController, VENDOR_NVIDIA};
 use anyhow::Context;
 use indexmap::IndexMap;
-use lact_schema::config::{GpuConfig, Profile, ProfileHooks};
-use nix::unistd::{getuid, Group};
+use lact_schema::{
+    ClocksInfo, ClocksTable, NvidiaVfPoint,
+    config::{CurvePoint, GpuConfig, NvidiaCurvePoint, Profile, ProfileHooks},
+};
+use nix::unistd::{Group, getuid};
 use notify::{RecommendedWatcher, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{
     cell::Cell,
     collections::BTreeMap,
-    env, fs, iter,
+    env, fs, iter, mem,
     path::PathBuf,
     rc::Rc,
     time::{Duration, Instant},
 };
 use tokio::{sync::mpsc, time};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 const FILE_NAME: &str = "config.yaml";
 const DEFAULT_ADMIN_GROUPS: [&str; 2] = ["wheel", "sudo"];
@@ -50,7 +53,7 @@ impl Default for Config {
             profiles: IndexMap::new(),
             current_profile: None,
             auto_switch_profiles: false,
-            version: 5,
+            version: 7,
         }
     }
 }
@@ -178,32 +181,35 @@ impl Config {
                         if let Some(controller) = gpu_controllers.get(id) {
                             let stats = controller.get_stats(Some(gpu));
 
-                            if let Some(fan_settings) = &mut gpu.fan_control_settings {
-                                if let (Some(pwm_min), Some(pwm_max)) =
+                            if let Some(fan_settings) = &mut gpu.fan_control_settings
+                                && let (Some(pwm_min), Some(pwm_max)) =
                                     (stats.fan.pwm_min, stats.fan.pwm_max)
+                            {
+                                let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
+                                let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
+
+                                for value in fan_settings
+                                    .curve
+                                    .0
+                                    .values_mut()
+                                    .chain(iter::once(&mut (fan_settings.static_speed)))
                                 {
-                                    let ratio_min = (pwm_min as f32) / f32::from(u8::MAX);
-                                    let ratio_max = (pwm_max as f32) / f32::from(u8::MAX);
+                                    let mut updated_value = None;
+                                    if *value < ratio_min {
+                                        updated_value = Some(ratio_min);
+                                    }
+                                    if *value > ratio_max {
+                                        updated_value = Some(ratio_max);
+                                    }
 
-                                    for value in fan_settings
-                                        .curve
-                                        .0
-                                        .values_mut()
-                                        .chain(iter::once(&mut (fan_settings.static_speed)))
-                                    {
-                                        let mut updated_value = None;
-                                        if *value < ratio_min {
-                                            updated_value = Some(ratio_min);
-                                        }
-                                        if *value > ratio_max {
-                                            updated_value = Some(ratio_max);
-                                        }
-
-                                        if let Some(new_value) = updated_value {
-                                            let new_value = (new_value * 100.0).round() / 100.0;
-                                            info!("updated fan curve speed point {}% to {}% to be within the allowed range", *value * 100.0, new_value * 100.0);
-                                            *value = new_value;
-                                        }
+                                    if let Some(new_value) = updated_value {
+                                        let new_value = (new_value * 100.0).round() / 100.0;
+                                        info!(
+                                            "updated fan curve speed point {}% to {}% to be within the allowed range",
+                                            *value * 100.0,
+                                            new_value * 100.0
+                                        );
+                                        *value = new_value;
                                     }
                                 }
                             }
@@ -216,9 +222,53 @@ impl Config {
                     self.daemon.admin_groups.clear();
                 }
                 5 => {
-                    if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER") {
-                        if self.daemon.admin_user.is_none() {
-                            self.daemon.admin_user = Some(admin_user);
+                    if let Ok(admin_user) = env::var("FLATPAK_INSTALL_USER")
+                        && self.daemon.admin_user.is_none()
+                    {
+                        self.daemon.admin_user = Some(admin_user);
+                    }
+                }
+                6 => {
+                    for (id, gpu) in gpu_configs {
+                        if id.starts_with(VENDOR_NVIDIA)
+                            && let Some(target_temperature) =
+                                gpu.pmfw_options.target_temperature.take()
+                        {
+                            gpu.nvidia_thermal_options
+                                .target_temperature
+                                .get_or_insert(target_temperature);
+                        }
+                    }
+                }
+                // convert the old Nvidia V/F curve points from abs to offsets
+                7 => {
+                    for (id, gpu) in gpu_configs {
+                        if !id.starts_with(VENDOR_NVIDIA)
+                            || gpu.clocks_configuration.gpu_vf_curve.is_empty()
+                        {
+                            continue;
+                        }
+
+                        let old_curve = mem::take(&mut gpu.clocks_configuration.gpu_vf_curve);
+                        let base_curve = match gpu_controllers
+                            .get(id)
+                            .map(|controller| controller.get_clocks_info(None))
+                        {
+                            Some(Ok(ClocksInfo {
+                                table: Some(ClocksTable::Nvidia(table)),
+                                ..
+                            })) => table.gpu_vf_curve,
+                            _ => Vec::new(),
+                        };
+
+                        if let Some(new_curve) = nvidia_vf_curve_to_offsets(&old_curve, &base_curve)
+                        {
+                            info!("converted the V/F curve of '{id}' to clockspeed offsets");
+                            gpu.clocks_configuration.nvidia_gpu_vf_curve = new_curve;
+                        } else {
+                            warn!(
+                                "could not convert the V/F curve of '{id}' to clockspeed offsets, it was removed and has to be reconfigured"
+                            );
                         }
                     }
                 }
@@ -285,6 +335,38 @@ pub struct Metrics {
     pub collector_address: String,
     #[serde(default = "default_metrics_interval")]
     pub interval: u64,
+}
+
+fn nvidia_vf_curve_to_offsets(
+    configured_curve: &IndexMap<u8, CurvePoint>,
+    base_curve: &[NvidiaVfPoint],
+) -> Option<IndexMap<u8, NvidiaCurvePoint>> {
+    let mut offsets = IndexMap::with_capacity(configured_curve.len());
+
+    for (index, configured_point) in configured_curve {
+        let base_point = base_curve.iter().find(|point| point.index == *index)?;
+
+        let Some(clockspeed) = configured_point.clockspeed else {
+            continue;
+        };
+
+        if configured_point
+            .voltage
+            .is_some_and(|voltage| voltage != base_point.voltage.cast_signed())
+        {
+            return None;
+        }
+
+        offsets.insert(
+            *index,
+            NvidiaCurvePoint {
+                clockspeed_offset: clockspeed - base_point.base_freq.cast_signed(),
+                voltage: Some(base_point.voltage),
+            },
+        );
+    }
+
+    (!offsets.is_empty()).then_some(offsets)
 }
 
 fn default_metrics_interval() -> u64 {
@@ -409,14 +491,66 @@ fn find_existing_group(groups: &[impl AsRef<str>]) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{Config, Daemon};
+    use crate::config::{Config, Daemon, nvidia_vf_curve_to_offsets};
     use indexmap::IndexMap;
     use insta::assert_yaml_snapshot;
     use lact_schema::{
-        config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-        FanControlMode, PmfwOptions,
+        FanControlMode, NvidiaVfPoint, PmfwOptions,
+        config::{
+            ClocksConfiguration, CurvePoint, FanControlSettings, FanCurve, GpuConfig,
+            NvidiaCurvePoint,
+        },
     };
     use std::collections::BTreeMap;
+
+    #[test]
+    fn vf_curve_migrated_to_offsets() {
+        fn base_curve() -> Vec<NvidiaVfPoint> {
+            [(0, 450, 270), (1, 800, 1500), (2, 1050, 2500)]
+                .map(|(index, voltage, base_freq)| NvidiaVfPoint {
+                    index,
+                    voltage,
+                    base_freq,
+                    freq: base_freq,
+                    base_voltage: voltage,
+                    freq_offset: 0,
+                })
+                .to_vec()
+        }
+        fn configured_point(voltage: i32, clockspeed: i32) -> CurvePoint {
+            CurvePoint {
+                voltage: Some(voltage),
+                clockspeed: Some(clockspeed),
+            }
+        }
+        let configured = IndexMap::from([
+            (0, configured_point(450, 360)),
+            (2, configured_point(1050, 2400)),
+        ]);
+
+        let offsets =
+            nvidia_vf_curve_to_offsets(&configured, &base_curve()).expect("curve was dropped");
+
+        assert_eq!(
+            IndexMap::from([
+                (
+                    0,
+                    NvidiaCurvePoint {
+                        clockspeed_offset: 90,
+                        voltage: Some(450),
+                    }
+                ),
+                (
+                    2,
+                    NvidiaCurvePoint {
+                        clockspeed_offset: -100,
+                        voltage: Some(1050),
+                    }
+                ),
+            ]),
+            offsets
+        );
+    }
 
     #[test]
     fn serde_de_full() {
@@ -467,18 +601,7 @@ mod tests {
 
     #[test]
     fn clocks_configuration_applied() {
-        let mut gpu = GpuConfig {
-            fan_control_enabled: false,
-            fan_control_settings: None,
-            pmfw_options: PmfwOptions::default(),
-            power_cap: None,
-            performance_level: None,
-            clocks_configuration: ClocksConfiguration::default(),
-            power_profile_mode_index: None,
-            custom_power_profile_mode_hueristics: vec![],
-            power_states: IndexMap::new(),
-        };
-
+        let mut gpu = GpuConfig::default();
         assert!(!gpu.is_core_clocks_used());
         gpu.clocks_configuration.voltage_offset = Some(10);
         assert!(gpu.is_core_clocks_used());
@@ -499,6 +622,10 @@ mod tests {
                             max_memory_clock: Some(10_000),
                             ..Default::default()
                         },
+                        pmfw_options: PmfwOptions {
+                            target_temperature: Some(70),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
                 ),
@@ -508,6 +635,10 @@ mod tests {
                         clocks_configuration: ClocksConfiguration {
                             max_core_clock: Some(1500),
                             max_memory_clock: Some(920),
+                            ..Default::default()
+                        },
+                        pmfw_options: PmfwOptions {
+                            target_temperature: Some(83),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -547,6 +678,33 @@ mod tests {
                 .clocks_configuration
                 .max_memory_clock,
             Some(920),
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .pmfw_options
+                .target_temperature,
+            None,
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("10DE:2704-1462:5110-0000:09:00.0")
+                .unwrap()
+                .nvidia_thermal_options
+                .target_temperature,
+            Some(70),
+        );
+        assert_eq!(
+            config
+                .gpus
+                .get("1002:687F-1043:0555-0000:0b:00.0")
+                .unwrap()
+                .pmfw_options
+                .target_temperature,
+            Some(83),
         );
     }
 }

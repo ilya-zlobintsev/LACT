@@ -1,0 +1,17 @@
+.checkbox-button {
+    border-spacing: 6px;
+}
+
+.checkbox-button:checked {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.checkbox-button check {
+    background-color: transparent;
+    color: inherit;
+}
+
+.checkbox-button check:checked {
+    box-shadow: inset 0 0 0 2px currentColor;
+}

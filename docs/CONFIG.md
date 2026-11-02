@@ -115,11 +115,18 @@ gpus:
       zero_rpm: true
       # Temperature in degrees below which the fan should be turned off when `zero_rpm` is set to true.
       zero_rpm_threshold: 50
+    # Nvidia thermal options.
+    nvidia_thermal_options:
+      # Target temperature for the GPU in degrees.
+      target_temperature: 83
     # Power limit in watts.
     power_cap: 320.0
     # Performance level option for AMD GPUs.
     # Can be `auto`, `low`, `high` or `manual`.
     performance_level: auto
+    # PowerMizer mode for Nvidia GPUs.
+    # Can be `Auto`, `Adaptive`, `PreferMaximumPerformance` or `PreferConsistentPerformance`.
+    power_mizer_mode: Auto
     # Index of an AMD power profile mode.
     # Setting this requires `performance_level` to be set to `manual`.
     power_profile_mode_index: 0
@@ -181,6 +188,8 @@ gpus:
     max_voltage: 1200
     # Voltage offset value in mV for RDNA and newer AMD GPUs.
     voltage_offset: 0
+    # Nvidia core voltage boost, in percent (0-100) of available boost, not total voltage
+    voltage_boost: 0
 
     # GPU V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.
@@ -188,6 +197,10 @@ gpus:
       7:
         clockspeed: 1590
         voltage: 1200
+    nvidia_gpu_vf_curve:
+      22:
+        clockspeed_offset: 90
+        voltage: 750
     # VRAM V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN GPUs. Overrides the values of min/max memory clock fields.
     mem_vf_curve:
@@ -200,6 +213,10 @@ gpus:
     mem_clock_offsets:
       0: 200
 
+    # Index of the UMA (dedicated VRAM) configuration that should be used.
+    # Needs a reboot to actually take effect. Applicable to certain AMD iGPUs.
+    uma_carveout: 1
+
 # Settings profiles
 profiles:
   # Name of the profile
@@ -207,13 +224,13 @@ profiles:
     # GPU settings in this profile. 
     # It is the same config format that is used for the top-level `gpus` option.
     gpus: {}
-    # Profile activation rule for when this profile shoule be activated 
+    # Profile activation rule for when this profile should be activated
     # when using automatic profile switching.
     rule:
-      # Type of the rule. Can be either `process or `gamemode`.
+      # Type of the rule. Can be `process`, `gamemode`, `and`, or `or`.
       type: process
       # Process filter. This is not required when using the gamemode rule type.
-      filter:
+      filter: # must be a list when type is `and` or `or`
         # Name of the process.
         name: vkcube
         # Process arguments. Not required.

@@ -1,10 +1,10 @@
-use super::{request, DaemonConnection};
+use super::{DaemonConnection, request};
 use anyhow::Context;
 use futures::future::BoxFuture;
 use std::os::unix::net::UnixStream as StdUnixStream;
 use std::path::Path;
 use tokio::{io::BufReader, net::UnixStream};
-use tracing::info;
+use tracing::debug;
 
 pub struct UnixConnection {
     inner: BufReader<UnixStream>,
@@ -12,7 +12,7 @@ pub struct UnixConnection {
 
 impl UnixConnection {
     pub async fn connect(path: &Path) -> anyhow::Result<Box<Self>> {
-        info!("connecting to service at {path:?}");
+        debug!("connecting to service at {path:?}");
         let inner = UnixStream::connect(path).await?;
         Ok(Box::new(Self {
             inner: BufReader::new(inner),

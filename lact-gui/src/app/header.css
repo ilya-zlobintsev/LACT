@@ -1,0 +1,15 @@
+.profile-picker-container {
+    padding: 10px;
+}
+
+.profile-picker-container scrolledwindow {
+    margin: 0 -3px;
+}
+
+.gpu-profile-popover contents {
+    padding: 10px 0 0;
+}
+
+.header-settings-popover-container separator {
+    margin: 5px 0;
+}

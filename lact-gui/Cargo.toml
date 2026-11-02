@@ -1,13 +1,12 @@
 [package]
 name = "lact-gui"
-version = "0.8.3"
+version = "0.10.1"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
-edition = "2021"
+edition.workspace = true
 
 [features]
 default = []
 gtk-tests = []
-adw = ["dep:adw", "relm4/libadwaita"]
 bench = ["dep:divan"]
 
 [dependencies]
@@ -16,37 +15,43 @@ lact-daemon = { path = "../lact-daemon", default-features = false }
 lact-schema = { path = "../lact-schema", features = ["args"] }
 
 amdgpu-sysfs = { workspace = true }
+nvml-wrapper = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
-chrono = { workspace = true }
+jiff = { workspace = true }
 serde = { workspace = true }
+serde_with = { workspace = true }
 serde_norway = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }
-gtk = { version = "0.10.0", package = "gtk4", features = ["v4_6"] }
+gtk = { version = "0.11.5", package = "gtk4", features = [
+    "v4_14",
+] }
 
-adw = { package = "libadwaita", version = "0.8.0", features = [
-    "v1_4",
-], optional = true }
-relm4 = { version = "0.10.0", default-features = false }
-relm4-components = "0.10.0"
+adw = { package = "libadwaita", version = "0.9.2", features = ["v1_5"] }
+relm4 = { version = "0.11.0", features = ["libadwaita"] }
+relm4-components = "0.11.0"
 
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
 
-plotters = { version = "0.3.5", default-features = false, features = [
+futures = { workspace = true }
+zbus = { workspace = true }
+
+plotters = { version = "0.3.7", default-features = false, features = [
+    "area_series",
     "line_series",
     "full_palette",
     "point_series",
 ] }
-plotters-cairo = "0.8.0"
-cairo-rs = { version = "0.21", default-features = false }
+plotters-cairo = "0.9.0"
+cairo-rs = { version = "0.22", default-features = false }
 
-thread-priority = "3.0.0"
+thread-priority = "3.1.1"
 
 divan = { workspace = true, optional = true }
 
 [dev-dependencies]
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.1"

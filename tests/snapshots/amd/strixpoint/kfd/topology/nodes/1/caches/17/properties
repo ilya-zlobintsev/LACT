@@ -1,0 +1,9 @@
+processor_id_low 2147487758
+level 1
+size 32
+cache_line_size 128
+cache_lines_per_tag 0
+association 0
+latency 0
+type 10
+sibling_map 1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

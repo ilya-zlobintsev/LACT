@@ -68,9 +68,7 @@ expression: device_info
       },
       "vram_clock_ratio": 1.0
     },
-    "flags": [
-      "DumpableVBios"
-    ],
+    "flags": [],
     "link_info": {
       "current_speed": "8.0 GT/s PCIe",
       "current_width": "16"
@@ -109,49 +107,68 @@ expression: device_info
     "core": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 200
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 1100
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 1600
       }
     ],
     "vram": [
       {
         "enabled": true,
-        "index": 0,
+        "id": {
+          "Index": 0
+        },
         "value": 400
       },
       {
         "enabled": true,
-        "index": 1,
+        "id": {
+          "Index": 1
+        },
         "value": 600
       },
       {
         "enabled": true,
-        "index": 2,
+        "id": {
+          "Index": 2
+        },
         "value": 687
       },
       {
         "enabled": true,
-        "index": 3,
+        "id": {
+          "Index": 3
+        },
         "value": 687
       }
     ]
   },
   "stats": {
+    "active_power_states": {
+      "core": {
+        "Index": 0
+      }
+    },
     "busy_percent": 0,
     "clockspeed": {
-      "gpu_clockspeed": 200
+      "gpu_clockspeed": 200,
+      "sensors": {}
     },
-    "core_power_state": 0,
     "fan": {
       "control_enabled": false,
       "pmfw_info": {}
@@ -168,12 +185,16 @@ expression: device_info
       "edge": {
         "crit": null,
         "crit_hyst": null,
-        "current": 56.0
+        "current": 56.0,
+        "display_only": false,
+        "primary": true
       }
     },
     "voltage": {
       "gpu": 15,
-      "northbridge": 669
+      "sensors": {
+        "northbridge": 669
+      }
     },
     "vram": {}
   }

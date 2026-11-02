@@ -1,0 +1,30 @@
+/* currently used for tests */
+.app {
+}
+
+.main-sidebar-container .sidebar {
+    border-right-width: 0;
+}
+
+.main-sidebar-container separator {
+    margin: 0 10px;
+}
+
+.main-sidebar-container .sidebar-section {
+    margin: 4px 8px 8px 8px;
+}
+
+.page-detach-button {
+    -gtk-icon-size: 12px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    margin: 4px 0;
+    opacity: 0;
+}
+
+.navigation-sidebar row:hover .page-detach-button,
+.navigation-sidebar row:selected .page-detach-button,
+.page-detach-button:focus-visible {
+    opacity: 1;
+}

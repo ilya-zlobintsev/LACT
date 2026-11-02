@@ -1,0 +1,2 @@
+DRIVER=mtd_intel_dg
+MODALIAS=auxiliary:xe.nvm

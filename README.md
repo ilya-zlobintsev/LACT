@@ -1,11 +1,12 @@
 # Linux GPU Control Application
-<a href="https://translate.fedoraproject.org/engage/lact/">
-<img src="https://translate.fedoraproject.org/widget/lact/svg-badge.svg" alt="Translation status" />
-</a>
 
-<img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="100"/>
+[![Translation status](https://translate.fedoraproject.org/widget/lact/svg-badge.svg)](https://translate.fedoraproject.org/engage/lact/)
 
-This application allows you to control your AMD, Nvidia or Intel GPU on a Linux
+<p align="center">
+  <img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="120px"/>
+</p>
+
+Control your AMD, Nvidia or Intel GPU on a Linux
 system.
 
 | GPU info                          | Overclocking                      | Fan control                       |
@@ -35,7 +36,7 @@ system.
   - GPU firmware thermal options such as thermal and acoustic target/limit (AMD RDNA3+ only)
 - #### Overclocking
   - GPU/VRAM clocks configuration
-  - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
+  - GPU undervolting (via voltage offset on AMD, VF curve on Nvidia)
 - #### Settings profiles
   - Automatic profile activation based on running processes or gamemode status
 - #### [OpenTelemetry metrics exporter](./docs/EXPORTER.md)
@@ -47,14 +48,16 @@ The service can also be used standalone with a config file, for example in headl
 # Quick links
 
 - [Installation](#installation)
-- [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
-- [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
-- [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
+- [Wiki](./docs/Navigation.md)
+- [Hardware support](./docs/Hardware-Support.md)
+- [Frequently asked questions](./docs/Frequently-asked-questions.md)
+- [Enable overclocking on AMD](./docs/Overclocking-(AMD).md)
 - [Config file reference](./docs/CONFIG.md)
 - [API](./docs/API.md)
 - [Power profiles daemon note](#power-profiles-daemon-note)
-- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Recovery from a bad overclock](./docs/Recovering-from-a-bad-overclock.md)
 - [Metrics exporter](./docs/EXPORTER.md)
+- [Contribute code](./docs/CONTRIBUTING.md)
 - [Contribute translations](#localization)
 - [Support the project](#support-the-project)
 
@@ -65,16 +68,13 @@ The service can also be used standalone with a config file, for example in headl
 - Debian/Ubuntu/Derivatives: Download a .deb from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
-  It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't
-  ship gtk4.
+  It is only available on Debian 13+ and Ubuntu 24.04+ as older versions don't
+  ship gtk4.14+
 - Fedora: use the
   [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
   download an RPM from
   [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
-- Bazzite: Use the Flatpak below.
-
-  This helper installs the Flatpak version and automatically adds the AMD
-  overclocking boot option.
+- Bazzite/Fedora Atomic: Use the Flatpak.
 - Gentoo: Available in
   [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
 - OpenSUSE: an RPM is available in
@@ -83,10 +83,12 @@ The service can also be used standalone with a config file, for example in headl
   Only tumbleweed is supported as leap does not have the required dependencies
   in the repos.
 - NixOS: There is a package available in
-  [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
+  [nixpkgs](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact).
+- Solus: Available in the official repository: `eopkg it lact`
 - Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
-  See the [Flatpak documentation](./flatpak/README.md) for setup notes.
+  See the [Flatpak documentation](./flatpak/README.md) for additional notes.
+- Docker (service only, no GUI): See [DOCKER.md](./docs/DOCKER.md)
 - Build from source.
 
 Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries
@@ -114,11 +116,6 @@ sudo systemctl enable --now lactd
 
 You can now use the GUI to change settings and view information.
 
-# Hardware support
-
-See the
-[Wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
-
 # Configuration
 
 There is a configuration file available in `/etc/lact/config.yaml`. Most of the
@@ -130,13 +127,15 @@ See [CONFIG.md](./docs/CONFIG.md) for more information.
 
 **Socket permissions setup:**
 
-By default, LACT uses either ether the `wheel` or `sudo` group (whichever is
+By default, LACT uses either the `wheel` or `sudo` group (whichever is
 available) for the ownership of the unix socket that the GUI needs to connect
 to.
 
 On most desktop configurations (such as the default setup on Arch-based, most
 Debian-based or Fedora systems) this includes the default user, so you do not
 need to configure this.
+
+This is not needed if you are using the Flatpak, the flatpak service setup handles permissions.
 
 However, some systems may have different user configuration. In particular, this
 has been reported to be a problem on OpenSUSE.
@@ -145,14 +144,8 @@ To fix socket permissions in such configurations, edit `/etc/lact/config.yaml`
 and under the `daemon` section either:
 
 - Set `admin_user` to your username
-- Set `admin_group` to a group that your user is a part of Then restart the
+- Set `admin_group` to a group that your user is a part of, then restart the
   service (`sudo systemctl restart lactd`).
-
-# Overclocking (AMD)
-
-Some functionality requires enabling an option in the amdgpu driver, see the
-[wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)) for
-more information.
 
 ## Power profiles daemon note!
 
@@ -188,23 +181,27 @@ systemd, as it relies on the `org.freedesktop.login2` DBus interface.
 
 Dependencies:
 
-- rust 1.76+
-- gtk 4.6+
+- rust 1.97+
+- gtk 4.14+
+- libadwaita 1.5+
 - git
 - pkg-config
 - clang
 - make
 - hwdata
 - libdrm
+- libdisplay-info
+
+Optional Dependencies:
 - vulkan-tools
-- ocl-icd
+- clinfo
 
 Command to install all dependencies:
 
 - Fedora:
-  `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools OpenCL-ICD-Loader-devel`
+  `sudo dnf install rust cargo make git clang gtk4-devel libadwaita-devel libdrm-devel vulkan-tools libdisplay-info-devel clinfo`
 - Arch:
-  `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools ocl-icd`
+  `sudo pacman -S --needed base-devel git clang make rust gtk4 libadwaita hwdata vulkan-tools clinfo libdisplay-info`
 
 Steps:
 
@@ -219,12 +216,6 @@ Headless build with no GUI:
 
 ```
 make build-release-headless
-```
-
-Build GUI with libadwaita support:
-
-```
-make build-release-libadwaita
 ```
 
 # Remote management
@@ -265,7 +256,7 @@ There is also a cli available.
   Example output:
 
   ```
-  10DE:2704-1462:5110-0000:09:00.0 (AD103 [GeForce RTX 4080])
+  0: 10DE:2704-1462:5110-0000:09:00.0 (GeForce RTX 4080) [Dedicated]
   ```
 - Getting GPU information:
 
@@ -277,7 +268,7 @@ There is also a cli available.
   $ lact cli info
   GPU 10DE:2704-1462:5110-0000:09:00.0:
   =====================================
-  GPU Model: NVIDIA GeForce RTX 4080 (0x10DE:0x2704)
+  GPU Model: GeForce RTX 4080 (0x10DE:0x2704)
   Card Manufacturer: Micro-Star International Co., Ltd. [MSI] (0x1462)
   Card Model: Unknown (0x5110)
   Driver Used: nvidia 570.124.04
@@ -364,12 +355,25 @@ There is also a cli available.
           disabled
           ```
 
-The functionality of the CLI is quite limited. If you want to integrate LACT
-with some application/script, you should use the [API](API.md) instead.
+  - Detach GPU (makes LACT temporarily ignore it):
+
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 detach
+    ```
+
+  - Reattach GPU:
+  
+    ```
+    lact cli --gpu-id=10DE:2704-1462:5110-0000:01:00.0 reattach
+    ```
+
+Note that not all functionality is exposed through the CLI. If you want to integrate LACT
+with some application/script, you can use the [API](./docs/API.md) instead.
 
 # Reporting issues
 
 When reporting issues, please include your system info and GPU model.
+Reports should follow [Contribution guidelines](./docs/CONTRIBUTING.md)
 
 If you're having an issue with changing the GPU's configuration, it's highly
 recommended to include a debug snapshot in the bug report. You can generate one

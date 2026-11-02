@@ -9,9 +9,7 @@ expression: device_info
     "drm_info": {
       "vram_clock_ratio": 1.0
     },
-    "flags": [
-      "DumpableVBios"
-    ],
+    "flags": [],
     "link_info": {
       "current_speed": "5.0 GT/s PCIe",
       "current_width": "16"
@@ -52,14 +50,18 @@ expression: device_info
     "vram": []
   },
   "stats": {
-    "clockspeed": {},
+    "clockspeed": {
+      "sensors": {}
+    },
     "fan": {
       "control_enabled": false,
       "pmfw_info": {}
     },
     "power": {},
     "temps": {},
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

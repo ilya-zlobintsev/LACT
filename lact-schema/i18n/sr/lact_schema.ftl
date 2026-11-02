@@ -1,0 +1,23 @@
+compute-units = Јединице прорачуна
+gpu-model = ГПЈ модел
+subvendor = Произвођач картице
+subdevice = Модел картице
+driver-used = Употребљени управљач
+vbios-version = Издање ВБИОС-а
+vram-size = Величина ВРАМ-а
+vram-type = Врста ВРАМ-а
+gpu-family = ГПЈ породица
+asic-name = Назив АСИК-а
+execution-units = Извршне јединице
+subslices = Подисечци
+cuda-cores = КУДА језгра
+hardware-count = { $name } број
+isa = Сет инструкција
+l1-cache-per-cu = Л1 кеш (по ЈП)
+l2-cache = Л2 кеш
+l3-cache = Л3 кеш
+rebar = ОАР = основни адресни регистар
+cpu-vram = ВРАМ доступан ЦПЈ-у
+pcie-speed = ПЦИе брзина везе
+enabled = Омогућено
+disabled = Онемогућено

@@ -1,19 +1,26 @@
-use anyhow::{anyhow, bail, Context};
-use indexmap::{map::Entry, IndexMap};
+#[cfg(feature = "mock")]
+use crate::server::gpu_controller::read_mock_snapshot;
+use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
+use crate::system::IS_FLATBOX;
+use anyhow::{Context, anyhow, bail};
+use indexmap::{IndexMap, map::Entry};
 use lact_schema::{VulkanDriverInfo, VulkanInfo};
 use serde::Deserialize;
 use std::{env, fs, path::Path};
 use tokio::process::Command;
 use tracing::{error, trace};
 
-use crate::server::gpu_controller::{CommonControllerInfo, PciSlotInfo};
-
 include!(concat!(env!("OUT_DIR"), "/vulkan_constants.rs"));
 
-#[cfg_attr(test, allow(unreachable_code, unused_variables))]
+const VULKAN_ICD_DIR: &str = "/usr/share/vulkan/icd.d";
+
 pub async fn get_vulkan_info(info: &CommonControllerInfo) -> anyhow::Result<Vec<VulkanInfo>> {
-    #[cfg(test)]
-    return Ok(vec![]);
+    #[cfg(feature = "mock")]
+    if let Some(snapshot) = read_mock_snapshot(&info.sysfs_path) {
+        return Ok(snapshot.info.api_info.vulkan_instances.clone());
+    } else if cfg!(test) {
+        return Ok(vec![]);
+    }
 
     let mut results = Vec::new();
 
@@ -327,12 +334,21 @@ fn parse_summary(summary: &str) -> Vec<SummaryDeviceEntry<'_>> {
 fn vulkaninfo_command() -> Command {
     let mut cmd = Command::new("vulkaninfo");
     cmd.env("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+
+    // fixes duplicated vulkan device in flatpak
+    // https://github.com/flatpak/flatpak/issues/6418
+    if *IS_FLATBOX
+        && env::var_os("VK_ICD_FILENAMES").is_none()
+        && Path::new(VULKAN_ICD_DIR).is_dir()
+    {
+        cmd.env("VK_ICD_FILENAMES", VULKAN_ICD_DIR);
+    }
     cmd
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_legacy_devsim, parse_summary, VulkanInfoDevSimManifest};
+    use super::{VulkanInfoDevSimManifest, parse_legacy_devsim, parse_summary};
     use crate::server::vulkan::SummaryDeviceEntry;
     use pretty_assertions::assert_eq;
 

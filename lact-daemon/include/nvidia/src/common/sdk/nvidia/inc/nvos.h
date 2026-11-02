@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 1993-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -42,9 +42,11 @@ extern "C" {
 #include "rs_access.h"
 #include "nvcfg_sdk.h"
 
-
-// Temporary include. Please include this directly instead of nvos.h
-#include "alloc/alloc_channel.h"
+#if defined(NVRISCV_LIBFSP_BUILD)
+#if NVRISCV_LIBFSP_BUILD
+#include <libc.h>
+#endif
+#endif
 
 /* local defines here */
 #define FILE_DEVICE_NV      0x00008000
@@ -79,6 +81,7 @@ extern "C" {
 #define NVOS_STATUS_ERROR_ILLEGAL_ACTION                        NV_ERR_ILLEGAL_ACTION
 #define NVOS_STATUS_ERROR_IN_USE                                NV_ERR_STATE_IN_USE
 #define NVOS_STATUS_ERROR_INSUFFICIENT_RESOURCES                NV_ERR_INSUFFICIENT_RESOURCES
+#define NVOS_STATUS_ERROR_INSUFFICIENT_ZBC_ENTRY                NV_ERR_INSUFFICIENT_ZBC_ENTRY
 #define NVOS_STATUS_ERROR_INVALID_ACCESS_TYPE                   NV_ERR_INVALID_ACCESS_TYPE
 #define NVOS_STATUS_ERROR_INVALID_ARGUMENT                      NV_ERR_INVALID_ARGUMENT
 #define NVOS_STATUS_ERROR_INVALID_BASE                          NV_ERR_INVALID_BASE
@@ -632,25 +635,14 @@ typedef void (*BindResultFunc)(void * pVoid, NvU32 gpuMask, NvU32 bState, NvU32 
 // NVOS32 function
 #define NVOS32_FUNCTION_ALLOC_SIZE                      2
 #define NVOS32_FUNCTION_FREE                            3
-// #define NVOS32_FUNCTION_HEAP_PURGE                   4
 #define NVOS32_FUNCTION_INFO                            5
 #define NVOS32_FUNCTION_ALLOC_TILED_PITCH_HEIGHT        6
-// #define NVOS32_FUNCTION_DESTROY                      7
-// #define NVOS32_FUNCTION_RETAIN                       9
-// #define NVOS32_FUNCTION_REALLOC                      10
-#define NVOS32_FUNCTION_DUMP                            11
-// #define NVOS32_FUNCTION_INFO_TYPE_ALLOC_BLOCKS       12
 #define NVOS32_FUNCTION_ALLOC_SIZE_RANGE                14
 #define NVOS32_FUNCTION_REACQUIRE_COMPR                 15
 #define NVOS32_FUNCTION_RELEASE_COMPR                   16
-// #define NVOS32_FUNCTION_MODIFY_DEFERRED_TILES        17
 #define NVOS32_FUNCTION_GET_MEM_ALIGNMENT               18
 #define NVOS32_FUNCTION_HW_ALLOC                        19
 #define NVOS32_FUNCTION_HW_FREE                         20
-// #define NVOS32_FUNCTION_SET_OFFSET                   21
-// #define NVOS32_FUNCTION_IS_TILED                     22
-// #define NVOS32_FUNCTION_ENABLE_RESOURCE              23
-// #define NVOS32_FUNCTION_BIND_COMPR                   24
 #define NVOS32_FUNCTION_ALLOC_OS_DESCRIPTOR             27
 
 typedef struct
@@ -658,14 +650,6 @@ typedef struct
     NvP64 sgt NV_ALIGN_BYTES(8);
     NvP64 gem NV_ALIGN_BYTES(8);
 } NVOS32_DESCRIPTOR_TYPE_OS_SGT_PTR_PARAMETERS;
-
-#define NVOS32_FLAGS_BLOCKINFO_VISIBILITY_CPU (0x00000001)
-typedef struct
-{
-    NvU64 startOffset NV_ALIGN_BYTES(8);
-    NvU64 size NV_ALIGN_BYTES(8);
-    NvU32 flags;
-} NVOS32_BLOCKINFO;
 
 // NVOS32 IVC-heap number delimiting value
 #define NVOS32_IVC_HEAP_NUMBER_DONT_ALLOCATE_ON_IVC_HEAP 0 // When IVC heaps are present,
@@ -792,25 +776,6 @@ typedef struct
           NvU64 base   NV_ALIGN_BYTES(8);   // [OUT] - returned heap phys base
       } Info;
 
-      // NVOS32_FUNCTION_DUMP
-      struct
-      {
-          NvU32 flags;              // [IN] - see _DUMP_FLAGS
-          // [IN]  - if NULL, numBlocks is the returned number of blocks in
-          //         heap, else returns all blocks in eHeap
-          //         if non-NULL points to a buffer that is at least numBlocks
-          //         * sizeof(NVOS32_HEAP_DUMP_BLOCK) bytes.
-          NvP64 pBuffer NV_ALIGN_BYTES(8);
-          // [IN/OUT] - if pBuffer is NULL, will number of blocks in heap
-          //            if pBuffer is non-NULL, is input containing the size of
-          //            pBuffer in units of NVOS32_HEAP_DUMP_BLOCK.  This must
-          //            be greater than or equal to the number of blocks in the
-          //            heap.
-          NvU32 numBlocks;
-      } Dump;
-
-      // NVOS32_FUNCTION_DESTROY - no extra parameters needed
-
       // NVOS32_FUNCTION_ALLOC_SIZE_RANGE
       struct
       {
@@ -835,12 +800,6 @@ typedef struct
           NvS32     numaNode;           // [IN] - NUMA node from which memory should be allocated
       } AllocSizeRange;
 
-      // additions for Longhorn
-#define NVAL_MAX_BANKS (4)
-#define NVAL_MAP_DIRECTION             0:0
-#define NVAL_MAP_DIRECTION_DOWN 0x00000000
-#define NVAL_MAP_DIRECTION_UP   0x00000001
-
       // NVOS32_FUNCTION_GET_MEM_ALIGNMENT
       struct
       {
@@ -853,8 +812,6 @@ typedef struct
           NvU32 alignPitch;
           NvU32 alignPad;
           NvU32 alignMask;
-          NvU32 alignOutputFlags[NVAL_MAX_BANKS];           // We could compress this information but it is probably not that big of a deal
-          NvU32 alignBank[NVAL_MAX_BANKS];
           NvU32 alignKind;
           NvU32 alignAdjust;                                // Output -- If non-zero the amount we need to adjust the offset
           NvU32 alignAttr2;
@@ -923,16 +880,6 @@ typedef struct
   } data;
 } NVOS32_PARAMETERS;
 
-typedef struct
-{
-    NvU32 owner;    // owner id - NVOS32_BLOCK_TYPE_FREE or defined by client during heap_alloc
-    NvU32 format;   // arch specific format/kind
-    NvU64 begin NV_ALIGN_BYTES(8); // start of allocated memory block
-    NvU64 align NV_ALIGN_BYTES(8); // actual start of usable memory, aligned to chip specific boundary
-    NvU64 end   NV_ALIGN_BYTES(8); // end of usable memory.  end - align + 1 = size of block
-} NVOS32_HEAP_DUMP_BLOCK;
-
-
 #define NVOS32_DELETE_RESOURCES_ALL                     0
 
 // type field
@@ -953,7 +900,8 @@ typedef struct
 #define NVOS32_TYPE_RESERVED                            14
 #define NVOS32_TYPE_PMA                                 15
 #define NVOS32_TYPE_STENCIL                             16
-#define NVOS32_NUM_MEM_TYPES                            17
+#define NVOS32_TYPE_SYNCPOINT                           17
+#define NVOS32_NUM_MEM_TYPES                            18
 
 // Surface attribute field - bitmask of requested attributes the surface
 // should have.
@@ -1004,6 +952,22 @@ typedef struct
 #define NVOS32_ATTR_AA_SAMPLES_4_VIRTUAL_16             0x00000008
 #define NVOS32_ATTR_AA_SAMPLES_8_VIRTUAL_16             0x00000009
 #define NVOS32_ATTR_AA_SAMPLES_8_VIRTUAL_32             0x0000000A
+
+//
+//
+// GPU_CACHE_SNOOPABLE_ON signals to RM that CPU (or other IO device)
+// accesses to this surface will snoop the GPU cache.
+// _OFF indicates no GPU cache snooping will take place.
+// _MAPPING defers the decision to mapping time.
+//
+// Only applies to fully coherent platforms.
+//
+//
+#define NVOS32_ATTR_GPU_CACHE_SNOOPABLE                        9:8
+#define NVOS32_ATTR_GPU_CACHE_SNOOPABLE_MAPPING         0x00000000
+#define NVOS32_ATTR_GPU_CACHE_SNOOPABLE_OFF             0x00000001
+#define NVOS32_ATTR_GPU_CACHE_SNOOPABLE_ON              0x00000002
+#define NVOS32_ATTR_GPU_CACHE_SNOOPABLE_INVALID         0x00000003
 
 // Zcull region (NV40 and up)
 // If ATTR_ZCULL is REQUIRED or ANY and ATTR_DEPTH is UNKNOWN, the
@@ -1315,11 +1279,6 @@ typedef struct
 #define NVOS32_ATTR2_PROTECTION_DEVICE_READ_WRITE        0x00000000
 #define NVOS32_ATTR2_PROTECTION_DEVICE_READ_ONLY         0x00000001
 
-// Deprecated. To be deleted once client code has removed references.
-#define NVOS32_ATTR2_USE_EGM                                 24:24
-#define NVOS32_ATTR2_USE_EGM_FALSE                      0x00000000
-#define NVOS32_ATTR2_USE_EGM_TRUE                       0x00000001
-
 //
 // Allow client allocations to go to protected/unprotected video/system memory.
 // When Ampere Protected Model aka APM or Confidential Compute is enabled and
@@ -1339,6 +1298,20 @@ typedef struct
 #define NVOS32_ATTR2_ALLOCATE_FROM_SUBHEAP                   27:27
 #define NVOS32_ATTR2_ALLOCATE_FROM_SUBHEAP_NO           0x00000000
 #define NVOS32_ATTR2_ALLOCATE_FROM_SUBHEAP_YES          0x00000001
+
+//
+// Force the video memory allocation to localized allocation.
+// Same attribute can be used to choose between uGPU0 and uGPU1.
+// if set to default, RM will choose the next available uGPU memory.
+// if set to _UGPU0, RM will choose the memory from uGPU0.
+// if set to _UGPU1, RM will choose the memory from uGPU1.
+//
+#define NVOS32_ATTR2_ENABLE_LOCALIZED_MEMORY            30:29
+#define NVOS32_ATTR2_ENABLE_LOCALIZED_MEMORY_DEFAULT    0x00000000
+#define NVOS32_ATTR2_ENABLE_LOCALIZED_MEMORY_UGPU0      0x00000001
+#define NVOS32_ATTR2_ENABLE_LOCALIZED_MEMORY_UGPU1      0x00000002
+
+#define NVOS32_ATTR2_ENABLE_LOCALIZED_MEMORY_UGPU_COUNT 2
 
 //
 // When allocating memory, register the memory descriptor to GSP-RM
@@ -1444,12 +1417,6 @@ typedef struct
  *          denotes that an unmapped virtual address range should "not" fault but simply
  *          return 0's.
  *
- *      NVOS32_ALLOC_FLAGS_ALLOCATE_KERNEL_PRIVILEGED
- *          This a special flag that can be used only by kernel(root) clients
- *          to allocate memory out of a protected region of the address space
- *          If this flag is set by non kernel clients then the allocation will
- *          fail.
- *
  *      NVOS32_ALLOC_FLAGS_SKIP_RESOURCE_ALLOC
  *
  *      NVOS32_ALLOC_FLAGS_PREFER_PTES_IN_SYSMEMORY
@@ -1498,7 +1465,6 @@ typedef struct
 #define NVOS32_ALLOC_FLAGS_SPARSE                       0x04000000
 #define NVOS32_ALLOC_FLAGS_USER_READ_ONLY               0x04000000 // TODO BUG 2488682: remove this after KMD transition
 #define NVOS32_ALLOC_FLAGS_DEVICE_READ_ONLY             0x08000000 // TODO BUG 2488682: remove this after KMD transition
-#define NVOS32_ALLOC_FLAGS_ALLOCATE_KERNEL_PRIVILEGED   0x08000000
 #define NVOS32_ALLOC_FLAGS_SKIP_RESOURCE_ALLOC          0x10000000
 #define NVOS32_ALLOC_FLAGS_PREFER_PTES_IN_SYSMEMORY     0x20000000
 #define NVOS32_ALLOC_FLAGS_SKIP_ALIGN_PAD               0x40000000
@@ -1836,6 +1802,15 @@ typedef struct
 #define NVOS33_FLAGS_RESERVE_ON_UNMAP_DISABLE                      (0x00000000)
 #define NVOS33_FLAGS_RESERVE_ON_UNMAP_ENABLE                       (0x00000001)
 
+//
+// Internal use only
+// Can be used to set mappings path to PCIe when coherent C2C link is present 
+// 
+#define NVOS33_FLAGS_BUS                                           21:20
+#define NVOS33_FLAGS_BUS_DEFAULT                                   0
+#define NVOS33_FLAGS_BUS_COHERENT_LINK                             1
+#define NVOS33_FLAGS_BUS_PCIE                                      2
+
 // Internal use only
 #define NVOS33_FLAGS_OS_DESCRIPTOR                                 22:22
 #define NVOS33_FLAGS_OS_DESCRIPTOR_DISABLE                         (0x00000000)
@@ -2125,6 +2100,21 @@ typedef struct
 #define NVOS46_FLAGS_DISABLE_ENCRYPTION_FALSE                      (0x00000000)
 #define NVOS46_FLAGS_DISABLE_ENCRYPTION_TRUE                       (0x00000001)
 
+//
+// DEFAULT  - Use the cache policy set at allocation
+// YES      - Enable gpu caching
+// NO       - Disable gpu caching
+//
+#define NVOS46_FLAGS_GPU_CACHEABLE                                 18:17
+#define NVOS46_FLAGS_GPU_CACHEABLE_DEFAULT                         (0x00000000)
+#define NVOS46_FLAGS_GPU_CACHEABLE_YES                             (0x00000001)
+#define NVOS46_FLAGS_GPU_CACHEABLE_NO                              (0x00000002)
+#define NVOS46_FLAGS_GPU_CACHEABLE_INVALID                         (0x00000003)
+
+#define NVOS46_FLAGS_PAGE_KIND_OVERRIDE                            19:19
+#define NVOS46_FLAGS_PAGE_KIND_OVERRIDE_NO                         (0x00000000)
+#define NVOS46_FLAGS_PAGE_KIND_OVERRIDE_YES                        (0x00000001)
+
 #define NVOS46_FLAGS_P2P                                           27:20
 
 #define NVOS46_FLAGS_P2P_ENABLE                                    21:20
@@ -2161,6 +2151,19 @@ typedef struct
 #define NVOS46_FLAGS_DEFER_TLB_INVALIDATION_FALSE                  (0x00000000)
 #define NVOS46_FLAGS_DEFER_TLB_INVALIDATION_TRUE                   (0x00000001)
 
+//
+// This flag is used on fully coherent platforms to specify whether the GPU cache
+// should be snooped by the CPU or other IO devices for this mapping.
+//
+// Only takes effect if the physical memory is allocated with
+// _ATTR_GPU_CACHE_SNOOPABLE_MAPPING indicating the decision
+// should be deferred to map time.
+//
+#define NVOS46_FLAGS2_GPU_CACHE_SNOOP                          1:0
+#define NVOS46_FLAGS2_GPU_CACHE_SNOOP_DEFAULT                  (0x00000000)
+#define NVOS46_FLAGS2_GPU_CACHE_SNOOP_ENABLE                   (0x00000001)
+#define NVOS46_FLAGS2_GPU_CACHE_SNOOP_DISABLE                  (0x00000002)
+
 /* parameters */
 typedef struct
 {
@@ -2171,6 +2174,8 @@ typedef struct
     NvU64    offset NV_ALIGN_BYTES(8);     // [IN] offset of region
     NvU64    length NV_ALIGN_BYTES(8);     // [IN] limit of region
     NvV32    flags;                  // [IN] flags
+    NvV32    flags2;                 // [IN] flags2
+    NvV32    kindOverride;           // [IN] page kind - applied if NVOS46_FLAGS_PAGE_KIND_OVERRIDE is YES
     NvU64    dmaOffset NV_ALIGN_BYTES(8);  // [OUT] offset of mapping
                                            // [IN] if FLAGS_DMA_OFFSET_FIXED_TRUE
                                            //      *OR* hDma is NOT a CTXDMA handle
@@ -2178,6 +2183,7 @@ typedef struct
     NvV32    status;                 // [OUT] status
 } NVOS46_PARAMETERS;
 
+typedef NVOS46_PARAMETERS NV_MAP_MEMORY_DMA_PARAMETERS;
 
 /* function OS47 */
 #define NV04_UNMAP_MEMORY_DMA                                      (0x0000002F)
@@ -2199,6 +2205,7 @@ typedef struct
     NvV32    status;                 // [OUT] status
 } NVOS47_PARAMETERS;
 
+typedef NVOS47_PARAMETERS NV_UNMAP_MEMORY_DMA_PARAMETERS;
 
 #define NV04_BIND_CONTEXT_DMA                                      (0x00000031)
 /* parameters */
@@ -2299,6 +2306,399 @@ typedef struct
   NvU32           status;         // [OUT] status
 } NVOS57_PARAMETERS;
 
+/*!
+ * @defgroup    NVPOWERSTATE_STAGE
+ *
+ * An enumeration of various "stages" during @ref NVPOWERSTATE_PARAMETERS
+ * processing, particularly for tracking failures during a given stage.
+ *
+ * @{
+ */
+typedef NvU32 NVPOWERSTATE_STAGE;
+#define NVPOWERSTATE_STAGE_NONE                                                     0U
+#define NVPOWERSTATE_STAGE_WAIT_FOR_GFW_BOOT_OK                                     1U
+#define NVPOWERSTATE_STAGE_INIT_LIBOS_LOGGING_STRUCTURES                            2U
+#define NVPOWERSTATE_STAGE_GSP_PREPARE_FOR_BOOTSTRAP                                3U
+#define NVPOWERSTATE_STAGE_GSP_BOOTSTRAP                                            4U
+#define NVPOWERSTATE_STAGE_BOOT_GSP_RM_PROXY                                        5U
+#define NVPOWERSTATE_STAGE_VBIOS_HANDLE_SECURE_BOOT                                 6U
+#define NVPOWERSTATE_STAGE_RESTORE_PCIE_CONFIG_REGISTERS                            7U
+#define NVPOWERSTATE_STAGE_GCX_BOOT_TIMER_CB_SCHEDULE                               8U
+#define NVPOWERSTATE_STAGE_POWER_MANAGEMENT_RESUME_PRE_LOAD_PHYSICAL_UNATTACHED     9U
+#define NVPOWERSTATE_STAGE_PMS_EXPECTED_CHECKPOINT_DONE                             10U
+#define NVPOWERSTATE_STAGE_POLL_FOR_NVLINK_READY                                    11U
+#define NVPOWERSTATE_STAGE_CE_STATE_PRE_LOAD                                        12U
+#define NVPOWERSTATE_STAGE_LOAD_PROXY_UCODE_EARLY_INIT                              13U
+#define NVPOWERSTATE_STAGE_RESTORE_NON_WPR_REGION                                   14U
+#define NVPOWERSTATE_STAGE_PMU_20_OS_BOOTSTRAP                                      15U
+#define NVPOWERSTATE_STAGE_STATE_PRE_LOAD_ENGINE                                    16U
+#define NVPOWERSTATE_STAGE_STATE_PRE_LOAD_UNKNOWN                                   17U
+#define NVPOWERSTATE_STAGE_STATE_LOAD_ENGINE                                        18U
+#define NVPOWERSTATE_STAGE_STATE_LOAD_UNKNOWN                                       19U
+#define NVPOWERSTATE_STAGE_STATE_LOAD_PHYSICAL                                      20U
+#define NVPOWERSTATE_STAGE_STATE_POST_LOAD_ENGINE                                   21U
+#define NVPOWERSTATE_STAGE_STATE_POST_LOAD_UNKNOWN                                  22U
+#define NVPOWERSTATE_STAGE_GSP_PREPARE_SUSPEND_RESUME_DATA                          23U
+#define NVPOWERSTATE_STAGE_MC_POINTER_NULL                                          24U
+#define NVPOWERSTATE_STAGE_SAVE_PCIE_CONFIG_REGISTERS                               25U
+#define NVPOWERSTATE_STAGE_STATE_PRE_UNLOAD_ENGINE                                  26U
+#define NVPOWERSTATE_STAGE_STATE_PRE_UNLOAD_UNKNOWN                                 27U
+#define NVPOWERSTATE_STAGE_STATE_UNLOAD_ENGINE                                      28U
+#define NVPOWERSTATE_STAGE_STATE_UNLOAD_UNKNOWN                                     29U
+#define NVPOWERSTATE_STAGE_STATE_POST_UNLOAD_ENGINE                                 30U
+#define NVPOWERSTATE_STAGE_STATE_POST_UNLOAD_UNKNOWN                                31U
+#define NVPOWERSTATE_STAGE_GSP_UNLOAD_RM                                            32U
+#define NVPOWERSTATE_STAGE_MONITOR_STATE_0                                          33U
+#define NVPOWERSTATE_STAGE_MONITOR_STATE_1                                          34U
+#define NVPOWERSTATE_STAGE_MONITOR_STATE_HIBERNATE                                  35U
+#define NVPOWERSTATE_STAGE_SET_POWER_STATE_UNKNOWN                                  36U
+#define NVPOWERSTATE_STAGE__COUNT                                                   37U
+/*!@}*/
+
+/*!
+ * Common structure for any failure within a given GPU engine in a top-level GPU
+ * state transition
+ */
+typedef struct
+{
+    /*!
+     * NVOC class ID of the failing engine
+     */
+    NvU32 classId;
+
+    /*!
+     * Time from beginning of the state transition to this engine's failure
+     */
+    NvU64 cumulativeTimeus;
+
+    /*!
+     * Maximum time any of the engines took to transition
+     */
+    NvU32 engineMaxTimeus;
+
+    /*!
+     * NVOC class ID of the engine that took the longest time to transition
+     */
+    NvU32 engineMaxTimeClassId;
+} NVPOWERSTATE_FAILURE_ENGINE_TRANSITION;
+
+/*!
+ * @defgroup    NVPOWERSTATE_FAILURE_STRUCTURE
+ *
+ * A set of structures for capturing additional, failure-specific data in a
+ * @ref NVPOWERSTATE_PARAMETERS processing failure.
+ *
+ * @note    These structures should correspond 1:1 with the list of
+ *          @ref NVPOWERSTATE_STAGE values
+ *
+ * @{
+ */
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_WAIT_FOR_GFW_BOOT_OK;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_INIT_LIBOS_LOGGING_STRUCTURES;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_GSP_PREPARE_FOR_BOOTSTRAP;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_GSP_BOOTSTRAP;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_BOOT_GSP_RM_PROXY;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_VBIOS_HANDLE_SECURE_BOOT;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_RESTORE_PCIE_CONFIG_REGISTERS;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_GCX_BOOT_TIMER_CB_SCHEDULE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_POWER_MANAGEMENT_RESUME_PRE_LOAD_PHYSICAL_UNATTACHED;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_PMS_EXPECTED_CHECKPOINT_DONE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_POLL_FOR_NVLINK_READY;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_CE_STATE_PRE_LOAD;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_LOAD_PROXY_UCODE_EARLY_INIT;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_RESTORE_NON_WPR_REGION;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_PMU_20_OS_BOOTSTRAP;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_PRE_LOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_PRE_LOAD_UNKNOWN;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_LOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_LOAD_UNKNOWN;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_POST_LOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_POST_LOAD_UNKNOWN;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_LOAD_PHYSICAL;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_GSP_PREPARE_SUSPEND_RESUME_DATA;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_MC_POINTER_NULL;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_SAVE_PCIE_CONFIG_REGISTERS;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_PRE_UNLOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_PRE_UNLOAD_UNKNOWN;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_UNLOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_UNLOAD_UNKNOWN;
+
+typedef struct
+{
+    NVPOWERSTATE_FAILURE_ENGINE_TRANSITION engineTransition;
+} NVPOWERSTATE_FAILURE_STATE_POST_UNLOAD_ENGINE;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_STATE_POST_UNLOAD_UNKNOWN;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_GSP_UNLOAD_RM;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_MONITOR_STATE_0;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_MONITOR_STATE_1;
+
+typedef struct
+{
+    NvU8 rsvd;
+} NVPOWERSTATE_FAILURE_MONITOR_STATE_HIBERNATE;
+
+typedef struct
+{
+    /*!
+     * NV_POWER_ADAPTER_STATE_* value
+     */
+    NvU32 state;
+} NVPOWERSTATE_FAILURE_SET_POWER_STATE_UNKNOWN;
+/*!@}*/
+
+/*!
+ * A union to hold failure-specific data for any failure that might happen while
+ * doing @ref NVPOWERSTATE_PARAMETERS processing
+ *
+ * @note    Entries in the union should correspond 1:1 with
+ *          @ref NVPOWERSTATE_STAGE values
+ */
+typedef union
+{
+    NVPOWERSTATE_FAILURE_WAIT_FOR_GFW_BOOT_OK waitForGfwBootOk;
+    NVPOWERSTATE_FAILURE_INIT_LIBOS_LOGGING_STRUCTURES initLibosLoggingStructures;
+    NVPOWERSTATE_FAILURE_GSP_PREPARE_FOR_BOOTSTRAP gspPrepareForBootstrap;
+    NVPOWERSTATE_FAILURE_GSP_BOOTSTRAP gspBootstrap;
+    NVPOWERSTATE_FAILURE_BOOT_GSP_RM_PROXY bootGspRmProxy;
+    NVPOWERSTATE_FAILURE_VBIOS_HANDLE_SECURE_BOOT vbiosHandleSecureBoot;
+    NVPOWERSTATE_FAILURE_RESTORE_PCIE_CONFIG_REGISTERS restorePcieConfigRegisters;
+    NVPOWERSTATE_FAILURE_GCX_BOOT_TIMER_CB_SCHEDULE gcxBootTimerCbSchedule;
+    NVPOWERSTATE_FAILURE_POWER_MANAGEMENT_RESUME_PRE_LOAD_PHYSICAL_UNATTACHED powerManagementResumePreLoadPhysicalUnattached;
+    NVPOWERSTATE_FAILURE_PMS_EXPECTED_CHECKPOINT_DONE pmsExpectedCheckpointDone;
+    NVPOWERSTATE_FAILURE_POLL_FOR_NVLINK_READY pollForNvlinkReady;
+    NVPOWERSTATE_FAILURE_CE_STATE_PRE_LOAD ceStatePreLoad;
+    NVPOWERSTATE_FAILURE_LOAD_PROXY_UCODE_EARLY_INIT loadProxyUcodeEarlyInit;
+    NVPOWERSTATE_FAILURE_RESTORE_NON_WPR_REGION restoreNonWprRegion;
+    NVPOWERSTATE_FAILURE_PMU_20_OS_BOOTSTRAP pmu20OsBootstrap;
+    NVPOWERSTATE_FAILURE_STATE_PRE_LOAD_ENGINE statePreLoadEngine;
+    NVPOWERSTATE_FAILURE_STATE_PRE_LOAD_UNKNOWN statePreLoadUnknown;
+    NVPOWERSTATE_FAILURE_STATE_LOAD_ENGINE stateLoadEngine;
+    NVPOWERSTATE_FAILURE_STATE_LOAD_UNKNOWN stateLoadUnknown;
+    NVPOWERSTATE_FAILURE_STATE_POST_LOAD_ENGINE statePostLoadEngine;
+    NVPOWERSTATE_FAILURE_STATE_POST_LOAD_UNKNOWN statePostLoadUnknown;
+    NVPOWERSTATE_FAILURE_STATE_LOAD_PHYSICAL stateLoadPhysical;
+    NVPOWERSTATE_FAILURE_GSP_PREPARE_SUSPEND_RESUME_DATA gspPrepareSuspendResumeData;
+    NVPOWERSTATE_FAILURE_MC_POINTER_NULL mcPointerNull;
+    NVPOWERSTATE_FAILURE_SAVE_PCIE_CONFIG_REGISTERS savePcieConfigRegisters;
+    NVPOWERSTATE_FAILURE_STATE_PRE_UNLOAD_ENGINE statePreUnloadEngine;
+    NVPOWERSTATE_FAILURE_STATE_PRE_UNLOAD_UNKNOWN statePreUnloadUnknown;
+    NVPOWERSTATE_FAILURE_STATE_UNLOAD_ENGINE stateUnloadEngine;
+    NVPOWERSTATE_FAILURE_STATE_UNLOAD_UNKNOWN stateUnloadUnknown;
+    NVPOWERSTATE_FAILURE_STATE_POST_UNLOAD_ENGINE statePostUnloadEngine;
+    NVPOWERSTATE_FAILURE_STATE_POST_UNLOAD_UNKNOWN statePostUnloadUnknown;
+    NVPOWERSTATE_FAILURE_GSP_UNLOAD_RM gspUnloadRm;
+    NVPOWERSTATE_FAILURE_MONITOR_STATE_0 monitorState0;
+    NVPOWERSTATE_FAILURE_MONITOR_STATE_1 monitorState1;
+    NVPOWERSTATE_FAILURE_MONITOR_STATE_HIBERNATE monitorStateHibernate;
+    NVPOWERSTATE_FAILURE_SET_POWER_STATE_UNKNOWN setPowerStateUnknown;
+} NVPOWERSTATE_FAILURE_DATA;
+
+/*!
+ * Contains failure data for a failure that occurred during
+ * @ref NVPOWERSTATE_PARAMETERS processing
+ */
+typedef struct
+{
+    /*!
+     * The @ref NVPOWERSTATE_STAGE in which the failure occurred, or @ref
+     * @ref NVPOWERSTATE_STAGE_NONE if no failure occurred.
+     *
+     * @note    This field is the discriminant for
+     *          @ref NVPOWERSTATE_FAILURE::data
+     */
+    NVPOWERSTATE_STAGE stage;
+
+    /*!
+     * The @ref NV_STATUS value from the failure
+     */
+    NV_STATUS status;
+
+    /*!
+     * Failure-specific data
+     *
+     * @note    Valid entry is determined by @ref NVPOWERSTATE_FAILURE::stage
+     */
+    NVPOWERSTATE_FAILURE_DATA data;
+} NVPOWERSTATE_FAILURE;
+
+/*!
+ * @brief   Initializes a @ref NVPOWERSTATE_FAILURE for tracking
+ *          during a transition
+ *
+ * @param[out]  pFailure
+ *  Pointer to @ref NVPOWERSTATE_FAILURE to initialize
+ */
+static NV_FORCEINLINE void
+nvPowerStateFailureInit
+(
+    NVPOWERSTATE_FAILURE *pFailure
+)
+{
+#if !defined(NVRISCV_LIBFSP_BUILD) || !NVRISCV_LIBFSP_BUILD
+    (void)NVMISC_MEMSET(
+        pFailure,
+        0x0,
+        sizeof(*pFailure));
+#else
+    (void)memset(
+        pFailure,
+        0x0,
+        sizeof(*pFailure));
+#endif
+}
+
+/*!
+ * @brief   Returns whether the given @ref NVPOWERSTATE_FAILURE is already
+ *          populated with error data
+ *
+ * @param[in]   pFailure
+ *  @ref NVPOWERSTATE_FAILURE to check
+ *
+ * @return  @ref NV_TRUE
+ *  Structure is already populated with failure data
+ * @return  @ref NV_FALSE
+ *  Otherwise
+ */
+static NV_FORCEINLINE NvBool
+nvPowerStateFailureIsPopulated
+(
+    const NVPOWERSTATE_FAILURE *pFailure
+)
+{
+    return pFailure->stage != NVPOWERSTATE_STAGE_NONE;
+}
+
 /* parameters */
 typedef struct
 {
@@ -2313,6 +2713,7 @@ typedef struct
     NvU32 fastBootPowerState;
     NvU8  bGC8Transition;
     NvU8  bGC8InputRailCutOff;   // [OUT] To tell client if input rail was cut off in GC8
+    NVPOWERSTATE_FAILURE failure;
 } NVPOWERSTATE_PARAMETERS, *PNVPOWERSTATE_PARAMETERS;
 
  /***************************************************************************\
@@ -2346,13 +2747,6 @@ typedef struct {
 //          VASPACE_SIZE               Honor vaSpaceSize field.
 //
 //          MAP_PTE                    Deprecated.
-//
-//          VASPACE_IS_MIRRORED        This flag will tell RM to create a mirrored
-//                                     kernel PDB for the address space associated
-//                                     with this device. When this flag is set
-//                                     the address space covered by the top PDE
-//                                     is restricted and cannot be allocated out of.
-//
 //
 //          VASPACE_BIG_PAGE_SIZE_64k  ***Warning this flag will be deprecated do not use*****
 //          VASPACE_BIG_PAGE_SIZE_128k This flag will choose the big page size of the VASPace
@@ -2421,11 +2815,6 @@ typedef struct {
 #define NV_DEVICE_ALLOCATION_FLAGS_VASPACE_BIG_PAGE_SIZE_64k       (0x00000200)
 #define NV_DEVICE_ALLOCATION_FLAGS_VASPACE_BIG_PAGE_SIZE_128k      (0x00000400)
 #define NV_DEVICE_ALLOCATION_FLAGS_RESTRICT_RESERVED_VALIMITS      (0x00000800)
-
-/*
- *TODO: Delete this flag once CUDA moves to the ctrl call
- */
-#define NV_DEVICE_ALLOCATION_FLAGS_VASPACE_IS_MIRRORED             (0x00000040)
 
 // XXX NV_DEVICE_ALLOCATION_FLAGS_VASPACE_PTABLE_PMA_MANAGED should not
 //     should not be exposed to clients. It should be the default RM
@@ -2552,7 +2941,8 @@ typedef struct
     NvU32 size;
     NvU32 prohibitMultipleInstances;
     NvU32 engineInstance;               // Select NVDEC0 or NVDEC1 or NVDEC2
-} NV_BSP_ALLOCATION_PARAMETERS;
+} NV_NVDEC_ALLOCATION_PARAMETERS;
+#define NV_BSP_ALLOCATION_PARAMETERS NV_NVDEC_ALLOCATION_PARAMETERS
 
 //
 // These are referenced by mdiag mods tests, but do not appear to be used during
@@ -2598,9 +2988,10 @@ typedef struct
 typedef struct
 {
     NvU32 size;
-    NvU32 prohibitMultipleInstances;  // Prohibit multiple allocations of MSENC?
-    NvU32 engineInstance;             // Select MSENC/NVENC0 or NVENC1 or NVENC2
-} NV_MSENC_ALLOCATION_PARAMETERS;
+    NvU32 prohibitMultipleInstances;  // Prohibit multiple allocations of NVENC?
+    NvU32 engineInstance;             // Select NVENC0 or NVENC1 or NVENC2
+} NV_NVENC_ALLOCATION_PARAMETERS;
+#define NV_MSENC_ALLOCATION_PARAMETERS NV_NVENC_ALLOCATION_PARAMETERS
 
 typedef struct
 {
@@ -2703,12 +3094,6 @@ typedef struct
  *          Note that operations (2) and (4) are symmetric - the RM perspective of management is identical
  *          before and after a sequence of SET => ... => UNSET.
  *
- *       IS_MIRRORED      <to be deprecated once CUDA uses EXTERNALLY_MANAGED>
- *                        This flag will tell RM to create a mirrored
- *                        kernel PDB for the address space associated
- *                        with this device. When this flag is set
- *                        the address space covered by the top PDE
- *                        is restricted and cannot be allocated out of.
  *       ENABLE_PAGE_FAULTING
  *                        Enable page faulting if the architecture supports it.
  *                        As of now page faulting is only supported for compute on pascal+.
@@ -2721,7 +3106,7 @@ typedef struct
  *                        Note, the GMMU page tables still exist and take priority over NVLINK ATS.
  *                        VA space object creation will fail if:
  *                        - hardware support is not available (NV_ERR_NOT_SUPPORTED)
- *                        - incompatible options IS_MIRRORED or IS_EXTERNALLY_OWNED are set (NV_ERR_INVALID_ARGUMENT)
+ *                        - incompatible option IS_EXTERNALLY_OWNED is set (NV_ERR_INVALID_ARGUMENT)
  *       IS_FLA
  *                        Sets FLA flag for this VASPACE
  *
@@ -2754,6 +3139,9 @@ typedef struct
  *       will override to the default big page size that is supported by the system.
  *       If the big page size value is set to ZERO then we will pick the default page size
  *       of the system.
+ * pasid
+ *       Process Address Space Identifier. Used by RM internally when
+ *       NV_VASPACE_ALLOCATION_FLAGS_ENABLE_NVLINK_ATS_TEST is set
  **/
 typedef struct
 {
@@ -2764,6 +3152,7 @@ typedef struct
     NvU64   vaLimitInternal NV_ALIGN_BYTES(8);
     NvU32   bigPageSize;
     NvU64   vaBase NV_ALIGN_BYTES(8);
+    NvU32   pasid;
 } NV_VASPACE_ALLOCATION_PARAMETERS;
 
 #define NV_VASPACE_ALLOCATION_FLAGS_NONE                            (0x00000000)
@@ -2772,7 +3161,6 @@ typedef struct
 #define NV_VASPACE_ALLOCATION_FLAGS_SHARED_MANAGEMENT                     BIT(2)
 #define NV_VASPACE_ALLOCATION_FLAGS_IS_EXTERNALLY_OWNED                   BIT(3)
 #define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_NVLINK_ATS                     BIT(4)
-#define NV_VASPACE_ALLOCATION_FLAGS_IS_MIRRORED                           BIT(5)
 #define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_PAGE_FAULTING                  BIT(6)
 #define NV_VASPACE_ALLOCATION_FLAGS_VA_INTERNAL_LIMIT                     BIT(7)
 #define NV_VASPACE_ALLOCATION_FLAGS_ALLOW_ZERO_ADDRESS                    BIT(8)
@@ -2781,6 +3169,8 @@ typedef struct
 #define NV_VASPACE_ALLOCATION_FLAGS_OPTIMIZE_PTETABLE_MEMPOOL_USAGE       BIT(11)
 #define NV_VASPACE_ALLOCATION_FLAGS_REQUIRE_FIXED_OFFSET                  BIT(12)
 #define NV_VASPACE_ALLOCATION_FLAGS_PTETABLE_HEAP_MANAGED                 BIT(13)
+// To be used only by SRT for testing ATS within RM
+#define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_NVLINK_ATS_TEST                BIT(14)
 
 #define NV_VASPACE_ALLOCATION_INDEX_GPU_NEW                                 0x00 //<! Create new VASpace, by default
 #define NV_VASPACE_ALLOCATION_INDEX_GPU_HOST                                0x01 //<! Acquire reference to BAR1 VAS.

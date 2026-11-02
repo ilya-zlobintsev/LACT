@@ -1,11 +1,11 @@
-info-page = 信息
-oc-page = OC
+info-page = 硬件信息
+oc-page = 超频
 thermals-page = 散热
-software-page = 软件
+software-page = 软件信息
 hardware-info = 硬件信息
 system-section = 系统
 lact-daemon = LACT 守护进程
-lact-gui = LACT图形用户界面
+lact-gui = LACT 图形用户界面
 kernel-version = 内核版本
 instance = 实例
 compute-units = 计算单元数
@@ -55,9 +55,7 @@ automatic-mode-threshold-tooltip =
 
     此选项通过仅在高于该温度时使用自定义曲线来绕过此限制，而在低于该温度时使用显卡内置且支持零转速的自动模式。
 amd-oc = AMD 超频
-amd-oc-disabled =
-    未启用 AMD 超频支持！
-    您仍可修改基本设置，但高级时钟和电压控制将不可用。
+amd-oc-disabled = 未启用 AMD 超频支持！<a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)">一些功能将不可用。</a>
 amd-oc-status =
     AMD 超频当前状态 : <b>{ $status ->
         [true] 已启用
@@ -84,21 +82,21 @@ cache-instruction = 指令
 cache-cpu = 处理器
 amd-oc-description =
     { $config ->
-        [rpm-ostree] 此选项通过 <b>rpm-ostree</b>启动标志来切换 AMD Overdrive 支持。
+        [rpm-ostree] 此选项通过 <b>rpm-ostree</b> 启动标志来切换 AMD overdrive 支持。
         [unsupported]
-            当前系统未被识别为支持自动 Overdrive 配置。
+            当前系统未被识别为支持自动 overdrive 配置。
             您可以尝试通过 LACT 启用超频，但可能需要手动重新生成 initramfs 才能生效。
             如果仍无法生效，备用方案是在引导程序中添加 <b>amdgpu.ppfeaturemask=0xffffffff</b> 启动参数。
-       *[other] 此选项通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来切换 AMD Overdrive 支持。
+       *[other] 此选项通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来切换 AMD overdrive 支持。
     }
 
-    更多信息详见 <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)"> Wiki 文档</a> 。
+    可通过 <a href="https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)"> Wiki 文档</a> 查阅更多信息。
 enable-amd-oc-description = 此操作将通过在 <b>{ $path }</b> 创建文件并更新 initramfs 来启用 amdgpu 驱动的 Overdrive 特性。您确定要继续吗？
 disable-amd-oc-description = 此操作将在下一次重启时禁用 AMD 超频 (Overdrive) 支持。
 amd-oc-updating-configuration = 正在更新配置 (可能需要一些时间)
 amd-oc-updating-done = 配置已更新，请重启以应用更改。
 reset-config = 重置配置
-reset-config-description = 您确定要重置所有 GPU 配置吗？
+reset-config-description = 这将重置所有 GPU 配置到默认并永久性删除所有配置文件
 revert-button = 还原
 power-cap = 功耗限制
 watt = W
@@ -127,8 +125,8 @@ performance-level = 性能等级
 power-profile-mode = 功耗模式:
 manual-level-needed = 必须将性能等级设置为“手动”，才能使用电源状态和模式
 overclock-section = 时钟速度和电压
-nvidia-oc-info = 英伟达超频信息
-oc-warning = 警告：更改这些数值可能导致系统不稳定，并存在损坏硬件的风险！
+nvidia-oc-info = 超频信息
+oc-warning = 更改这些数值可能导致系统不稳定，并存在损坏硬件的风险！
 show-all-pstates = 显示所有 P-State
 enable-gpu-locked-clocks = 启用 GPU 时钟锁定
 enable-vram-locked-clocks = 启用显存时钟锁定
@@ -158,9 +156,9 @@ mem-pstate-clock-voltage = GPU P-State { $pstate } 电压(mV)
 pstates = 电源状态
 gpu-pstates = GPU 电源状态
 vram-pstates = 显存电源状态
-pstates-manual-needed = 注意：必须将性能等级设置为“手动”，才能切换电源状态
+pstates-manual-needed = 必须将性能等级设置为“手动”，才能切换电源状态
 enable-pstate-config = 启用电源状态配置
-show-historical-charts = 显示历史图表
+show-historical-charts = 显示图表
 show-process-monitor = 显示进程监视器
 generate-debug-snapshot = 生成调试快照
 dump-vbios = 转储 VBIOS
@@ -174,7 +172,7 @@ add-graph = 添加图表
 delete-graph = 删除图表
 export-csv = 导出为 CSV
 edit-graph-sensors = 编辑图表传感器
-reconnecting-to-daemon = 守护进程连接丢失，正在重新连接...
+reconnecting-to-daemon = 后台服务连接丢失，正在尝试重新连接...
 daemon-connection-lost = 连接丢失
 plot-show-detailed-info = 显示详细信息
 settings-profile = 设置配置文件
@@ -221,8 +219,93 @@ nvidia-oc-description =
     例如， +1000MHz 的显存偏移可能只会使测得的显存速度增加 500MHz.
     这是正常现象，因为英伟达处理 GDDR 数据速率的方式就是如此。请据此调整你的超频设置。
 
-    不支持直接电压控制，因为英伟达 Linux 驱动中不存在此功能。
-
     可通过将锁定时钟选项与正时钟偏移结合使用，实现类似降压效果。
     这种方式会强制 GPU 在受锁定时钟限制的电压下运行，同时通过偏移实现更高的时钟速度。
     如果偏移过高，可能会导致系统不稳定。
+gibibyte = GiB
+crash-page-title = 应用程序崩溃
+exit = 退出
+kibibyte = KiB
+displays-page = 显示信息
+hw-ip-info = 硬件 IP 信息
+confirm-settings = 确认设置
+settings-confirmation = 您想保存新设置吗？（在{ $seconds_left }秒后自动复原）
+bytes = 字节
+vf-curve-editor = 电压/频率曲线编辑器
+nvidia-vf-curve-warning =
+    电压/频率曲线编辑器依赖于未公开的驱动程序功能。
+    对其行为、安全性或可用性不作任何保证。
+    <span weight = "heavy" underline = "single">风险自负</span>。
+voltage = 电压
+frequency = 频率
+vf-active-curve = 有效曲线
+vf-base-curve = 基础曲线
+vf-curve-visible-range = 可视范围 (%):
+vf-curve-visible-range-to = 到
+vf-curve-flatten-right = 向右压平曲线
+menu = 菜单
+daemon-info-heading = 守护进程信息
+version-mismatch-description =
+    图形用户界面和守护进程间版本不匹配 ({ $gui_version }-{ $gui_commit } 对比 { $daemon_version }-{ $daemon_commit })！
+    如果您更新过 LACT ，您需要重新启动后台服务。
+display-title = 显示 { $identifier }
+display-manufacturer = 制造商
+display-product-code = 产品代码
+display-model = 型号
+display-physical-size = 物理大小
+display-connection = 连接
+display-manufacture-date = 生产日期
+close = 关闭
+theme = 主题
+theme-auto = 自动
+preferences = 偏好设置
+ui = 用户界面
+daemon = 守护进程
+about = 关于
+hw-queues = 队列
+confirm = 确认
+error-heading = 错误
+color-scheme-auto = 系统
+color-scheme-light = 浅色
+color-scheme-dark = 深色
+power-mizer-mode-auto = 自动
+thresholds-section = 阈值和限制
+no-fan-detected = 没有检测到风扇
+no-sensors-found = 没有检测到传感器
+reset-now-button = 现在重置
+default-button = 默认
+gtt-usage = GTT 使用：
+power-mizer-mode = PowerMizer 模式
+power-mizer-mode-adaptive = 自适应
+power-mizer-mode-prefer-maximum-performance = 偏好最大化性能
+power-mizer-mode-prefer-consistent-performance = 偏好一致化性能
+power-mizer-mode-auto-description = 让驱动程序选择性能策略。
+power-mizer-mode-adaptive-description = 根据 GPU 使用率调整 GPU 频率。
+power-mizer-mode-prefer-maximum-performance-description = 青睐在驱动限制内最大化性能。
+power-mizer-mode-prefer-consistent-performance-description = 锁定 GPU 到基础频率。
+vf-curve-flatten-selection = 拉平选择
+gpu-voltage-boost = GPU 电压提升 (%)
+gpu-voltage-boost-tooltip = 控制驱动程序定义的额外电压余量的可用量。100% 意味着使用所有这些余量，而不是 GPU 总电压的 100%。更多的余量可能支撑更高的时钟频率，但会增加功耗和发热。
+service-explanation =
+    应用 GPU 设置需要 LACT 系统服务。
+    没有该服务时，LACT 将以独立模式运行，此模式下只能获取信息和进行监控。
+service-setup-title = 服务设置
+setup-error = 设置错误：{ $error }
+service-connection-status = 连接状态
+service-status = 服务状态
+service-permission-denied =
+    权限被拒绝，服务未配置为允许您的用户连接。
+    可从 <a href="https://github.com/ilya-zlobintsev/lact#configuration">GitHub</a> 获得更多信息
+service-connected = 已连接
+service-disconnected = 未连接
+service-version = 服务版本
+gui-version = 图形用户界面版本
+service-version-mismatch = 不匹配
+service-logs = 服务日志
+service-start = 启动
+service-stop = 停止
+service-restart = 重启
+service-autostart = 开机时自动启动
+service-autostart-disable = 也关闭自动启动
+displays-missing = 未检测到显示器
+color-scheme = 配色方案

@@ -13,17 +13,23 @@ if [ ! -e "${DAEMON_SOCKET}" ]; then
     
     set +e
 
-    YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
-    --text="The LACT system service could not be found.
+    if [ "${LACT_UNATTENDED_SETUP}" == "true" ]; then
+        YAD_OUTPUT="TRUE|"
+        EXIT_CODE=0
+    else
+        YAD_OUTPUT=$(yad --title="LACT Flatpak Setup" \
+        --text="The LACT system service could not be found.
 In order to edit GPU settings, LACT requires a service to be running as root.
 This setup will install <u><tt>lactd.service</tt></u> outside of the Flatpak sandbox.
 
 It is possible to skip this step if you wish to use LACT only for information and monitoring.
 
 Do you wish to install the service?" \
-    --form \
-    --field "Autostart service at boot":CHK "TRUE")
-    EXIT_CODE=$?
+        --form \
+        --field "Autostart service at boot":CHK "TRUE")
+        EXIT_CODE=$?
+    fi
+
     
     set -e
     
@@ -39,7 +45,7 @@ After=multi-user.target
 
 [Service]
 Environment=FLATPAK_INSTALL_USER=$USER
-ExecStart=$DAEMON_SH_PATH
+ExecStart=bash $DAEMON_SH_PATH
 Nice=-10
 Restart=on-failure
 
@@ -70,30 +76,13 @@ WantedBy=multi-user.target\
             flatpak-spawn --host $ROOT_WRAPPER sh -c "systemctl daemon-reload && systemctl start lactd.service"
         fi
 
-        yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
+        if [ "${LACT_UNATTENDED_SETUP}" != "true" ]; then
+            yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
+        fi
         exit 0
     else
         echo "Service setup rejected, skipping"
     fi
-fi
-
-if [ -z "$GTK_THEME" ]; then
-    set +e
-    if [ "$(gsettings get org.gnome.desktop.interface gtk-theme)" = "'Adwaita'" ] && [ "$(gsettings get org.gnome.desktop.interface color-scheme)" = "'default'" ]; then
-        COLOR_SCHEME=$(dbus-send --session --print-reply \
-          --dest=org.freedesktop.portal.Desktop \
-          /org/freedesktop/portal/desktop \
-          org.freedesktop.portal.Settings.Read \
-          string:"org.freedesktop.appearance" \
-          string:"color-scheme" \
-	  | grep -oP '(?<=uint32 )\d+')
-
-	if [ "$COLOR_SCHEME" = "1" ]; then
-	    export GTK_THEME="Adwaita:dark"
-	    echo "Detected dark theme system setting, GTK theme overriden to $GTK_THEME"
-	fi
-    fi
-    set -e
 fi
 
 lact $@

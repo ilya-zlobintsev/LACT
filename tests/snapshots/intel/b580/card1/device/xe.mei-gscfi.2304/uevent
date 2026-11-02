@@ -1,0 +1,2 @@
+DRIVER=mei_gsc
+MODALIAS=auxiliary:xe.mei-gscfi

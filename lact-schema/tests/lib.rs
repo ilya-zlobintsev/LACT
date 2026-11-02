@@ -3,9 +3,9 @@ use amdgpu_sysfs::gpu_handle::fan_control::FanInfo;
 #[cfg(feature = "schema")]
 use amdgpu_sysfs::hw_mon::Temperature;
 #[cfg(feature = "schema")]
-use lact_schema::{ClocksInfo, DeviceStats, FanStats, PmfwInfo};
+use indexmap::IndexMap;
 #[cfg(feature = "schema")]
-use std::collections::HashMap;
+use lact_schema::{ClocksInfo, DeviceStats, FanStats, PmfwInfo, TemperatureEntry};
 
 #[cfg(feature = "schema")]
 use schemars::schema_for;
@@ -43,28 +43,40 @@ fn test_temperatures_schema() {
         .expect("Failed to create JSON schema validator");
 
     let temperature_cases = [
-        Some(Temperature {
-            current: Some(65.0),
-            crit: Some(90.0),
-            crit_hyst: Some(85.0),
+        Some(TemperatureEntry {
+            value: Temperature {
+                current: Some(65.0),
+                crit: Some(90.0),
+                crit_hyst: Some(85.0),
+            },
+            primary: true,
+            display_only: false,
         }),
-        Some(Temperature {
-            current: None,
-            crit: Some(90.0),
-            crit_hyst: Some(85.0),
+        Some(TemperatureEntry {
+            value: Temperature {
+                current: None,
+                crit: Some(90.0),
+                crit_hyst: Some(85.0),
+            },
+            primary: true,
+            display_only: false,
         }),
-        Some(Temperature {
-            current: Some(65.0),
-            crit: None,
-            crit_hyst: None,
+        Some(TemperatureEntry {
+            value: Temperature {
+                current: Some(65.0),
+                crit: None,
+                crit_hyst: None,
+            },
+            primary: false,
+            display_only: true,
         }),
         None,
     ];
 
     for temp_case in &temperature_cases {
-        let mut temps = HashMap::new();
-        if let Some(temp) = temp_case {
-            temps.insert("edge".to_string(), *temp);
+        let mut temps = IndexMap::new();
+        if let Some(entry) = temp_case {
+            temps.insert("edge".to_string(), entry.clone());
         }
 
         let stats = DeviceStats {

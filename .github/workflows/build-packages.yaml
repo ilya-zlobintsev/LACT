@@ -10,7 +10,7 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        target-os: [ debian-12, ubuntu-2204, ubuntu-2404, fedora-41, fedora-42, arch, opensuse-tumbleweed ]
+        target-os: [ debian-13, ubuntu-2404, ubuntu-2604, fedora-43, fedora-44, arch, opensuse-tumbleweed ]
         recipe: [ lact, lact-headless ]
         include:
           - target-os: rhel-8
@@ -20,7 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Docker Cache
+        uses: AndreKurait/docker-cache@7a3887908bdb97935395833df69b060cfcca0f7f # 0.7.0
+        with:
+          key: docker-${{ matrix.target-os }}-${{ hashFiles('pkg/images/') }}
 
       - name: Import gpg key
         run: |
@@ -29,22 +34,33 @@ jobs:
         env:
           GPG_KEY: ${{ secrets.GPG_KEY }}
 
+      # TODO: remove this later, potential cause: https://github.com/moby/moby/issues/51665
+      - name: Fix docker 
+        run: |
+          sudo tee /etc/docker/daemon.json <<EOF
+          {
+            "storage-driver": "overlay2"
+          }
+          EOF
+          sudo systemctl restart docker
+          docker info
+
       - name: Install pkger
         run: |
-          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.1/pkger
+          curl -L -o /usr/local/bin/pkger https://github.com/ilya-zlobintsev/pkger/releases/download/v0.11.5/pkger
           chmod +x /usr/local/bin/pkger
       
       # A GitHub Action that implements smart caching for rust/cargo projects with sensible defaults.
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Build packages (with signing)
-        if: ${{ contains(matrix.target-os, 'fedora') && env.GPG_KEY_PASSWORD != '' }}
+        if: ${{ (contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || matrix.target-os == 'rhel-9') && env.GPG_KEY_PASSWORD != '' }}
         run: pkger -t -c .pkger.yml build ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
 
       - name: Build packages (without signing)
-        if: ${{ !contains(matrix.target-os, 'fedora') || env.GPG_KEY_PASSWORD == '' }}
+        if: ${{ !(contains(matrix.target-os, 'fedora') || contains(matrix.target-os, 'opensuse') || matrix.target-os == 'rhel-9') || env.GPG_KEY_PASSWORD == '' }}
         run: pkger -t -c .pkger.yml build --no-sign ${{ matrix.recipe }} -i ${{ matrix.target-os }}
         env:
           GPG_KEY_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
@@ -75,7 +91,7 @@ jobs:
           gpg --armor --export > $PWD/release-artifacts/lact.pubkey
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ matrix.target-os }}-${{ matrix.recipe }}
           path: release-artifacts/*
@@ -86,17 +102,47 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:gnome-47
       options: --privileged
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-    - uses: flatpak/flatpak-github-actions/flatpak-builder@fc80c13788c1ba0f45add99b19cf26b616ccab4f # v6
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6
       with:
         bundle: io.github.ilya_zlobintsev.LACT.flatpak
         manifest-path: flatpak/io.github.ilya_zlobintsev.LACT.yaml
         cache-key: flatpak-builder-${{ github.sha }}
     - name: Upload artifacts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: flatpak
         path: io.github.ilya_zlobintsev.LACT.flatpak
+        
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log into GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker image metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          file: pkg/docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   create-test-release:
     needs: [build-packages, build-flatpak]
@@ -105,15 +151,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: downloaded-artifacts/
+          pattern: "!*.dockerbuild"
 
       - name: Create release
-        uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # v1.12.0
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           removeArtifacts: true
           allowUpdates: true
@@ -137,15 +184,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: downloaded-artifacts/
+          pattern: "!*.dockerbuild"
 
       - name: Create release
-        uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # v1.12.0
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           artifacts: "downloaded-artifacts/*/*"
           name: ${{ github.ref_name }}

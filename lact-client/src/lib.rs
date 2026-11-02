@@ -4,26 +4,27 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
+    DeviceApiInfo, DisplaysInfo, Pong, ProcessList, ProfileRule, ResponseData,
     config::{GpuConfig, Profile, ProfileHooks},
-    ProcessList, ProfileRule, ResponseData,
 };
 
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
-use connection::{tcp::TcpConnection, unix::UnixConnection, DaemonConnection};
+use connection::{DaemonConnection, tcp::TcpConnection, unix::UnixConnection};
 use nix::unistd::getuid;
 use schema::{
-    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
     ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, PowerStates, ProfilesInfo, Request,
     Response, SystemInfo,
+    request::{ConfirmCommand, ProfileBase, SetClocksCommand},
 };
 use serde::de::DeserializeOwned;
 use std::{
-    future::Future, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc, time::Duration,
+    fmt, future::Future, io, os::unix::net::UnixStream, path::PathBuf, pin::Pin, rc::Rc,
+    time::Duration,
 };
 use tokio::{
     net::ToSocketAddrs,
-    sync::{broadcast, Mutex},
+    sync::{Mutex, broadcast},
 };
 use tracing::{error, info, trace};
 
@@ -34,18 +35,24 @@ const RECONNECT_INTERVAL_MS: u64 = 500;
 pub struct DaemonClient {
     stream: Rc<Mutex<Box<dyn DaemonConnection>>>,
     status_tx: broadcast::Sender<ConnectionStatusMsg>,
+    reconnect: bool,
     pub embedded: bool,
 }
 
 impl DaemonClient {
     pub async fn connect() -> anyhow::Result<Self> {
-        let path =
-            get_socket_path().context("Could not connect to daemon: socket file not found")?;
+        Self::connect_with_reconnect(true).await
+    }
+
+    pub async fn connect_with_reconnect(reconnect: bool) -> anyhow::Result<Self> {
+        let path = get_socket_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "socket file not found"))?;
         let stream = UnixConnection::connect(&path).await?;
 
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -56,6 +63,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(stream)),
             embedded: false,
+            reconnect: true,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -65,6 +73,7 @@ impl DaemonClient {
         Ok(Self {
             stream: Rc::new(Mutex::new(Box::new(connection))),
             embedded,
+            reconnect: false,
             status_tx: broadcast::Sender::new(STATUS_MSG_CHANNEL_SIZE),
         })
     }
@@ -100,8 +109,13 @@ impl DaemonClient {
                     }
                 }
                 Err(err) => {
-                    error!("Could not make request: {err}, reconnecting to socket");
                     let _ = self.status_tx.send(ConnectionStatusMsg::Disconnected);
+
+                    if !self.reconnect {
+                        return Err(err);
+                    }
+
+                    error!("Could not make request: {err}, reconnecting to socket");
 
                     loop {
                         match stream.new_connection().await {
@@ -115,7 +129,9 @@ impl DaemonClient {
                                 return self.make_request(request).await;
                             }
                             Err(err) => {
-                                error!("Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms");
+                                error!(
+                                    "Could not reconnect: {err:#}, retrying in {RECONNECT_INTERVAL_MS}ms"
+                                );
                                 tokio::time::sleep(Duration::from_millis(RECONNECT_INTERVAL_MS))
                                     .await;
                             }
@@ -126,8 +142,24 @@ impl DaemonClient {
         })
     }
 
+    pub async fn ping(&self) -> anyhow::Result<Pong> {
+        self.make_request(Request::Ping).await
+    }
+
     pub async fn list_devices(&self) -> anyhow::Result<Vec<DeviceListEntry>> {
         self.make_request(Request::ListDevices).await
+    }
+
+    pub async fn get_device_info(
+        &self,
+        id: &str,
+        include_api_info: Option<bool>,
+    ) -> anyhow::Result<DeviceInfo> {
+        self.make_request(Request::DeviceInfo {
+            id,
+            include_api_info,
+        })
+        .await
     }
 
     request_plain!(get_system_info, SystemInfo, SystemInfo);
@@ -135,7 +167,7 @@ impl DaemonClient {
     request_plain!(disable_overdrive, DisableOverdrive, String);
     request_plain!(generate_debug_snapshot, GenerateSnapshot, String);
     request_plain!(reset_config, RestConfig, ());
-    request_with_id!(get_device_info, DeviceInfo, DeviceInfo);
+    request_with_id!(get_device_api_info, DeviceApiInfo, DeviceApiInfo);
     request_with_id!(get_device_stats, DeviceStats, DeviceStats);
     request_with_id!(get_device_clocks_info, DeviceClocksInfo, ClocksInfo);
     request_with_id!(
@@ -147,6 +179,9 @@ impl DaemonClient {
     request_with_id!(reset_pmfw, ResetPmfw, u64);
     request_with_id!(dump_vbios, VbiosDump, Vec<u8>);
     request_with_id!(get_process_list, ProcessList, ProcessList);
+    request_with_id!(get_displays_info, DisplaysInfo, DisplaysInfo);
+    request_with_id!(detach, DetachGpu, ());
+    request_with_id!(reattach, ReattachGpu, ());
 
     pub async fn list_profiles(&self, include_state: bool) -> anyhow::Result<ProfilesInfo> {
         self.make_request(Request::ListProfiles { include_state })
@@ -174,6 +209,19 @@ impl DaemonClient {
     pub async fn move_profile(&self, name: String, new_position: usize) -> anyhow::Result<()> {
         self.make_request(Request::MoveProfile { name, new_position })
             .await
+    }
+
+    pub async fn rename_profile(&self, name: String, new_name: String) -> anyhow::Result<()> {
+        self.make_request(Request::RenameProfile { name, new_name })
+            .await
+    }
+
+    pub async fn hold_profile(&self, name: String) -> anyhow::Result<u64> {
+        self.make_request(Request::HoldProfile { name }).await
+    }
+
+    pub async fn release_profile(&self, cookie: u64) -> anyhow::Result<()> {
+        self.make_request(Request::ReleaseProfile { cookie }).await
     }
 
     pub async fn evaluate_profile_rule(&self, rule: ProfileRule) -> anyhow::Result<bool> {
@@ -215,6 +263,14 @@ impl DaemonClient {
     pub async fn confirm_pending_config(&self, command: ConfirmCommand) -> anyhow::Result<()> {
         self.make_request(Request::ConfirmPendingConfig(command))
             .await
+    }
+}
+
+impl fmt::Debug for DaemonClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DaemonClient")
+            .field("embedded", &self.embedded)
+            .finish()
     }
 }
 

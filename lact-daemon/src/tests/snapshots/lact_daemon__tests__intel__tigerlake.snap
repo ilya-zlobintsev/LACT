@@ -20,11 +20,13 @@ expression: device_info
   "info": {
     "driver": "xe",
     "drm_info": {
+      "execution_units": 24,
       "memory_info": {
         "cpu_accessible_total": 0,
         "cpu_accessible_used": 0,
         "resizeable_bar": true
       },
+      "subslices": 3,
       "vram_clock_ratio": 1.0
     },
     "flags": [],
@@ -77,8 +79,9 @@ expression: device_info
   },
   "stats": {
     "clockspeed": {
-      "current_gfxclk": 1100,
-      "gpu_clockspeed": 1100
+      "gpu_clockspeed": 1100,
+      "sensors": {},
+      "target_gpu_clockspeed": 1100
     },
     "fan": {
       "control_enabled": false,
@@ -89,7 +92,9 @@ expression: device_info
     },
     "temps": {},
     "throttle_info": {},
-    "voltage": {},
+    "voltage": {
+      "sensors": {}
+    },
     "vram": {}
   }
 }

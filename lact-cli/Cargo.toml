@@ -1,10 +1,10 @@
 [package]
 name = "lact-cli"
-version = "0.8.3"
-edition = "2021"
+version = "0.10.1"
+edition.workspace = true
 
 [dependencies]
 lact-client = { path = "../lact-client" }
 lact-schema = { path = "../lact-schema", features = ["args"] }
-anyhow = "1.0.79"
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }

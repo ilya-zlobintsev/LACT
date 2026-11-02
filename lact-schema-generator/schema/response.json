@@ -52,6 +52,83 @@
     }
   ],
   "$defs": {
+    "ActivePowerStates": {
+      "type": "object",
+      "properties": {
+        "core": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "Index": {
+                  "type": "integer",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "Index"
+              ]
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Sleep"
+              ]
+            }
+          ]
+        },
+        "memory": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "Index": {
+                  "type": "integer",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "Index"
+              ]
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Sleep"
+              ]
+            }
+          ]
+        },
+        "pcie": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "Index": {
+                  "type": "integer",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "Index"
+              ]
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Sleep"
+              ]
+            }
+          ]
+        }
+      }
+    },
     "AmdCacheInstance": {
       "type": "object",
       "properties": {
@@ -84,6 +161,79 @@
         "level",
         "size",
         "cu_count"
+      ]
+    },
+    "AmdIpInfo": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "ip_type": {
+          "type": "string"
+        },
+        "queues": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "version_major": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "version_minor": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "ip_type",
+        "version_major",
+        "version_minor",
+        "queues",
+        "count"
+      ]
+    },
+    "AmdUmaCarveout": {
+      "description": "Options for iGPU UMA allocation",
+      "type": "object",
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "size_bytes": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "name",
+              "size_bytes"
+            ]
+          }
+        }
+      },
+      "required": [
+        "options",
+        "current"
       ]
     },
     "CacheInfo": {
@@ -640,8 +790,7 @@
     "ClockspeedStats": {
       "type": "object",
       "properties": {
-        "current_gfxclk": {
-          "description": "Target clock",
+        "gpu_clockspeed": {
           "type": [
             "integer",
             "null"
@@ -649,7 +798,17 @@
           "format": "uint64",
           "minimum": 0
         },
-        "gpu_clockspeed": {
+        "sensors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          },
+          "default": {}
+        },
+        "target_gpu_clockspeed": {
+          "description": "Target clock",
           "type": [
             "integer",
             "null"
@@ -683,6 +842,24 @@
             "null"
           ],
           "format": "int32"
+        }
+      }
+    },
+    "DeviceApiInfo": {
+      "type": "object",
+      "properties": {
+        "opencl_instances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OpenCLInfo"
+          }
+        },
+        "vulkan_instances": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VulkanInfo"
+          }
         }
       }
     },
@@ -721,15 +898,11 @@
         "link_info": {
           "$ref": "#/$defs/LinkInfo"
         },
-        "opencl_info": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/OpenCLInfo"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "opencl_instances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OpenCLInfo"
+          }
         },
         "pci_info": {
           "anyOf": [
@@ -784,6 +957,29 @@
     "DeviceStats": {
       "type": "object",
       "properties": {
+        "active_power_mizer_mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Adaptive",
+            "PreferMaximumPerformance",
+            "Auto",
+            "PreferConsistentPerformance",
+            null
+          ]
+        },
+        "active_power_states": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActivePowerStates"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "busy_percent": {
           "type": [
             "integer",
@@ -796,32 +992,11 @@
         "clockspeed": {
           "$ref": "#/$defs/ClockspeedStats"
         },
-        "core_power_state": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
         "fan": {
           "$ref": "#/$defs/FanStats"
         },
-        "memory_power_state": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
-        },
-        "pcie_power_state": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint",
-          "minimum": 0
+        "nvidia_thermal_info": {
+          "$ref": "#/$defs/NvidiaThermalInfo"
         },
         "performance_level": {
           "type": [
@@ -838,6 +1013,21 @@
         },
         "power": {
           "$ref": "#/$defs/PowerStats"
+        },
+        "supported_power_mizer_modes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "Adaptive",
+              "PreferMaximumPerformance",
+              "Auto",
+              "PreferConsistentPerformance"
+            ]
+          }
         },
         "temps": {
           "type": "object",
@@ -867,6 +1057,12 @@
                 ],
                 "format": "float",
                 "optional": true
+              },
+              "display_only": {
+                "type": "boolean"
+              },
+              "primary": {
+                "type": "boolean"
               }
             }
           },
@@ -906,9 +1102,177 @@
         "Integrated"
       ]
     },
+    "DisplayConnector": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Hdmi",
+            "Dvi",
+            "Vga",
+            "Other"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "DisplayPort": {
+              "type": "object",
+              "properties": {
+                "bandwidth": {
+                  "description": "Per-lane bandwidth in Mbps",
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint32",
+                  "minimum": 0
+                },
+                "embedded": {
+                  "type": "boolean"
+                },
+                "lanes": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint16",
+                  "maximum": 65535,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "embedded"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "DisplayPort"
+          ]
+        }
+      ]
+    },
+    "DisplayInfo": {
+      "type": "object",
+      "properties": {
+        "connector_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "connector_type": {
+          "$ref": "#/$defs/DisplayConnector"
+        },
+        "manufacture_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DisplayManufactureDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manufacturer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "product_code": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "size": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          ]
+        }
+      },
+      "required": [
+        "product_code",
+        "connector_type",
+        "connector_id"
+      ]
+    },
+    "DisplayManufactureDate": {
+      "type": "object",
+      "properties": {
+        "week": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "year": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "year",
+        "week"
+      ]
+    },
+    "DisplaysInfo": {
+      "type": "object",
+      "properties": {
+        "displays": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/DisplayInfo"
+          }
+        }
+      },
+      "required": [
+        "displays"
+      ]
+    },
     "DrmInfo": {
       "type": "object",
       "properties": {
+        "amd_ip_info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AmdIpInfo"
+          }
+        },
+        "amd_uma_carveout": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AmdUmaCarveout"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "asic_name": {
           "type": [
             "string",
@@ -1398,6 +1762,15 @@
           ],
           "format": "int32"
         },
+        "nvidia_gpu_vf_curve": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/NvidiaCurvePoint"
+          }
+        },
+        "nvidia_thermal_options": {
+          "$ref": "#/$defs/NvidiaThermalOptions"
+        },
         "performance_level": {
           "type": "string"
         },
@@ -1410,6 +1783,19 @@
             "null"
           ],
           "format": "double"
+        },
+        "power_mizer_mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Adaptive",
+            "PreferMaximumPerformance",
+            "Auto",
+            "PreferConsistentPerformance",
+            null
+          ]
         },
         "power_profile_mode_index": {
           "type": [
@@ -1432,6 +1818,21 @@
             }
           }
         },
+        "uma_carveout": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "voltage_boost": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
         "voltage_offset": {
           "type": [
             "integer",
@@ -1439,10 +1840,7 @@
           ],
           "format": "int32"
         }
-      },
-      "required": [
-        "performance_level"
-      ]
+      }
     },
     "GpuPciInfo": {
       "type": "object",
@@ -1615,6 +2013,12 @@
             }
           }
         },
+        "gpu_vf_curve": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NvidiaVfPoint"
+          }
+        },
         "mem_offsets": {
           "type": "object",
           "additionalProperties": false,
@@ -1623,6 +2027,16 @@
               "$ref": "#/$defs/NvidiaClockOffset"
             }
           }
+        },
+        "voltage_boost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NvidiaVoltageBoost"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "vram_clock_range": {
           "type": [
@@ -1665,6 +2079,148 @@
           ]
         }
       }
+    },
+    "NvidiaCurvePoint": {
+      "type": "object",
+      "properties": {
+        "clockspeed_offset": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "voltage": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "clockspeed_offset"
+      ]
+    },
+    "NvidiaThermalInfo": {
+      "type": "object",
+      "properties": {
+        "target_temp": {
+          "type": "object",
+          "properties": {
+            "allowed_range": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0
+                }
+              ]
+            },
+            "current": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          }
+        },
+        "target_temp_default": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    },
+    "NvidiaThermalOptions": {
+      "type": "object",
+      "properties": {
+        "target_temperature": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    },
+    "NvidiaVfPoint": {
+      "type": "object",
+      "properties": {
+        "base_freq": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "base_voltage": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "freq": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "freq_offset": {
+          "type": "integer",
+          "format": "int32",
+          "default": 0
+        },
+        "index": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "voltage": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "index",
+        "freq",
+        "voltage",
+        "base_freq",
+        "base_voltage"
+      ]
+    },
+    "NvidiaVoltageBoost": {
+      "description": "Nvidia core voltage boost, in percent",
+      "type": "object",
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "max": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "min": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "required": [
+        "current",
+        "min",
+        "max"
+      ]
     },
     "OpenCLInfo": {
       "type": "object",
@@ -1965,14 +2521,29 @@
         "enabled": {
           "type": "boolean"
         },
-        "index": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "maximum": 255,
-          "minimum": 0
+        "id": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "Index": {
+                  "type": "integer",
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "Index"
+              ]
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Sleep"
+              ]
+            }
+          ]
         },
         "min_value": {
           "type": [
@@ -2058,6 +2629,13 @@
             "null"
           ],
           "format": "double"
+        },
+        "sensors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
         }
       }
     },
@@ -2083,11 +2661,34 @@
         },
         "util": {
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0
-          }
+          "properties": {
+            "Compute": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "Decode": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "Encode": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "Graphics": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "Memory": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
@@ -2381,9 +2982,30 @@
       ]
     },
     "ResponseData": {
+      "description": "Union of every possible response payload.\n\n`untagged` deserialization tries the variants in the order they are\ndeclared and keeps the first one that accepts the input, so payloads with a\ndistinctive JSON shape come first and payloads that accept an arbitrary\nJSON object come last.",
       "anyOf": [
         {
-          "$ref": "#/$defs/Pong"
+          "type": "null"
+        },
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          }
         },
         {
           "type": "array",
@@ -2401,30 +3023,25 @@
           "$ref": "#/$defs/DeviceStats"
         },
         {
-          "$ref": "#/$defs/ClocksInfo"
+          "$ref": "#/$defs/ProcessList"
         },
         {
-          "type": "object"
-        },
-        {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0
+          "$ref": "#/$defs/ProfilesInfo"
         },
         {
           "$ref": "#/$defs/PowerStates"
         },
         {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "format": "uint8",
-            "maximum": 255,
-            "minimum": 0
-          }
+          "$ref": "#/$defs/DisplaysInfo"
         },
         {
-          "$ref": "#/$defs/ProfilesInfo"
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/ClocksInfo"
+        },
+        {
+          "$ref": "#/$defs/DeviceApiInfo"
         },
         {
           "anyOf": [
@@ -2437,12 +3054,6 @@
           ]
         },
         {
-          "type": "null"
-        },
-        {
-          "type": "boolean"
-        },
-        {
           "anyOf": [
             {
               "$ref": "#/$defs/GpuConfig"
@@ -2453,10 +3064,7 @@
           ]
         },
         {
-          "$ref": "#/$defs/ProcessList"
-        },
-        {
-          "type": "string"
+          "$ref": "#/$defs/Pong"
         }
       ]
     },
@@ -2567,8 +3175,7 @@
       "required": [
         "version",
         "profile",
-        "kernel_version",
-        "amdgpu_params_configurator"
+        "kernel_version"
       ]
     },
     "VoltageStats": {
@@ -2582,19 +3189,36 @@
           "format": "uint64",
           "minimum": 0
         },
-        "northbridge": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
+        "sensors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          },
+          "default": {}
         }
       }
     },
     "VramStats": {
       "type": "object",
       "properties": {
+        "gtt_total_usable": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "gtt_used": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "total": {
           "type": [
             "integer",

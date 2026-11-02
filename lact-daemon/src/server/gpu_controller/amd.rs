@@ -1,33 +1,38 @@
-use super::{CommonControllerInfo, FanControlHandle, GpuController, VENDOR_AMD};
-use crate::server::{
-    gpu_controller::common::{
-        fan_control::FanCurveExt,
-        fdinfo::{self, DrmUtilMap},
-    },
-    opencl::get_opencl_info,
-    vulkan::get_vulkan_info,
+mod drm;
+
+use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use crate::server::gpu_controller::common::{
+    fan_control::FanCurveExt,
+    fdinfo::{self, DrmUtilMap},
 };
 use amdgpu_sysfs::{
     error::Error,
     gpu_handle::{
+        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
         power_profile_mode::PowerProfileModesTable,
-        CommitHandle, GpuHandle, PerformanceLevel, PowerLevelKind, PowerLevels,
     },
-    hw_mon::{FanControlMethod, HwMon},
+    hw_mon::{FanControlMethod, HwMon, Temperature},
     sysfs::SysFS,
 };
-use anyhow::{anyhow, bail, Context};
-use futures::{future::LocalBoxFuture, FutureExt};
+use anyhow::{Context, anyhow, bail};
+#[cfg(feature = "mock")]
+use drm::mock::MockDrmProvider;
+use drm::{DrmProvider, amdgpu::AmdGpuDrmProvider};
+use futures::{FutureExt, future::LocalBoxFuture};
+use indexmap::IndexMap;
 use lact_schema::{
+    ActivePowerStates, AmdCacheInstance, AmdUmaCarveout, CacheInfo, CacheType, ClocksInfo,
+    ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo,
+    FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessList, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
-    AmdCacheInstance, CacheInfo, CacheType, ClocksInfo, ClockspeedStats, DeviceFlag, DeviceInfo,
-    DeviceStats, DeviceType, DrmInfo, FanStats, IntelDrmInfo, LinkInfo, PmfwInfo, PowerState,
-    PowerStates, PowerStats, ProcessList, ProcessUtilizationType, RopInfo, VoltageStats, VramStats,
 };
-use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, ThrottlerBit};
-use libdrm_amdgpu_sys::{LibDrmAmdgpu, AMDGPU::SENSOR_INFO::SENSOR_TYPE, PCI};
+#[cfg(feature = "display-info")]
+use lact_schema::{DisplayConnector, DisplaysInfo};
+use libdrm_amdgpu_sys::AMDGPU::{GpuMetrics, MetricsInfo, ThrottlerBit, ThrottlerType};
+use libdrm_amdgpu_sys::{LibDrmAmdgpu, PCI};
 use std::{
     cell::RefCell,
     cmp,
@@ -40,18 +45,11 @@ use std::{collections::BTreeMap, fs, time::Instant};
 use tokio::{select, sync::Notify, time::sleep};
 use tracing::{debug, error, info, trace, warn};
 
-use {
-    lact_schema::DrmMemoryInfo,
-    libdrm_amdgpu_sys::AMDGPU::{DeviceHandle as DrmHandle, MetricsInfo, GPU_INFO},
-};
-
 /// RDNA3 - minimum family with PMFW
 const AMDGPU_FAMILY_GC_11_0_0: u32 = 145;
 
 const FAN_CONTROL_RETRIES: u32 = 10;
 const MAX_PSTATE_READ_ATTEMPTS: u32 = 5;
-const STEAM_DECK_IDS: [&str; 2] = ["163F", "1435"];
-const AMDGPU_IDS_FLAGS_FUSION: u64 = 0x1;
 const HSA_CACHE_TYPE_DATA: u32 = 0x0000_0001;
 const HSA_CACHE_TYPE_INSTRUCTION: u32 = 0x0000_0002;
 const HSA_CACHE_TYPE_CPU: u32 = 0x0000_0004;
@@ -68,7 +66,7 @@ const DRM_ENGINES: &[(&str, ProcessUtilizationType)] = &[
 
 pub struct AmdGpuController {
     handle: GpuHandle,
-    drm_handle: Option<DrmHandle>,
+    drm_handle: Option<Box<dyn DrmProvider>>,
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     last_drm_util: RefCell<Option<DrmUtilMap>>,
@@ -83,17 +81,24 @@ impl AmdGpuController {
         let handle = GpuHandle::new_from_path(common.sysfs_path.clone())
             .map_err(|error| anyhow!("failed to initialize gpu handle: {error}"))?;
 
-        #[allow(unused_mut)]
-        let mut drm_handle = None;
-        #[cfg(not(test))]
-        if let Some(libdrm_amdgpu) = libdrm_amdgpu {
-            if handle.get_driver() == "amdgpu" {
-                drm_handle = Some(
-                    get_drm_handle(&common, libdrm_amdgpu)
-                        .context("Could not get AMD DRM handle")?,
-                );
+        #[allow(unused_labels)]
+        let drm_handle: Option<Box<dyn DrmProvider>> = 'drm: {
+            #[cfg(feature = "mock")]
+            if let Some(mock) = MockDrmProvider::new(&common.sysfs_path) {
+                break 'drm Some(Box::new(mock) as Box<dyn DrmProvider>);
             }
-        }
+
+            if let Some(libdrm_amdgpu) = libdrm_amdgpu
+                && handle.get_driver() == "amdgpu"
+                && !cfg!(test)
+            {
+                let handle = AmdGpuDrmProvider::new(&common, libdrm_amdgpu)
+                    .context("Could not get AMD DRM handle")?;
+                Some(Box::new(handle))
+            } else {
+                None
+            }
+        };
 
         Ok(Self {
             handle,
@@ -106,10 +111,6 @@ impl AmdGpuController {
 
     fn hw_mon_and_then<U>(&self, f: fn(&HwMon) -> Result<U, Error>) -> Option<U> {
         self.handle.hw_monitors.first().and_then(|mon| f(mon).ok())
-    }
-
-    fn hw_mon_map<U>(&self, f: fn(&HwMon) -> U) -> Option<U> {
-        self.handle.hw_monitors.first().map(f)
     }
 
     async fn set_static_fan_control(&self, static_speed: f32) -> anyhow::Result<Vec<CommitHandle>> {
@@ -230,7 +231,9 @@ impl AmdGpuController {
         match temps.len() {
             0 => return Err(anyhow!("GPU has no temperature reporting")),
             1 => {
-                warn!("GPU has only one temperature sensor, 'temperature_key' setting will be ignored");
+                warn!(
+                    "GPU has only one temperature sensor, 'temperature_key' setting will be ignored"
+                );
             }
             _ => {
                 if !temps.contains_key(&settings.temperature_key) {
@@ -290,17 +293,24 @@ impl AmdGpuController {
                     retries += 1;
 
                     if retries == FAN_CONTROL_RETRIES {
-                        error!("could not get temperature sensor {temp_key}, exiting fan control (reached max attempts)");
+                        error!(
+                            "could not get temperature sensor {temp_key}, exiting fan control (reached max attempts)"
+                        );
                         break;
                     }
-                    error!("could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})", temps.len());
+                    error!(
+                        "could not get temperature sensor {temp_key} from {} sensors (assuming error is temporary, attempt {retries}/{FAN_CONTROL_RETRIES})",
+                        temps.len()
+                    );
                     continue;
                 };
 
                 let current_temp = temp.current.expect("Missing temp");
 
                 if (last_temp - current_temp).abs() < change_threshold {
-                    trace!("temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment");
+                    trace!(
+                        "temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment"
+                    );
                     continue;
                 }
 
@@ -312,7 +322,7 @@ impl AmdGpuController {
                     if target_pwm < previous_pwm && diff < spindown_delay {
                         trace!(
                             "delaying fan spindown ({}ms left)",
-                            (spindown_delay - diff).as_millis()
+                            spindown_delay.checked_sub(diff).unwrap().as_millis()
                         );
                         continue;
                     }
@@ -331,17 +341,23 @@ impl AmdGpuController {
                             retries += 1;
 
                             if retries == FAN_CONTROL_RETRIES {
-                                error!("could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)");
+                                error!(
+                                    "could not set fan speed after {retries} attempts, exiting fan control (reached max attempts)"
+                                );
                                 break;
                             }
 
-                            info!("fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})");
+                            info!(
+                                "fan control was previously available, assuming the error is temporary (attempt {retries}/{FAN_CONTROL_RETRIES})"
+                            );
 
                             if !matches!(
                                 hw_mon.get_fan_control_method(),
                                 Ok(FanControlMethod::Manual),
                             ) {
-                                info!("fan control method was changed externally, setting back to manual");
+                                info!(
+                                    "fan control method was changed externally, setting back to manual"
+                                );
                                 if let Err(err) =
                                     hw_mon.set_fan_control_method(FanControlMethod::Manual)
                                 {
@@ -386,20 +402,19 @@ impl AmdGpuController {
         }
 
         if reset_mode {
-            if self.handle.get_fan_curve().is_ok() {
-                if let Err(err) = self.handle.reset_fan_curve() {
-                    warn!("could not reset fan curve: {err:#}");
-                }
+            if self.handle.get_fan_curve().is_ok()
+                && let Err(err) = self.handle.reset_fan_curve()
+            {
+                warn!("could not reset fan curve: {err:#}");
             }
 
-            if let Some(hw_mon) = self.handle.hw_monitors.first().cloned() {
-                if let Ok(current_control) = hw_mon.get_fan_control_method() {
-                    if !matches!(current_control, FanControlMethod::Auto) {
-                        hw_mon
-                            .set_fan_control_method(FanControlMethod::Auto)
-                            .context("Could not set fan control back to automatic")?;
-                    }
-                }
+            if let Some(hw_mon) = self.handle.hw_monitors.first().cloned()
+                && let Ok(current_control) = hw_mon.get_fan_control_method()
+                && !matches!(current_control, FanControlMethod::Auto)
+            {
+                hw_mon
+                    .set_fan_control_method(FanControlMethod::Auto)
+                    .context("Could not set fan control back to automatic")?;
             }
         }
 
@@ -416,33 +431,66 @@ impl AmdGpuController {
         let levels = self
             .handle
             .get_clock_levels(kind)
-            .unwrap_or_else(|_| PowerLevels {
-                levels: Vec::new(),
-                active: None,
-            })
-            .levels;
+            .inspect(|power_levels| trace!("{kind:?} power states: {power_levels:?}"))
+            .inspect_err(|err| debug!("could not get {kind:?} power states: {err:#}"))
+            .map(Self::normalize_power_level_indexes)
+            .unwrap_or_default();
 
         if attempt < MAX_PSTATE_READ_ATTEMPTS
-            && levels.iter().any(|value| *value >= u64::from(u16::MAX))
+            && levels
+                .levels
+                .iter()
+                .any(|level| level.value >= u64::from(u16::MAX))
         {
-            debug!("GPU reported nonsensical p-state value, retrying");
+            debug!("GPU reported nonsensical {kind:?} power state values, retrying: {levels:?}");
             return self.get_power_states_kind(gpu_config, kind, attempt + 1);
         }
 
         levels
+            .levels
             .into_iter()
-            .enumerate()
-            .map(|(i, value)| {
-                let i = u8::try_from(i).unwrap();
-                let enabled = enabled_states.is_none_or(|enabled| enabled.contains(&i));
+            .map(|level| {
+                let enabled = match level.id {
+                    PowerLevelId::Index(index) => {
+                        enabled_states.is_none_or(|enabled| enabled.contains(&index))
+                    }
+                    PowerLevelId::Sleep => true,
+                };
                 PowerState {
                     enabled,
                     min_value: None,
-                    value,
-                    index: Some(i),
+                    value: level.value,
+                    id: Some(level.id),
                 }
             })
             .collect()
+    }
+
+    // workaround for https://gitlab.freedesktop.org/drm/amd/-/work_items/5295
+    fn normalize_power_level_indexes<T>(mut power_levels: PowerLevels<T>) -> PowerLevels<T> {
+        // first numeric is not 1
+        if !matches!(
+            power_levels.levels.iter().find_map(|level| match level.id {
+                PowerLevelId::Index(index) => Some(index),
+                PowerLevelId::Sleep => None,
+            }),
+            Some(1)
+        ) {
+            return power_levels;
+        }
+
+        for level in &mut power_levels.levels {
+            level.id = Self::shift_power_level_index(level.id);
+        }
+        power_levels.active = power_levels.active.map(Self::shift_power_level_index);
+        power_levels
+    }
+
+    fn shift_power_level_index(id: PowerLevelId) -> PowerLevelId {
+        match id {
+            PowerLevelId::Index(index) => PowerLevelId::Index(index.saturating_sub(1)),
+            PowerLevelId::Sleep => PowerLevelId::Sleep,
+        }
     }
 
     fn first_hw_mon(&self) -> anyhow::Result<&HwMon> {
@@ -452,103 +500,94 @@ impl AmdGpuController {
             .context("GPU has no hardware monitor")
     }
 
-    fn get_clockspeed(&self) -> ClockspeedStats {
+    fn get_clockspeed(&self, metrics: Option<&GpuMetrics>) -> ClockspeedStats {
         let vram_clockspeed = self
             .drm_handle
             .as_ref()
-            .and_then(|handle| handle.sensor_info(SENSOR_TYPE::GFX_MCLK).ok())
-            .map(u64::from)
+            .and_then(|handle| handle.get_vram_clock().ok())
             .or_else(|| self.hw_mon_and_then(HwMon::get_vram_clockspeed));
+
+        let mut sensors = IndexMap::new();
+
+        let mut target_gpu_clockspeed = None;
+
+        if let Some(metrics) = metrics {
+            for (label, value) in [
+                ("DCLK", metrics.get_current_dclk()),
+                ("DCLK1", metrics.get_current_dclk1()),
+                ("FCLK", metrics.get_current_fclk()),
+                ("VCLK", metrics.get_current_vclk()),
+                ("VCLK1", metrics.get_current_vclk()),
+                ("UCLK", metrics.get_current_uclk()),
+                ("SOCCLK", metrics.get_current_socclk()),
+            ] {
+                if let Some(value) = value
+                    && value != 0
+                    && value != u16::MAX
+                {
+                    sensors.insert(label.to_owned(), u64::from(value));
+                }
+            }
+
+            target_gpu_clockspeed = metrics
+                .get_current_gfxclk()
+                .filter(|value| *value != u16::MAX)
+                .map(u64::from);
+        }
 
         ClockspeedStats {
             gpu_clockspeed: self.hw_mon_and_then(HwMon::get_gpu_clockspeed),
-            current_gfxclk: self.get_current_gfxclk(),
+            target_gpu_clockspeed,
             vram_clockspeed,
+            sensors,
         }
     }
 
-    fn get_current_gfxclk(&self) -> Option<u64> {
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_current_gfxclk())
-            .map(u64::from)
-    }
-
     fn get_full_vbios_version(&self) -> Option<String> {
-        if let Some(drm_handle) = &self.drm_handle {
-            if let Ok(vbios_info) = drm_handle.get_vbios_info() {
-                return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
-            }
+        if let Some(drm_handle) = &self.drm_handle
+            && let Ok(vbios_info) = drm_handle.get_vbios_info()
+        {
+            return Some(format!("{} [{}]", vbios_info.ver, vbios_info.date));
         }
 
         self.handle.get_vbios_version().ok()
     }
 
     fn get_drm_info(&self) -> Option<DrmInfo> {
-        use libdrm_amdgpu_sys::AMDGPU::VRAM_TYPE;
-
         let cache_info = self
             .kfd_node_path()
             .inspect(|path| debug!("found KFD node path at '{}'", path.display()))
-            .and_then(|path| match read_cache_info_from_kfd(&path) {
-                Ok(info) => Some(info),
-                Err(err) => {
-                    warn!("could not read cache info from kfd sysfs: {err:#}");
-                    None
-                }
+            .and_then(|path| {
+                #[cfg_attr(test, allow(unused_variables))]
+                read_cache_info_from_kfd(&path)
+                    .inspect_err(|err| {
+                        #[cfg(not(test))]
+                        warn!("could not read cache info from kfd sysfs: {err:#}");
+                    })
+                    .ok()
             });
+
+        let uma_carveout = self
+            .handle
+            .get_uma_carveout_options()
+            .and_then(|options| {
+                let current = self.handle.get_current_uma_carveout()?;
+                Ok(AmdUmaCarveout {
+                    options: options.options,
+                    current,
+                })
+            })
+            .ok();
 
         trace!("Reading DRM info");
         let drm_handle = self.drm_handle.as_ref();
 
-        let drm_memory_info =
-            drm_handle
-                .and_then(|handle| handle.memory_info().ok())
-                .map(|memory_info| DrmMemoryInfo {
-                    resizeable_bar: Some(memory_info.check_resizable_bar()),
-                    cpu_accessible_used: memory_info.cpu_accessible_vram.heap_usage,
-                    cpu_accessible_total: memory_info.cpu_accessible_vram.total_heap_size,
-                });
-
         match drm_handle {
-            Some(handle) => handle.device_info().ok().map(|drm_info| DrmInfo {
-                device_name: drm_info.find_device_name(),
-                pci_revision_id: Some(drm_info.pci_rev_id()),
-                family_name: Some(drm_info.get_family_name().to_string()),
-                family_id: Some(drm_info.family_id()),
-                asic_name: Some(drm_info.get_asic_name().to_string()),
-                chip_class: Some(drm_info.get_chip_class().to_string()),
-                compute_units: Some(drm_info.cu_active_number),
-                isa: drm_info
-                    .get_gfx_target_version()
-                    .map(|version| version.to_string()),
-                streaming_multiprocessors: None,
-                cuda_cores: None,
-                vram_type: Some(drm_info.get_vram_type().to_string()),
-                vram_vendor: self.handle.get_vram_vendor().ok(),
-                vram_clock_ratio: match drm_info.get_vram_type() {
-                    VRAM_TYPE::GDDR6 => 2.0,
-                    _ => 1.0,
-                },
-                vram_bit_width: Some(drm_info.vram_bit_width),
-                vram_max_bw: Some(drm_info.peak_memory_bw_gb().to_string()),
-                cache_info,
-                memory_info: drm_memory_info,
-                rop_info: Some(RopInfo {
-                    unit_count: drm_info.rb_pipes(),
-                    operations_factor: if drm_info.get_asic_name().rbplus_allowed() {
-                        8
-                    } else {
-                        4
-                    },
-                    operations_count: drm_info.calc_rop_count(),
-                }),
-                intel: IntelDrmInfo::default(),
-            }),
+            Some(drm_handle) => drm_handle.get_drm_info(&self.handle, cache_info, uma_carveout),
             None => Some(DrmInfo {
                 cache_info,
                 vram_clock_ratio: 1.0,
+                amd_uma_carveout: uma_carveout,
                 ..Default::default()
             }),
         }
@@ -583,47 +622,15 @@ impl AmdGpuController {
                 .map(|link| link.width.to_string())
                 .or_else(|| self.handle.get_current_link_width().ok()),
             current_speed: current_link
-                .map(|link| format!("Gen {}", link.gen))
+                .map(|link| format!("Gen {}", link.r#gen))
                 .or_else(|| self.handle.get_current_link_speed().ok()),
             max_width: max_link
                 .map(|link| link.width.to_string())
                 .or_else(|| self.handle.get_max_link_width().ok()),
             max_speed: max_link
-                .map(|link| format!("Gen {}", link.gen))
+                .map(|link| format!("Gen {}", link.r#gen))
                 .or_else(|| self.handle.get_max_link_speed().ok()),
         }
-    }
-
-    fn get_throttle_info(&self) -> Option<BTreeMap<String, Vec<String>>> {
-        use libdrm_amdgpu_sys::AMDGPU::ThrottlerType;
-
-        self.drm_handle
-            .as_ref()
-            .and_then(|drm_handle| drm_handle.get_gpu_metrics().ok())
-            .and_then(|metrics| metrics.get_throttle_status_info())
-            .map(|throttle| {
-                let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
-
-                for bit in throttle.get_all_throttler() {
-                    let throttle_type = ThrottlerType::from(bit);
-                    grouped_bits
-                        .entry(throttle_type)
-                        .or_default()
-                        .insert(bit as u8);
-                }
-
-                grouped_bits
-                    .into_iter()
-                    .map(|(throttle_type, bits)| {
-                        let mut names: Vec<String> = bits
-                            .into_iter()
-                            .map(|bit| ThrottlerBit::from(bit).to_string())
-                            .collect();
-                        names.sort_unstable();
-                        (throttle_type.to_string(), names)
-                    })
-                    .collect()
-            })
     }
 
     fn debugfs_path(&self) -> Option<PathBuf> {
@@ -633,29 +640,58 @@ impl AmdGpuController {
         for entry in fs::read_dir("/sys/kernel/debug/dri").ok()?.flatten() {
             let debugfs_path = entry.path();
             let name_file_path = debugfs_path.join("name");
-            if name_file_path.exists() {
-                if let Ok(contents) = fs::read_to_string(&name_file_path) {
-                    if contents.contains(&name_search_term) {
-                        return Some(debugfs_path);
-                    }
-                }
+
+            if name_file_path.exists()
+                && let Ok(contents) = fs::read_to_string(&name_file_path)
+                && contents.contains(&name_search_term)
+            {
+                return Some(debugfs_path);
             }
         }
 
         None
     }
 
-    fn is_steam_deck(&self) -> bool {
-        self.common.pci_info.device_pci_info.vendor_id == VENDOR_AMD
-            && STEAM_DECK_IDS.contains(&self.common.pci_info.device_pci_info.model_id.as_str())
+    fn prepare_clocks_table(&self) -> (Result<CommitHandle, Error>, bool) {
+        let performance_level_available = match self.handle.get_power_force_performance_level() {
+            Ok(_) => true,
+            Err(err) if err.is_not_found() => false,
+            Err(err) => return (Err(err), false),
+        };
+
+        let reset_handle = if performance_level_available {
+            self.handle
+                .set_power_force_performance_level(PerformanceLevel::Auto)
+                .and_then(|()| {
+                    self.handle
+                        .set_power_force_performance_level(PerformanceLevel::Manual)
+                })
+                .and_then(|()| self.handle.reset_clocks_table())
+        } else {
+            self.handle.reset_clocks_table()
+        };
+
+        (reset_handle, performance_level_available)
+    }
+
+    fn vbios_path(&self) -> anyhow::Result<PathBuf> {
+        let path = self
+            .debugfs_path()
+            .context("DebugFS not found")?
+            .join("amdgpu_vbios");
+
+        if path.exists() {
+            Ok(path)
+        } else {
+            Err(anyhow!("VBIOS file does not exist in DebugFS"))
+        }
     }
 
     #[cfg(not(test))]
     fn kfd_node_path(&self) -> Option<PathBuf> {
-        self.drm_handle
-            .as_ref()
-            .and_then(|handle| handle.get_pci_bus_info().ok())
-            .and_then(|bus_info| bus_info.get_drm_render_path().ok())
+        self.common
+            .get_drm_render()
+            .ok()
             .and_then(|path| {
                 path.file_name()
                     .and_then(|name| name.to_str())
@@ -691,6 +727,10 @@ impl AmdGpuController {
 }
 
 impl GpuController for AmdGpuController {
+    fn controller_type(&self) -> &'static str {
+        "amd"
+    }
+
     fn controller_info(&self) -> &CommonControllerInfo {
         &self.common
     }
@@ -698,30 +738,33 @@ impl GpuController for AmdGpuController {
     fn device_type(&self) -> DeviceType {
         self.drm_handle
             .as_ref()
-            .and_then(|drm| drm.device_info().ok())
-            .map_or(DeviceType::Dedicated, |info| {
-                if (info.ids_flags & AMDGPU_IDS_FLAGS_FUSION) > 0 {
-                    DeviceType::Integrated
-                } else {
-                    DeviceType::Dedicated
-                }
-            })
+            .and_then(|drm| drm.get_device_type())
+            .unwrap_or(DeviceType::Dedicated)
     }
 
-    fn get_info(&self) -> LocalBoxFuture<'_, DeviceInfo> {
+    fn get_info(
+        &self,
+        unique_vendor: bool,
+        include_api_info: bool,
+    ) -> LocalBoxFuture<'_, DeviceInfo> {
         Box::pin(async move {
-            let vulkan_instances = get_vulkan_info(&self.common).await.unwrap_or_else(|err| {
-                warn!("could not load vulkan info: {err:#}");
-                vec![]
-            });
+            let api_info = if include_api_info {
+                self.get_api_info(unique_vendor).await
+            } else {
+                DeviceApiInfo::default()
+            };
+
             let pci_info = Some(self.common.pci_info.clone());
             let driver = self.handle.get_driver().to_owned();
             let vbios_version = self.get_full_vbios_version();
             let link_info = self.get_link_info();
             let drm_info = self.get_drm_info();
-            let opencl_info = get_opencl_info(&self.common);
 
-            let mut flags = vec![DeviceFlag::DumpableVBios];
+            let mut flags = vec![];
+
+            if self.vbios_path().is_ok() {
+                flags.push(DeviceFlag::DumpableVBios);
+            }
 
             if drm_info
                 .as_ref()
@@ -752,11 +795,10 @@ impl GpuController for AmdGpuController {
 
             DeviceInfo {
                 pci_info,
-                vulkan_instances,
+                api_info,
                 driver,
                 vbios_version,
                 link_info,
-                opencl_info,
                 drm_info,
                 flags,
             }
@@ -766,12 +808,15 @@ impl GpuController for AmdGpuController {
     fn friendly_name(&self) -> Option<String> {
         self.drm_handle
             .as_ref()
-            .and_then(|handle| handle.device_info().ok())
-            .and_then(|info| info.find_device_name())
+            .and_then(|handle| handle.get_device_name())
             .or_else(|| self.common.pci_info.device_pci_info.model.clone())
     }
 
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::too_many_lines
+    )]
     fn get_stats(&self, gpu_config: Option<&GpuConfig>) -> DeviceStats {
         let metrics = GpuMetrics::get_from_sysfs_path(self.handle.get_path()).ok();
         let metrics = metrics.as_ref();
@@ -790,6 +835,134 @@ impl GpuController for AmdGpuController {
             .map(|range| *range.start())
             .map(|percent| (f64::from(percent) * 2.55) as u32)
             .or_else(|| self.hw_mon_and_then(HwMon::get_fan_min_pwm).map(u32::from));
+
+        let mut temps: IndexMap<String, TemperatureEntry> = IndexMap::new();
+
+        if let Ok(hwmon) = self.first_hw_mon() {
+            temps = hwmon
+                .get_temps()
+                .into_iter()
+                .map(|(name, value)| {
+                    let entry = TemperatureEntry {
+                        value,
+                        primary: true,
+                        display_only: false,
+                    };
+                    (name, entry)
+                })
+                .collect();
+
+            temps.sort_by(|a, _, b, _| a.cmp(b));
+        }
+
+        let mut power_sensors = HashMap::new();
+
+        let mut throttle_info = None;
+
+        if let Some(metrics) = metrics {
+            let extra_temp_sensors = [
+                ("soc", metrics.get_temperature_soc().map(|temp| temp / 100)),
+                ("vrgfx", metrics.get_temperature_vrgfx()),
+                ("vrmem", metrics.get_temperature_vrmem()),
+                ("vrsoc", metrics.get_temperature_vrsoc()),
+                (
+                    "skin",
+                    metrics.get_temperature_skin().map(|temp| temp / 100),
+                ),
+            ];
+
+            for (label, value) in extra_temp_sensors {
+                if let Some(value) = value
+                    && value != 0
+                    && value != u16::MAX
+                {
+                    temps.insert(
+                        label.to_owned(),
+                        TemperatureEntry {
+                            value: Temperature {
+                                current: Some(f32::from(value)),
+                                crit: None,
+                                crit_hyst: None,
+                            },
+                            primary: false,
+                            display_only: true,
+                        },
+                    );
+                }
+            }
+
+            let extra_power_sensors = [
+                ("apu", metrics.get_average_apu_power()),
+                ("core", metrics.get_average_all_core_power()),
+                ("gfx", metrics.get_average_gfx_power_u32()),
+            ]
+            .into_iter()
+            .filter(|(_, value)| value.is_some_and(|value| value != 0 && value != u32::MAX))
+            .chain(
+                [
+                    ("soc", metrics.get_average_soc_power()),
+                    ("cpu", metrics.get_average_cpu_power()),
+                ]
+                .into_iter()
+                .filter(|(_, value)| value.is_some_and(|value| value != 0 && value != u16::MAX))
+                .map(|(label, value)| (label, value.map(u32::from))),
+            );
+
+            for (label, value) in extra_power_sensors {
+                if let Some(value) = value {
+                    power_sensors.insert(label.to_owned(), f64::from(value) / 1000.0);
+                }
+            }
+
+            throttle_info = metrics.get_throttle_status_info().map(|throttle| {
+                let mut grouped_bits: HashMap<ThrottlerType, HashSet<u8>> = HashMap::new();
+
+                for bit in throttle.get_all_throttler() {
+                    let throttle_type = ThrottlerType::from(bit);
+                    grouped_bits
+                        .entry(throttle_type)
+                        .or_default()
+                        .insert(bit as u8);
+                }
+
+                grouped_bits
+                    .into_iter()
+                    .map(|(throttle_type, bits)| {
+                        let mut names: Vec<String> = bits
+                            .into_iter()
+                            .map(|bit| ThrottlerBit::from(bit).to_string())
+                            .collect();
+                        names.sort_unstable();
+                        (throttle_type.to_string(), names)
+                    })
+                    .collect()
+            });
+        }
+
+        let mut voltages = HashMap::new();
+
+        for (label, value) in [
+            (
+                "northbridge",
+                self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+            ),
+            (
+                "mem",
+                metrics
+                    .and_then(MetricsInfo::get_voltage_mem)
+                    .map(u64::from),
+            ),
+            (
+                "soc",
+                metrics
+                    .and_then(MetricsInfo::get_voltage_soc)
+                    .map(u64::from),
+            ),
+        ] {
+            if let Some(value) = value {
+                voltages.insert(label.to_owned(), value);
+            }
+        }
 
         let fan_settings = gpu_config.and_then(|config| config.fan_control_settings.as_ref());
         DeviceStats {
@@ -834,14 +1007,25 @@ impl GpuController for AmdGpuController {
                     zero_rpm_temperature: self.handle.get_fan_zero_rpm_stop_temperature().ok(),
                 },
             },
-            clockspeed: self.get_clockspeed(),
+            nvidia_thermal_info: NvidiaThermalInfo::default(),
+            active_power_mizer_mode: None,
+            supported_power_mizer_modes: None,
+            clockspeed: self.get_clockspeed(metrics),
             voltage: VoltageStats {
                 gpu: self.hw_mon_and_then(HwMon::get_gpu_voltage),
-                northbridge: self.hw_mon_and_then(HwMon::get_northbridge_voltage),
+                sensors: voltages,
             },
             vram: VramStats {
                 total: self.handle.get_total_vram().ok(),
                 used: self.handle.get_used_vram().ok(),
+                gtt_total_usable: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.get_gtt_size().ok()),
+                gtt_used: self
+                    .drm_handle
+                    .as_ref()
+                    .and_then(|handle| handle.get_gtt_used().ok()),
             },
             power: PowerStats {
                 average: self.hw_mon_and_then(HwMon::get_power_average),
@@ -850,26 +1034,43 @@ impl GpuController for AmdGpuController {
                 cap_max: self.hw_mon_and_then(HwMon::get_power_cap_max),
                 cap_min: self.hw_mon_and_then(HwMon::get_power_cap_min),
                 cap_default: self.hw_mon_and_then(HwMon::get_power_cap_default),
+                sensors: power_sensors,
             },
-            temps: self.hw_mon_map(HwMon::get_temps).unwrap_or_default(),
+            temps,
             busy_percent: self.handle.get_busy_percent().ok(),
             performance_level: self.handle.get_power_force_performance_level().ok(),
-            core_power_state: self
-                .handle
-                .get_core_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
-            memory_power_state: self
-                .handle
-                .get_memory_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
-            pcie_power_state: self
-                .handle
-                .get_pcie_clock_levels()
-                .ok()
-                .and_then(|levels| levels.active),
-            throttle_info: self.get_throttle_info(),
+            active_power_states: {
+                let active_power_states = ActivePowerStates {
+                    core: self
+                        .handle
+                        .get_core_clock_levels()
+                        .inspect_err(|err| debug!("could not get active core power state: {err:#}"))
+                        .ok()
+                        .map(Self::normalize_power_level_indexes)
+                        .and_then(|levels| levels.active),
+                    memory: self
+                        .handle
+                        .get_memory_clock_levels()
+                        .inspect_err(|err| {
+                            debug!("could not get active memory power state: {err:#}");
+                        })
+                        .ok()
+                        .map(Self::normalize_power_level_indexes)
+                        .and_then(|levels| levels.active),
+                    pcie: self
+                        .handle
+                        .get_pcie_clock_levels()
+                        .inspect_err(|err| debug!("could not get active PCIe power state: {err:#}"))
+                        .ok()
+                        .map(Self::normalize_power_level_indexes)
+                        .and_then(|levels| levels.active),
+                };
+                (active_power_states.core.is_some()
+                    || active_power_states.memory.is_some()
+                    || active_power_states.pcie.is_some())
+                .then_some(active_power_states)
+            },
+            throttle_info,
         }
     }
 
@@ -894,40 +1095,49 @@ impl GpuController for AmdGpuController {
 
     fn reset_pmfw_settings(&self) {
         let handle = &self.handle;
-        if self.handle.get_fan_target_temperature().is_ok() {
-            if let Err(err) = handle.reset_fan_target_temperature() {
-                warn!("Could not reset target temperature: {err:#}");
-            }
+        if self.handle.get_fan_target_temperature().is_ok()
+            && let Err(err) = handle.reset_fan_target_temperature()
+        {
+            warn!("Could not reset target temperature: {err:#}");
         }
-        if self.handle.get_fan_acoustic_target().is_ok() {
-            if let Err(err) = handle.reset_fan_acoustic_target() {
-                warn!("Could not reset acoustic target: {err:#}");
-            }
+
+        if self.handle.get_fan_acoustic_target().is_ok()
+            && let Err(err) = handle.reset_fan_acoustic_target()
+        {
+            warn!("Could not reset acoustic target: {err:#}");
         }
-        if self.handle.get_fan_acoustic_limit().is_ok() {
-            if let Err(err) = handle.reset_fan_acoustic_limit() {
-                warn!("Could not reset acoustic limit: {err:#}");
-            }
+
+        if self.handle.get_fan_acoustic_limit().is_ok()
+            && let Err(err) = handle.reset_fan_acoustic_limit()
+        {
+            warn!("Could not reset acoustic limit: {err:#}");
         }
-        if self.handle.get_fan_minimum_pwm().is_ok() {
-            if let Err(err) = handle.reset_fan_minimum_pwm() {
-                warn!("Could not reset minimum pwm: {err:#}");
-            }
+
+        if self.handle.get_fan_minimum_pwm().is_ok()
+            && let Err(err) = handle.reset_fan_minimum_pwm()
+        {
+            warn!("Could not reset minimum pwm: {err:#}");
         }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
-        let debugfs = self.debugfs_path().context("DebugFS not found")?;
-        fs::read(debugfs.join("amdgpu_vbios")).context("Could not read VBIOS file")
+        let path = self.vbios_path()?;
+        fs::read(path).context("Could not read VBIOS file")
     }
 
     #[allow(clippy::too_many_lines)]
     fn apply_config<'a>(&'a self, config: &'a GpuConfig) -> LocalBoxFuture<'a, anyhow::Result<()>> {
         Box::pin(async {
             let mut commit_handles = VecDeque::new();
+            let is_core_clocks_used = config.is_core_clocks_used();
+            let (reset_handle, performance_level_available) = self.prepare_clocks_table();
 
-            // Reset the clocks table in case the settings get reverted back to not having a clocks value configured
-            self.handle.reset_clocks_table().ok();
+            // Reset the clocks table, commit if no further changes are expected
+            if let Ok(commit_handle) = reset_handle
+                && !is_core_clocks_used
+            {
+                commit_handle.commit().ok();
+            }
 
             if !config.fan_control_enabled {
                 self.stop_fan_control(true)
@@ -935,21 +1145,7 @@ impl GpuController for AmdGpuController {
                     .context("Failed to stop fan control")?;
             }
 
-            if let Some(PerformanceLevel::High | PerformanceLevel::Low) = config.performance_level {
-                // Reset to auto first
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Auto)
-                    .context("Failed to set power performance level")?;
-            }
-
-            if self.is_steam_deck() {
-                // Van Gogh/Sephiroth only allow clock settings to be used with manual performance mode
-                self.handle
-                    .set_power_force_performance_level(PerformanceLevel::Manual)
-                    .ok();
-            }
-
-            if config.is_core_clocks_used() {
+            if is_core_clocks_used {
                 match self.handle.get_clocks_table() {
                     Ok(original_table) => {
                         let mut table = original_table.clone();
@@ -976,30 +1172,10 @@ impl GpuController for AmdGpuController {
                         commit_handles.push_back(handle);
                     }
                     Err(err) => {
-                        error!("custom clock settings are present but will be ignored, could not get clocks table: {err}");
+                        error!(
+                            "custom clock settings are present but will be ignored, could not get clocks table: {err}"
+                        );
                     }
-                }
-            }
-
-            let mut deferred_performance_level = None;
-            match self.handle.get_power_force_performance_level() {
-                Ok(_) => {
-                    let performance_level =
-                        config.performance_level.unwrap_or(PerformanceLevel::Auto);
-
-                    match performance_level {
-                        PerformanceLevel::Auto | PerformanceLevel::Manual => {
-                            self.handle
-                                .set_power_force_performance_level(performance_level)
-                                .context("Failed to set power performance level")?;
-                        }
-                        PerformanceLevel::High | PerformanceLevel::Low => {
-                            deferred_performance_level = Some(performance_level);
-                        }
-                    }
-                }
-                Err(err) => {
-                    error!("could not get current performance level: {err}");
                 }
             }
 
@@ -1057,99 +1233,109 @@ impl GpuController for AmdGpuController {
                 }
             } else {
                 let pmfw = &config.pmfw_options;
-                if let Some(acoustic_limit) = pmfw.acoustic_limit {
-                    if self
+                if let Some(acoustic_limit) = pmfw.acoustic_limit
+                    && self
                         .handle
                         .get_fan_acoustic_limit()
                         .context("Could not get acoustic limit")?
                         .current
                         != acoustic_limit
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_limit(acoustic_limit)
-                            .context("Could not set acoustic limit")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_limit(acoustic_limit)
+                        .context("Could not set acoustic limit")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(acoustic_target) = pmfw.acoustic_target {
-                    if self
+
+                if let Some(acoustic_target) = pmfw.acoustic_target
+                    && self
                         .handle
                         .get_fan_acoustic_target()
                         .context("Could not get acoustic target")?
                         .current
                         != acoustic_target
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_acoustic_target(acoustic_target)
-                            .context("Could not set acoustic target")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_acoustic_target(acoustic_target)
+                        .context("Could not set acoustic target")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(target_temperature) = pmfw.target_temperature {
-                    if self
+
+                if let Some(target_temperature) = pmfw.target_temperature
+                    && self
                         .handle
                         .get_fan_target_temperature()
                         .context("Could not get target temperature")?
                         .current
                         != target_temperature
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_target_temperature(target_temperature)
-                            .context("Could not set target temperature")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_target_temperature(target_temperature)
+                        .context("Could not set target temperature")?;
+                    commit_handles.push_front(commit_handle);
                 }
-                if let Some(minimum_pwm) = pmfw.minimum_pwm {
-                    if self
+
+                if let Some(minimum_pwm) = pmfw.minimum_pwm
+                    && self
                         .handle
                         .get_fan_minimum_pwm()
                         .context("Could not get minimum pwm")?
                         .current
                         != minimum_pwm
-                    {
-                        let commit_handle = self
-                            .handle
-                            .set_fan_minimum_pwm(minimum_pwm)
-                            .context("Could not set minimum pwm")?;
-                        commit_handles.push_front(commit_handle);
-                    }
+                {
+                    let commit_handle = self
+                        .handle
+                        .set_fan_minimum_pwm(minimum_pwm)
+                        .context("Could not set minimum pwm")?;
+                    commit_handles.push_front(commit_handle);
                 }
             }
 
-            // Unlike the other PMFW options, zero rpm should be functional with a custom curve
-            if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
-                match self.handle.get_fan_zero_rpm_enable() {
-                    Ok(current_zero_rpm) => {
-                        if current_zero_rpm != zero_rpm {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_enable(zero_rpm)
-                                .context("Could not set zero RPM mode")?;
-                            commit_handles.push_front(commit_handle);
+            // Unlike the other PMFW options, zero rpm should be applied with a custom curve as well (but not in static mode)
+            if !(config.fan_control_enabled
+                && config
+                    .fan_control_settings
+                    .as_ref()
+                    .is_some_and(|fan| fan.mode == FanControlMode::Static))
+            {
+                if let Some(zero_rpm) = config.pmfw_options.zero_rpm {
+                    match self.handle.get_fan_zero_rpm_enable() {
+                        Ok(current_zero_rpm) => {
+                            if current_zero_rpm != zero_rpm {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_enable(zero_rpm)
+                                    .context("Could not set zero RPM mode")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!(
+                                "zero RPM is present in the config, but not available on the GPU: {err}"
+                            );
+                        }
                     }
                 }
-            }
 
-            if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
-                match self.handle.get_fan_zero_rpm_stop_temperature() {
-                    Ok(current_threshold) => {
-                        if current_threshold.current != zero_rpm_threshold {
-                            let commit_handle = self
-                                .handle
-                                .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
-                                .context("Could not set zero RPM temperature")?;
-                            commit_handles.push_front(commit_handle);
+                if let Some(zero_rpm_threshold) = config.pmfw_options.zero_rpm_threshold {
+                    match self.handle.get_fan_zero_rpm_stop_temperature() {
+                        Ok(current_threshold) => {
+                            if current_threshold.current != zero_rpm_threshold {
+                                let commit_handle = self
+                                    .handle
+                                    .set_fan_zero_rpm_stop_temperature(zero_rpm_threshold)
+                                    .context("Could not set zero RPM temperature")?;
+                                commit_handles.push_front(commit_handle);
+                            }
                         }
-                    }
-                    Err(err) => {
-                        error!("zero RPM threshold is present in the config, but not available on the GPU: {err}");
+                        Err(err) => {
+                            error!(
+                                "zero RPM threshold is present in the config, but not available on the GPU: {err}"
+                            );
+                        }
                     }
                 }
             }
@@ -1157,26 +1343,47 @@ impl GpuController for AmdGpuController {
             if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
-                hw_mon
-                    .set_power_cap(configured_cap)
-                    .with_context(|| format!("Failed to set power cap: {configured_cap}"))?;
-            } else if let Ok(hw_mon) = self.first_hw_mon() {
-                if let Ok(default_cap) = hw_mon.get_power_cap_default() {
-                    if Ok(default_cap) != hw_mon.get_power_cap() {
-                        hw_mon.set_power_cap(default_cap).with_context(|| {
-                            format!("Failed to set power cap to default cap: {default_cap}")
+                match (hw_mon.get_power_cap_min(), hw_mon.get_power_cap_max()) {
+                    (Ok(min), Ok(max)) => {
+                        let clamped_cap = configured_cap.clamp(min, max);
+
+                        #[expect(
+                            clippy::float_cmp,
+                            reason = "we care if the value was chagned at all"
+                        )]
+                        if clamped_cap != configured_cap {
+                            warn!(
+                                "Power cap {configured_cap}W was outside of the allowed range, clamped to {clamped_cap}W"
+                            );
+                        }
+
+                        hw_mon.set_power_cap(clamped_cap).with_context(|| {
+                            format!("Failed to set power cap: {configured_cap}")
                         })?;
                     }
+                    (Err(err), _) | (_, Err(err)) => {
+                        bail!("Could not read allowed power cap range: {err:#}");
+                    }
                 }
+            } else if let Ok(hw_mon) = self.first_hw_mon()
+                && let Ok(default_cap) = hw_mon.get_power_cap_default()
+                && let Ok(current_cap) = hw_mon.get_power_cap()
+                && current_cap != default_cap
+            {
+                hw_mon.set_power_cap(default_cap).with_context(|| {
+                    format!("Failed to set power cap to default cap: {default_cap}")
+                })?;
             }
 
             for handle in commit_handles {
                 handle.commit()?;
             }
 
-            if let Some(performance_level) = deferred_performance_level {
+            if performance_level_available {
                 self.handle
-                    .set_power_force_performance_level(performance_level)
+                    .set_power_force_performance_level(
+                        config.performance_level.unwrap_or(PerformanceLevel::Auto),
+                    )
                     .context("Failed to set power performance level")?;
             }
 
@@ -1192,6 +1399,19 @@ impl GpuController for AmdGpuController {
                     .with_context(|| format!("Could not set {kind:?} power states"))?;
             }
 
+            if let Some(uma_carveout) = config.uma_carveout {
+                let current_carveout = self
+                    .handle
+                    .get_current_uma_carveout()
+                    .context("Could not get current UMA carveout")?;
+
+                if uma_carveout != current_carveout {
+                    self.handle
+                        .set_uma_carveout(uma_carveout)
+                        .context("Could not apply UMA carveout")?;
+                }
+            }
+
             Ok(())
         })
     }
@@ -1201,7 +1421,15 @@ impl GpuController for AmdGpuController {
             return Ok(());
         }
 
-        self.handle.reset_clocks_table()?;
+        let previous_performance_level = self.handle.get_power_force_performance_level().ok();
+        let (commit_handle, _) = self.prepare_clocks_table();
+        commit_handle?.commit()?;
+
+        if let Some(level) = previous_performance_level {
+            self.handle
+                .set_power_force_performance_level(level)
+                .context("Failed to restore power performance level")?;
+        }
 
         Ok(())
     }
@@ -1227,32 +1455,60 @@ impl GpuController for AmdGpuController {
             &mut last_total_time_map,
         )
     }
-}
 
-#[cfg(not(test))]
-fn get_drm_handle(
-    common: &CommonControllerInfo,
-    libdrm_amdgpu: &LibDrmAmdgpu,
-) -> anyhow::Result<DrmHandle> {
-    use std::os::unix::io::IntoRawFd;
+    #[cfg(feature = "display-info")]
+    fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
+        const UHBR_RATE_THRESHOLD: u32 = 1000;
 
-    let path = common.get_drm_render()?;
-    let drm_file = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&path)
-        .with_context(|| format!("Could not open drm file at {}", path.display()))?;
-    let (handle, _, _) = libdrm_amdgpu
-        .init_device_handle(drm_file.into_raw_fd())
-        .map_err(|err| anyhow!("Could not open drm handle, error code {err}"))?;
-    Ok(handle)
+        let debugfs = self.debugfs_path().context("Could not get debugfs")?;
+
+        for (connector, info) in &mut info.displays {
+            if let DisplayConnector::DisplayPort {
+                lanes,
+                bandwidth,
+                embedded: _,
+            } = &mut info.connector_type
+            {
+                let link_settings_path = debugfs.join(connector).join("link_settings");
+                let link_settings = fs::read_to_string(link_settings_path)?;
+
+                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+
+                *lanes = Some(
+                    parts
+                        .next()
+                        .context("Missing lane count")?
+                        .parse::<u16>()
+                        .context("Invalid lane count")?,
+                );
+
+                let bw_enum = parts
+                    .next()
+                    .context("Missing bandwidth")?
+                    .strip_prefix("0x")
+                    .and_then(|value| u32::from_str_radix(value, 16).ok())
+                    .context("Invalid bandwidth value")?;
+
+                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
+                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
+                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
+                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
+                } else {
+                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
+                });
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn apply_clocks_config_to_table(
     config: &ClocksConfiguration,
     table: &mut ClocksTableGen,
 ) -> anyhow::Result<()> {
-    if let ClocksTableGen::Rdna(ref mut table) = table {
+    if let ClocksTableGen::Rdna(table) = table {
         // Avoid writing settings to the clocks table except the user-specified ones
         // There is an issue on some GPU models where the default values are actually outside of the allowed range
         // See https://github.com/sibradzic/amdgpu-clocks/issues/32#issuecomment-829953519 (part 2) for an example
@@ -1478,4 +1734,98 @@ fn read_cache_info_from_kfd(node_path: &Path) -> anyhow::Result<CacheInfo> {
     });
 
     Ok(CacheInfo::Amd(items))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use amdgpu_sysfs::gpu_handle::PowerLevel;
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(1)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_keeps_zero_based_indexes_without_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(2)));
+    }
+
+    #[test]
+    fn normalize_power_level_indexes_shifts_one_based_indexes_after_sleep_state() {
+        let levels = normalize_indexes(
+            vec![
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2),
+                PowerLevelId::Index(3),
+            ],
+            Some(PowerLevelId::Index(2)),
+        );
+
+        assert_eq!(
+            level_ids(&levels),
+            [
+                PowerLevelId::Sleep,
+                PowerLevelId::Index(0),
+                PowerLevelId::Index(1),
+                PowerLevelId::Index(2)
+            ]
+        );
+        assert_eq!(levels.active, Some(PowerLevelId::Index(1)));
+    }
+
+    fn normalize_indexes(ids: Vec<PowerLevelId>, active: Option<PowerLevelId>) -> PowerLevels<u64> {
+        AmdGpuController::normalize_power_level_indexes(PowerLevels {
+            levels: ids
+                .into_iter()
+                .enumerate()
+                .map(|(value, id)| PowerLevel {
+                    id,
+                    value: value as u64,
+                })
+                .collect(),
+            active,
+        })
+    }
+
+    fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
+        levels.levels.iter().map(|level| level.id).collect()
+    }
 }

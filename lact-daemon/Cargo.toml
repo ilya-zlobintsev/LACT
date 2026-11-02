@@ -1,12 +1,14 @@
 [package]
 name = "lact-daemon"
-version = "0.8.3"
-edition = "2021"
+version = "0.10.1"
+edition.workspace = true
 
 [features]
-default = ["nvidia"]
+default = ["nvidia", "display-info"]
 bench = ["dep:divan"]
 nvidia = []
+display-info = ["dep:libdisplay-info"]
+mock = []
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
@@ -18,8 +20,8 @@ serde = { workspace = true, features = ["rc"] }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
-nix = { workspace = true, features = ["user", "fs", "ioctl"] }
-chrono = { workspace = true }
+nix = { workspace = true, features = ["user", "fs", "ioctl", "socket"] }
+jiff = { workspace = true }
 tokio = { workspace = true, features = [
     "rt",
     "macros",
@@ -27,37 +29,39 @@ tokio = { workspace = true, features = [
     "time",
     "signal",
     "sync",
+    "process",
+    "io-util",
 ] }
 futures = { workspace = true }
 indexmap = { workspace = true }
 divan = { workspace = true, optional = true }
 serde_norway = { workspace = true }
 
-nvml-wrapper = "0.11.0"
-bitflags = "2.6.0"
+nvml-wrapper = { workspace = true }
+bitflags = "2.13.2"
 pciid-parser = { version = "0.8", features = ["serde"] }
-zbus = { version = "5.3.1", default-features = false, features = ["tokio"] }
-libdrm_amdgpu_sys = { version = "0.8.8", default-features = false, features = [
+zbus = { workspace = true }
+zbus_polkit = { version = "6.0.0", default-features = false, features = ["tokio"] }
+libdrm_amdgpu_sys = { version = "0.9.0", default-features = false, features = [
     "dynamic_loading",
 ] }
-tar = "0.4.40"
-libflate = "2.0.0"
+tar = "0.4.46"
+libflate = "2.3.2"
 os-release = "0.1.0"
-notify = { version = "8.0.0", default-features = false }
+notify = { version = "8.2.0", default-features = false }
 libcopes = "1.0.0"
-libloading = "0.8.6"
-cl3 = { git = "https://github.com/kenba/cl3", branch = "develop", features = [
-    "static",
-] }
+libloading = "0.8.9" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
 
-ureq = { version = "3.1.2", features = ["json", "rustls"] }
+ureq = { version = "3.5.0", features = ["json", "rustls"] }
+libdisplay-info = { version= "0.3.0", optional = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-insta = { version = "1.41.1", features = ["json", "yaml"] }
-easy_fuser = { version = "0.4.2", features = ["parallel"] }
-tempfile = "3.17.1"
+insta = { version = "1.49.0", features = ["json", "yaml"] }
+easy_fuser = { version = "0.5.0", default-features = false, features = ["parallel"] }
+tempfile = "3.27.0"
+lact-daemon = { path = ".", features= ["mock"] }
 
 [build-dependencies]
-bindgen = "0.71"
+bindgen = "0.73"
 serde_json = { workspace = true }

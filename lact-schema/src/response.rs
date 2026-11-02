@@ -1,18 +1,19 @@
 use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use derive_more::{From, TryInto};
 #[cfg(feature = "schema")]
-use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo, Pong,
+    PowerStates, ProcessList, ProfilesInfo, SystemInfo,
     config::{GpuConfig, Profile},
-    ClocksInfo, DeviceInfo, DeviceListEntry, DeviceStats, Pong, PowerStates, ProcessList,
-    ProfilesInfo, SystemInfo,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(tag = "status", content = "data", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
 pub enum Response {
     Ok(ResponseData),
     #[cfg_attr(feature = "schema", schemars(schema_with = "error_schema"))]
@@ -31,44 +32,57 @@ impl From<serde_error::Error> for Response {
     }
 }
 
+/// Union of every possible response payload.
+///
+/// `untagged` deserialization tries the variants in the order they are
+/// declared and keeps the first one that accepts the input, so payloads with a
+/// distinctive JSON shape come first and payloads that accept an arbitrary
+/// JSON object come last.
 #[derive(Serialize, Deserialize, Debug, From, TryInto)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[try_into(owned, ref, ref_mut)]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
 pub enum ResponseData {
-    Ping(Pong),
+    // Distinctive shapes: null, numbers, booleans, strings, arrays.
+    NoData(()),
+    Integer(u64),
+    EvaluateProfileRule(bool),
+    GenerateSnapshot(String),
+    VbiosDump(Vec<u8>),
     ListDevices(Vec<DeviceListEntry>),
+    // Objects with at least one mandatory field.
     SystemInfo(SystemInfo),
     DeviceInfo(DeviceInfo),
     DeviceStats(DeviceStats),
-    DeviceClocksInfo(ClocksInfo),
+    ProcessList(ProcessList),
+    ListProfiles(ProfilesInfo),
+    GetPowerStates(PowerStates),
+    DisplaysInfo(DisplaysInfo),
     #[cfg_attr(
         feature = "schema",
         schemars(schema_with = "power_profile_mode_schema")
     )]
     DevicePowerProfileModes(PowerProfileModesTable),
-    Integer(u64),
-    GetPowerStates(PowerStates),
-    VbiosDump(Vec<u8>),
-    ListProfiles(ProfilesInfo),
+    // Objects where every field is optional, so they accept any JSON object.
+    DeviceClocksInfo(ClocksInfo),
+    DeviceApiInfo(DeviceApiInfo),
     GetProfile(Option<Profile>),
-    NoData(()),
-    EvaluateProfileRule(bool),
     GetGpuConfig(Option<GpuConfig>),
-    ProcessList(ProcessList),
-    GenerateSnapshot(String),
+    // `Pong` is a unit struct, which also deserializes from `null`. It is
+    // declared after `NoData` so that it cannot shadow it.
+    Ping(Pong),
 }
 
 #[cfg(feature = "schema")]
-fn power_profile_mode_schema(_gen: &mut SchemaGenerator) -> Schema {
+fn power_profile_mode_schema(_rec: &mut SchemaGenerator) -> Schema {
     json_schema!({
         "type": "object",
     })
 }
 
 #[cfg(feature = "schema")]
-fn error_schema(_gen: &mut SchemaGenerator) -> Schema {
+fn error_schema(_rec: &mut SchemaGenerator) -> Schema {
     json_schema!({
         "type": "object",
         "properties": {

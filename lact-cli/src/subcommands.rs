@@ -1,8 +1,8 @@
 use crate::CliContext;
 use anyhow::{Context, Result};
 use lact_schema::{
-    args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs},
     FanControlMode,
+    args::cli::{PowerLimitCmd, ProfileArgs, ProfileAutoSwitchArgs, SetProfileArgs},
 };
 use std::fmt::Write;
 
@@ -11,13 +11,10 @@ const PROFILE_DEFAULT: &str = "Default";
 pub async fn list_gpus(ctx: CliContext<'_>) -> Result<()> {
     let entries = ctx.client.list_devices().await?;
     for (i, entry) in entries.into_iter().enumerate() {
-        let id = entry.id;
-        let device_type = entry.device_type;
-
-        if let Some(name) = entry.name {
-            println!("{i}: {id} ({name}) [{device_type}]");
+        if entry.name.is_some() {
+            println!("{i}: {} ({entry}) [{}]", entry.id, entry.device_type);
         } else {
-            println!("{i}: {id} [{device_type}]");
+            println!("{i}: {} [{}]", entry.id, entry.device_type);
         }
     }
     Ok(())
@@ -30,7 +27,7 @@ pub async fn info(ctx: CliContext<'_>) -> Result<()> {
     println!("{gpu_line}");
     println!("{}", "=".repeat(gpu_line.len()));
 
-    let info = ctx.client.get_device_info(&id).await?;
+    let info = ctx.client.get_device_info(&id, Some(false)).await?;
     let stats = ctx.client.get_device_stats(&id).await?;
 
     let elements = info.info_elements(Some(&stats));
@@ -69,13 +66,17 @@ pub async fn stats(ctx: CliContext<'_>) -> Result<()> {
         println!("Power Usage: {power_usage:.1}/{power_cap} W");
     }
 
+    for (label, value) in &stats.power.sensors {
+        println!("Power Sensor {label}: {value:.1} W");
+    }
+
     if !stats.temps.is_empty() {
         print!("Temperatures: ");
         for (i, (name, value)) in stats.temps.iter().enumerate() {
             if i > 0 {
                 print!(", ");
             }
-            if let Some(value) = value.current {
+            if let Some(value) = value.value.current {
                 print!("{name}: {value}°C");
             }
         }
@@ -227,5 +228,42 @@ pub async fn set_auto_switch(
     } else {
         println!("disabled");
     }
+    Ok(())
+}
+
+pub async fn detach(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx
+        .args
+        .gpu_id
+        .as_deref()
+        .context("`--gpu-id` must be passed explicitly for reattaching")?;
+    let name = ctx.name_for_id(id).await?;
+    ctx.client.detach(id).await?;
+
+    if let Some(name) = name {
+        println!("Detached GPU '{id}' ({name})");
+    } else {
+        println!("Detached GPU '{id}'");
+    }
+
+    Ok(())
+}
+
+pub async fn reattach(ctx: CliContext<'_>) -> Result<()> {
+    let id = ctx
+        .args
+        .gpu_id
+        .as_deref()
+        .context("`--gpu-id` must be passed explicitly for reattaching")?;
+    ctx.client.reattach(id).await?;
+
+    let name = ctx.name_for_id(id).await?;
+
+    if let Some(name) = name {
+        println!("Reattached GPU '{id}' ({name})");
+    } else {
+        println!("Reattached GPU '{id}'");
+    }
+
     Ok(())
 }

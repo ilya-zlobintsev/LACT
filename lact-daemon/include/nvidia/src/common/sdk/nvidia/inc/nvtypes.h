@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2020 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 1993-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,10 +24,6 @@
 #ifndef NVTYPES_INCLUDED
 #define NVTYPES_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "cpuopsys.h"
 
 #ifndef NVTYPES_USE_STDINT
@@ -50,6 +46,10 @@ extern "C" {
 // _MSC_VER is a hack to avoid  failures for old setup of UEFI builds which are
 //  currently set to msvc100 but do not properly set the include paths
 #endif // __cplusplus
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #if defined(MAKE_NV64TYPES_8BYTES_ALIGNED) && defined(__i386__)
 // ensure or force 8-bytes alignment of NV 64-bit types
@@ -510,6 +510,14 @@ typedef struct
 #define NV_DECLARE_ALIGNED(TYPE_VAR, ALIGN) __align(ALIGN) TYPE_VAR
 #endif
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define NV_ALIGNOF(type) _Alignof(type)
+#elif defined(__cplusplus) && (__cplusplus >= 201103L)
+#define NV_ALIGNOF(type) alignof(type)
+#elif defined(__GNUC__) || defined(__clang__)
+#define NV_ALIGNOF(type) __alignof__(type)
+#endif
+
  /***************************************************************************\
 |*                       Function Declaration Types                          *|
  \***************************************************************************/
@@ -628,6 +636,155 @@ typedef struct
     #else
         #define NV_FORMAT_PRINTF(_f, _a)
     #endif
+
+ /***************************************************************************\
+|*                                                                           *|
+|*  Definitions of binary/bytes representations of floating point values     *|
+|*                                                                           *|
+|*  Intended for use when passing values across kernel contexts in which     *|
+|*  floating point use is forbidden                                          *|
+|*                                                                           *|
+ \***************************************************************************/
+//
+// Determine whether we have to turn FP32 support off based on compiler flags.
+// For now, this is only done when we can detect that we're compiling for x86_64
+// with GCC/clang and SSE is disabled.
+//
+// This is also currently only used to control NvF32Bytes definitions.
+//
+// In the future, it could be possible to:
+//  1.) Define this more generally
+//  and
+//  2.) Use it in more places
+//
+// This would allow us to fully prevent usage of NvF32 in codebases where it is
+// not supported.
+//
+#if !defined(NVTYPES_NV_F32_SUPPORTED) && NVCPU_IS_X86_64 && (defined(__GNUC__) || defined(__clang__)) && !defined(__SSE__)
+#define NVTYPES_NV_F32_SUPPORTED 0
+#else
+#define NVTYPES_NV_F32_SUPPORTED 1
+#endif
+
+/*!
+ * A struct containing the 32-bit representation of an (IEEE-754 binary32)
+ * floating point value, i.e., the raw underlying bytes of an @ref NvF32
+ *
+ * This struct must be used in places where a value may be passed across a
+ * kernel boundary, as use of floating point within some kernels is, in general,
+ * banned.
+ */
+typedef struct
+{
+    NvU32 value;
+} NvF32Bytes;
+
+#if !defined(NVDEC_1_0)
+/*!
+ * @brief   Maps the bytes of a given @ref NvF32 to an @ref NvF32Bytes
+ *
+ * @param[in]   pfValue
+ *  Pointer to value to convert
+ *
+ * @return  @ref NvF32Bytes byte-mapped from @p *pfValue
+ */
+static NV_FORCEINLINE NvF32Bytes
+nvF32BytesMapFromNvF32
+(
+    const NvF32 *pfValue
+)
+{
+    union
+    {
+        NvF32 f;
+        NvF32Bytes b;
+    } value;
+
+    value.f = *pfValue;
+
+    return value.b;
+}
+
+#if NVTYPES_NV_F32_SUPPORTED
+/*!
+ * @brief   Maps the bytes of a given @ref NvF32Bytes to an @ref NvF32
+ *
+ * @param[in]   pfValue
+ *  Pointer to value to convert
+ *
+ * @return  @ref NvF32 byte-mapped from @p *pfValue
+ */
+static NV_FORCEINLINE NvF32
+nvF32BytesMapToNvF32
+(
+    const NvF32Bytes *pfValue
+)
+{
+    union
+    {
+        NvF32Bytes b;
+        NvF32 f;
+    } value;
+
+    value.b = *pfValue;
+
+    return value.f;
+}
+#endif // NVTYPES_NV_F32_SUPPORTED
+
+/*!
+ * @brief   Maps the bytes of a given @ref NvU32 to an @ref NvF32Bytes
+ *
+ * @details This function is intended for first "moving" raw byte values into
+ *          the "floating point domain."
+ *
+ * @param[in]   pfValue
+ *  Pointer to value to convert
+ *
+ * @return  @ref NvF32Bytes byte-mapped from @p *pfValue
+ */
+static NV_FORCEINLINE NvF32Bytes
+nvF32BytesMapFromNvU32
+(
+    const NvU32 *pfValue
+)
+{
+    union
+    {
+        NvU32 u;
+        NvF32Bytes b;
+    } value;
+
+    value.u = *pfValue;
+
+    return value.b;
+}
+
+/*!
+ * @brief   Maps the bytes of a given @ref NvF32Bytes to an @ref NvU32
+ *
+ * @param[in]   pfValue
+ *  Pointer to value to convert
+ *
+ * @return  @ref NvU32 byte-mapped from @p *pfValue
+ */
+static NV_FORCEINLINE NvU32
+nvF32BytesMapToNvU32
+(
+    const NvF32Bytes *pfValue
+)
+{
+    union
+    {
+        NvF32Bytes b;
+        NvU32 u;
+    } value;
+
+    value.b = *pfValue;
+
+    return value.u;
+}
+#endif // !defined(NVDEC_1_0)
 
 #ifdef __cplusplus
 }

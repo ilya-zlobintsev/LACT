@@ -1,3 +1,5 @@
+#[cfg(feature = "display-info")]
+mod display;
 pub mod gpu_controller;
 pub mod handler;
 mod metrics;
@@ -10,11 +12,17 @@ use crate::{config::Config, socket, system};
 use anyhow::Context;
 use futures::future::join_all;
 use lact_schema::{Pong, Request, Response, ResponseData};
+use nix::sys::socket::{
+    getsockopt,
+    sockopt::{PeerCredentials, PeerPidfd},
+};
+use std::os::fd::OwnedFd;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, UnixListener},
+    sync::Notify,
 };
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 pub struct Server {
     pub handler: Handler,
@@ -69,9 +77,22 @@ impl Server {
             loop {
                 match self.unix_listener.accept().await {
                     Ok((stream, _)) => {
+                        let client_credentials = getsockopt(&stream, PeerCredentials)
+                            .inspect_err(|err| warn!("could not get client credentials: {err:#}"))
+                            .ok();
+
+                        let pid_fd = getsockopt(&stream, PeerPidfd)
+                            .inspect_err(|err| warn!("could not get client pidfd: {err:#}"))
+                            .ok();
+
+                        let ctx = ClientContext {
+                            pid: client_credentials.map(|creds| creds.pid().cast_unsigned()),
+                            uid: client_credentials.map(|creds| creds.uid()),
+                            pid_fd,
+                        };
                         let handler = unix_handler.clone();
                         tokio::task::spawn_local(async move {
-                            if let Err(error) = handle_stream(stream, handler).await {
+                            if let Err(error) = handle_stream(stream, handler, ctx).await {
                                 error!("{error}");
                             }
                         });
@@ -89,9 +110,11 @@ impl Server {
                 loop {
                     match tcp_listener.accept().await {
                         Ok((stream, _)) => {
+                            let ctx = ClientContext::default();
                             let handler = self.handler.clone();
+
                             tokio::task::spawn_local(async move {
-                                if let Err(error) = handle_stream(stream, handler).await {
+                                if let Err(error) = handle_stream(stream, handler, ctx).await {
                                     error!("{error}");
                                 }
                             });
@@ -109,11 +132,21 @@ impl Server {
     }
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct ClientContext {
+    pub pid: Option<u32>,
+    pub uid: Option<u32>,
+    pub pid_fd: Option<OwnedFd>,
+}
+
 #[instrument(level = "debug", skip(stream, handler))]
 pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
     stream: T,
     handler: Handler,
+    ctx: ClientContext,
 ) -> anyhow::Result<()> {
+    let disconnect_notify = std::sync::Arc::new(Notify::new());
+
     let mut stream = BufReader::new(stream);
 
     let mut buf = String::new();
@@ -122,10 +155,12 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
 
         let maybe_request = serde_json::from_str(&buf);
         let response = match maybe_request {
-            Ok(request) => match handle_request(request, &handler).await {
-                Ok(response) => response,
-                Err(error) => serde_json::to_vec(&Response::from(error))?,
-            },
+            Ok(request) => {
+                match handle_request(request, &handler, &disconnect_notify, &ctx).await {
+                    Ok(response) => response,
+                    Err(error) => serde_json::to_vec(&Response::from(error))?,
+                }
+            }
             Err(error) => serde_json::to_vec(&Response::from(
                 anyhow::Error::new(error).context("Failed to deserialize"),
             ))?,
@@ -137,18 +172,30 @@ pub async fn handle_stream<T: AsyncRead + AsyncWrite + Unpin>(
         buf.clear();
     }
 
+    disconnect_notify.notify_waiters();
+
     Ok(())
 }
 
-#[instrument(level = "debug", skip(handler))]
-async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyhow::Result<Vec<u8>> {
+#[instrument(level = "debug", skip(handler, disconnect_notify))]
+async fn handle_request<'a>(
+    request: Request<'a>,
+    handler: &'a Handler,
+    disconnect_notify: &std::sync::Arc<Notify>,
+    ctx: &ClientContext,
+) -> anyhow::Result<Vec<u8>> {
     match request {
         Request::Ping => ok_response(ping()),
         Request::SystemInfo => ok_response(system::info().await?),
         Request::ListDevices => ok_response(handler.list_devices().await),
-        Request::DeviceInfo { id } => ok_response(handler.get_device_info(id).await?),
+        Request::DeviceInfo {
+            id,
+            include_api_info,
+        } => ok_response(handler.get_device_info(id, include_api_info).await?),
+        Request::DeviceApiInfo { id } => ok_response(handler.get_device_api_info(id).await?),
         Request::DeviceStats { id } => ok_response(handler.get_gpu_stats(id).await?),
         Request::DeviceClocksInfo { id } => ok_response(handler.get_clocks_info(id).await?),
+        Request::DisplaysInfo { id } => ok_response(handler.get_displays_info(id).await?),
         Request::DevicePowerProfileModes { id } => {
             ok_response(handler.get_power_profile_modes(id).await?)
         }
@@ -191,15 +238,26 @@ async fn handle_request<'a>(request: Request<'a>, handler: &'a Handler) -> anyho
                 .await?,
         ),
         Request::CreateProfile { name, base } => {
-            ok_response(handler.create_profile(name, base).await?)
+            ok_response(handler.create_profile(name, base, ctx).await?)
         }
         Request::DeleteProfile { name } => ok_response(handler.delete_profile(name).await?),
         Request::MoveProfile { name, new_position } => {
             ok_response(handler.move_profile(&name, new_position).await?)
         }
+        Request::RenameProfile { name, new_name } => {
+            ok_response(handler.rename_profile(&name, new_name).await?)
+        }
+        Request::HoldProfile { name } => ok_response(
+            handler
+                .hold_profile(name, disconnect_notify.clone())
+                .await?,
+        ),
+        Request::ReleaseProfile { cookie } => ok_response(handler.release_profile(cookie).await?),
         Request::EvaluateProfileRule { rule } => ok_response(handler.evaluate_profile_rule(&rule)?),
+        Request::DetachGpu { id } => ok_response(handler.detach_gpu(id).await?),
+        Request::ReattachGpu { id } => ok_response(handler.reattach_gpu(id).await?),
         Request::SetProfileRule { name, rule, hooks } => {
-            ok_response(handler.set_profile_rule(&name, rule, hooks).await?)
+            ok_response(handler.set_profile_rule(&name, rule, hooks, ctx).await?)
         }
         Request::GetGpuConfig { id } => ok_response(handler.get_gpu_config(id).await?),
         Request::SetGpuConfig { id, config } => {
