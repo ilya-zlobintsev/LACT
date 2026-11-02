@@ -844,6 +844,7 @@ impl PmfwOptions {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct NvidiaThermalOptions {
     pub target_temperature: Option<u32>,
+    pub throttle_temperature: Option<u32>,
 }
 
 impl NvidiaThermalOptions {
