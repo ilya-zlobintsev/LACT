@@ -136,6 +136,7 @@ mod benches {
     #[divan::bench(sample_size = 10)]
     fn render_plot(bencher: Bencher) {
         let last_texture = &Mutex::new(None);
+        let labels = &Mutex::new(Vec::new());
 
         bencher
             .with_inputs(sample_plot_data)
@@ -159,7 +160,7 @@ mod benches {
                     ],
                 };
 
-                process_request(request, last_texture)
+                process_request(request, last_texture, labels)
             });
     }
 

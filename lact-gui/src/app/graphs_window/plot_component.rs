@@ -5,12 +5,13 @@ use super::{
 };
 use crate::I18N;
 use crate::app::utils::dnd::DynamicIndexValue;
+use crate::app::utils::ext::FlowBoxExt;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
     prelude::{
-        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, ObjectExt, OrientableExt, PopoverExt,
-        WidgetExt,
+        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, DrawingAreaExt, DrawingAreaExtManual,
+        ObjectExt, OrientableExt, PopoverExt, WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
@@ -30,6 +31,9 @@ pub struct PlotComponent {
     edit_mode: BoolBinding,
     print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
+    /// Text of the legend entries of the last rendered frame.
+    legend_texts: Vec<String>,
+    legend_labels: Vec<gtk::Label>,
 }
 
 pub struct PlotComponentConfig {
@@ -59,8 +63,11 @@ impl relm4::factory::FactoryComponent for PlotComponent {
     view! {
         gtk::Frame {
             gtk::Overlay {
-                #[name = "plot"]
-                Plot {
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+
+                    #[name = "plot"]
+                    Plot {
                     set_data: self.data.clone(),
                     set_margin_all: 5,
 
@@ -72,8 +79,21 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
                     set_stats: self.selected_stats(),
 
-                    connect_frame_rendered[sender] => move || {
-                        sender.input(PlotComponentMsg::FrameRendered);
+                        connect_frame_rendered[sender] => move || {
+                            sender.input(PlotComponentMsg::FrameRendered);
+                        },
+                    },
+
+                    #[name = "legend"]
+                    gtk::FlowBox {
+                        set_selection_mode: gtk::SelectionMode::None,
+                        set_homogeneous: false,
+                        set_column_spacing: 16,
+                        set_row_spacing: 4,
+                        set_margin_all: 6,
+                        set_margin_bottom: 8,
+                        set_max_children_per_line: 6,
+                        set_halign: gtk::Align::Center,
                     },
                 },
 
@@ -207,6 +227,8 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             edit_mode: init.edit_mode,
             print_extra_info,
             time_period: init.time_period,
+            legend_texts: Vec::new(),
+            legend_labels: Vec::new(),
         }
     }
 
@@ -223,6 +245,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             }
             PlotComponentMsg::FrameRendered => {
                 widgets.plot.queue_draw();
+                self.update_legend(widgets);
             }
             PlotComponentMsg::UpdatedSelection => {
                 widgets.plot.set_stats(self.selected_stats());
@@ -248,6 +271,65 @@ impl relm4::factory::Position<GridPosition, DynamicIndex> for PlotComponent {
 }
 
 impl PlotComponent {
+    /// Rebuild the GTK legend below the plot when the labels change.
+    fn update_legend(&mut self, widgets: &PlotComponentWidgets) {
+        let labels = widgets.plot.labels();
+        let texts = labels
+            .iter()
+            .map(|label| label.text.clone())
+            .collect::<Vec<_>>();
+
+        if texts == self.legend_texts {
+            return;
+        }
+
+        self.legend_texts = texts;
+
+        if labels.len() == self.legend_labels.len() {
+            for (label_widget, label) in self.legend_labels.iter().zip(&labels) {
+                if label_widget.text() != label.text {
+                    label_widget.set_text(&label.text);
+                }
+            }
+
+            return;
+        }
+
+        while let Some(child) = widgets.legend.first_child() {
+            widgets.legend.remove(&child);
+        }
+
+        self.legend_labels.clear();
+
+        for label in &labels {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+
+            let swatch = gtk::DrawingArea::new();
+            swatch.set_content_width(10);
+            swatch.set_content_height(10);
+            swatch.set_valign(gtk::Align::Center);
+
+            let color = label.color;
+            swatch.set_draw_func(move |_, cr, width, height| {
+                cr.set_source_rgba(
+                    f64::from(color.0) / 255.0,
+                    f64::from(color.1) / 255.0,
+                    f64::from(color.2) / 255.0,
+                    color.3,
+                );
+                cr.rectangle(0.0, 0.0, f64::from(width), f64::from(height));
+                cr.fill().ok();
+            });
+
+            row.append(&swatch);
+            let text = gtk::Label::new(Some(&label.text));
+            text.add_css_class("caption");
+            row.append(&text);
+            widgets.legend.append_child(&row);
+            self.legend_labels.push(text);
+        }
+    }
+
     fn get_cursor(&self) -> Option<gdk::Cursor> {
         if self.edit_mode.value() {
             gdk::Cursor::from_name("move", None)

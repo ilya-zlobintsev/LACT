@@ -7,9 +7,8 @@ use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
 use indexmap::IndexSet;
-use plotters::coord::Shift;
 use plotters::prelude::*;
-use plotters::style::text_anchor::{HPos, Pos, VPos};
+use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
 use relm4::tokio::sync::broadcast;
 use std::cmp::{self, max};
@@ -42,11 +41,20 @@ pub struct RenderRequest {
     pub time_period_seconds: i64,
 }
 
+/// A single entry of the plot legend, produced by the render thread and
+/// displayed with GTK widgets.
+#[derive(Debug, Clone)]
+pub struct LegendLabel {
+    pub text: String,
+    pub color: RGBAColor,
+}
+
 #[derive(Default)]
 struct RenderThreadState {
     request_condition_variable: std::sync::Condvar,
     last_texture: Mutex<Option<MemoryTexture>>,
     current_request: Mutex<Option<Request>>,
+    labels: Mutex<Vec<LegendLabel>>,
 }
 
 /// A rendering thread that will listen for rendering requests and process them asynchronously.
@@ -89,6 +97,7 @@ impl RenderThread {
                         request_condition_variable,
                         last_texture,
                         current_request,
+                        labels,
                     } = &*state;
 
                     // Wait until there is a new request (blocking if there is none).
@@ -100,7 +109,7 @@ impl RenderThread {
 
                     match current_request.take() {
                         Some(Request::Render(render_request)) => {
-                            process_request(render_request, last_texture);
+                            process_request(render_request, last_texture, labels);
                         }
                         // Terminate the thread if a Terminate request is received.
                         Some(Request::Terminate) => break,
@@ -140,11 +149,17 @@ impl RenderThread {
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
         self.state.last_texture.lock().unwrap().deref().clone()
     }
+
+    /// Return the legend entries of the last rendered frame.
+    pub fn get_labels(&self) -> Vec<LegendLabel> {
+        self.state.labels.lock().unwrap().clone()
+    }
 }
 
 pub(super) fn process_request(
     render_request: RenderRequest,
     last_texture: &Mutex<Option<MemoryTexture>>,
+    labels: &Mutex<Vec<LegendLabel>>,
 ) {
     // Create a new ImageSurface for Cairo rendering.
     let mut surface = ImageSurface::create(
@@ -170,8 +185,9 @@ pub(super) fn process_request(
         cairo_context.set_font_options(&font_options);
     }
 
-    if let Err(err) = render_request.draw(&cairo_context) {
-        error!("Failed to plot chart: {err:?}")
+    match render_request.draw(&cairo_context) {
+        Ok(new_labels) => *labels.lock().unwrap() = new_labels,
+        Err(err) => error!("Failed to plot chart: {err:?}"),
     }
 
     match (
@@ -231,22 +247,9 @@ fn interpolate_series(data: &[(i64, f64)]) -> Vec<(i64, f64)> {
         .collect()
 }
 
-const LEGEND_SWATCH_SIZE: i32 = 10;
-const LEGEND_SPACING: i32 = 8;
-const LEGEND_ROW_SPACING: i32 = 4;
-const LEGEND_MARGIN: i32 = 6;
 struct LegendEntry {
     label: String,
-    /// Same label with the values replaced by placeholders, used to size the slots.
-    width_label: String,
     color: RGBAColor,
-}
-
-struct LegendLayout {
-    columns: usize,
-    slot_width: i32,
-    row_height: i32,
-    height: u32,
 }
 
 /// Format a legend label. Without values, a fixed width placeholder is used, so
@@ -279,85 +282,9 @@ fn stat_label(stat: &StatType, values: Option<(f64, f64, f64)>, print_extra_info
     label
 }
 
-/// Lay out the legend entries in a grid of equally sized slots.
-fn layout_legend(
-    area: &DrawingArea<CairoBackend<'_>, Shift>,
-    entries: &[LegendEntry],
-    style: &TextStyle,
-) -> anyhow::Result<LegendLayout> {
-    let mut item_width = 0;
-    let mut text_height = 0;
-
-    for entry in entries {
-        let (width, height) = area.estimate_text_size(&entry.width_label, style)?;
-        item_width = item_width.max(LEGEND_SWATCH_SIZE + LEGEND_SPACING + width as i32);
-        text_height = text_height.max(height as i32);
-    }
-
-    let slot_width = item_width.max(1) + LEGEND_SPACING;
-    let available_width = area.dim_in_pixel().0 as i32 - LEGEND_MARGIN * 2;
-    let columns = (available_width / slot_width).clamp(1, entries.len().max(1) as i32) as usize;
-    let rows = entries.len().div_ceil(columns);
-
-    let row_height = text_height + LEGEND_ROW_SPACING;
-    // Leave at least half of the drawing area for the chart itself.
-    let max_height = area.dim_in_pixel().1 / 2;
-    let height = (rows as u32 * row_height as u32 + LEGEND_MARGIN as u32).min(max_height);
-
-    Ok(LegendLayout {
-        columns,
-        slot_width,
-        row_height,
-        height,
-    })
-}
-
-/// Draw the legend entries into an area which is outside of the plot area.
-fn draw_legend(
-    area: &DrawingArea<CairoBackend<'_>, Shift>,
-    layout: &LegendLayout,
-    entries: &[LegendEntry],
-    style: &TextStyle,
-) -> anyhow::Result<()> {
-    let area_width = area.dim_in_pixel().0 as i32;
-    let area_height = area.dim_in_pixel().1 as i32;
-
-    let block_width = layout.columns as i32 * layout.slot_width;
-    let start_x = ((area_width - block_width) / 2).max(LEGEND_MARGIN);
-
-    for (idx, entry) in entries.iter().enumerate() {
-        let row = (idx / layout.columns) as i32;
-        let column = (idx % layout.columns) as i32;
-
-        let center_y = LEGEND_MARGIN + row * layout.row_height + layout.row_height / 2;
-
-        // Skip the rows which do not fit into the reserved area.
-        if center_y + layout.row_height / 2 > area_height {
-            break;
-        }
-
-        let x = start_x + column * layout.slot_width;
-
-        area.draw(&Rectangle::new(
-            [
-                (x, center_y - LEGEND_SWATCH_SIZE / 2),
-                (x + LEGEND_SWATCH_SIZE, center_y + LEGEND_SWATCH_SIZE / 2),
-            ],
-            entry.color.filled(),
-        ))?;
-        area.draw(&Text::new(
-            entry.label.as_str(),
-            (x + LEGEND_SWATCH_SIZE + LEGEND_SPACING, center_y),
-            style.clone(),
-        ))?;
-    }
-
-    Ok(())
-}
-
 impl RenderRequest {
     // Method to handle the actual drawing of the chart.
-    pub fn draw(&self, cairo_context: &CairoContext) -> anyhow::Result<()> {
+    pub fn draw(&self, cairo_context: &CairoContext) -> anyhow::Result<Vec<LegendLabel>> {
         let root = CairoBackend::new(cairo_context, (self.width, self.height))?.into_drawing_area();
 
         let data_guard = self.data.read().unwrap();
@@ -411,7 +338,6 @@ impl RenderRequest {
         let max_font_size = f64::from((chart_height / 12).max(10));
         let axis_font_size = (self.base_font_size * 0.8).clamp(8.0, max_font_size) as u32;
         let title_font_size = (self.base_font_size * 1.2).clamp(9.0, max_font_size) as u32;
-        let legend_font_size = (self.base_font_size * 0.75).clamp(8.0, max_font_size) as u32;
 
         let y_label_style = TextStyle {
             font: ("sans-serif", axis_font_size).into(),
@@ -439,7 +365,6 @@ impl RenderRequest {
 
                 LegendEntry {
                     label: stat_label(stat_type, Some((current, peak, avg)), self.print_extra_info),
-                    width_label: stat_label(stat_type, None, self.print_extra_info),
                     color: Palette99::pick(idx).to_rgba(),
                 }
             })
@@ -463,23 +388,13 @@ impl RenderRequest {
                 names.into_iter().collect::<Vec<_>>().join(",")
             );
             legend_entries.push(LegendEntry {
-                width_label: label.clone(),
                 label,
                 color: throttling_color,
             });
         }
 
-        let legend_style = TextStyle {
-            font: ("sans-serif", legend_font_size).into(),
-            color: self.colors.text.to_backend_color(),
-            pos: Pos::new(HPos::Left, VPos::Center),
-        };
-        let legend = layout_legend(&root, &legend_entries, &legend_style)?;
-        let (chart_area, legend_area) =
-            root.split_vertically(root.dim_in_pixel().1.saturating_sub(legend.height));
-
         // Set up the main chart with axes and labels.
-        let mut chart = ChartBuilder::on(&chart_area)
+        let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(axis_font_size * 2)
             .y_label_area_size(y_label_area_size)
             .margin(10)
@@ -553,10 +468,15 @@ impl RenderRequest {
 
         cairo_context.restore()?;
 
-        draw_legend(&legend_area, &legend, &legend_entries, &legend_style)?;
-
         root.present()?; // Present the final image.
-        Ok(())
+
+        Ok(legend_entries
+            .into_iter()
+            .map(|entry| LegendLabel {
+                text: entry.label,
+                color: entry.color,
+            })
+            .collect())
     }
 }
 
