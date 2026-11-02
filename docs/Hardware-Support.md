@@ -1,7 +1,7 @@
 ## AMD
 
-LACT for the most part does not implement features on a per-generation basis, rather it exposes the functionality that is available in the driver for the current system.
-However the following table shows what functionality can be expected for a given generation.
+LACT for the most part does not implement features on a per-generation basis. Rather, it exposes the functionality that is available in the driver for the current system.
+However, the following table shows what functionality can be expected for a given generation.
 
 - ✅ - Supported
 - ✅* - Supported with certain caveats
@@ -41,14 +41,14 @@ Anything Maxwell (900 series) or newer should generally work for most features.
 
 Locked clocks functionality is supported on Volta+ (16/20 series for consumer cards) for GPU clocks and Ampere+ (30 series) for VRAM clocks.
 
-A recent driver version is highly recommended, as older versions have shown to have issues with certain configuration options such as clockspeed settings. Clockspeed offsets are recommended to be used on driver 565 or newer, and will not show up on versions lower than 555.
+A recent driver version is highly recommended, as older versions have been shown to have issues with certain configuration options such as clockspeed settings. Clockspeed offsets are recommended to be used on driver 565 or newer, and will not show up on versions lower than 555.
 
 ## Intel
 
 Functionality status on Intel GPUs:
 - Clocks configuration - works on most devices, but there is no support for overclocking (clocks can only be adjusted within the default limits)
 - Power limit - works on ARC dGPUs. The maximum power limit might not be reported by the GPU, so the UI might not reflect it appropriately
-- Monitoring - most values are shown on devices where they are applicable, dGPU temperature and fan speed reading might need a recent kernel version
+- Monitoring - most values are shown on devices where they are applicable. dGPU temperature and fan speed readings might need a recent kernel version
 - Fan control - not supported by the driver
 
 Additionally, Battlemage GPUs might have problematic Vulkan drivers which cause broken rendering of the GUI.
@@ -56,4 +56,4 @@ A workaround for this issue is to force GTK to use OpenGL for rendering with the
 
 ## Laptops
 
-Fan monitoring or control might not be available on some laptops, because the fan is physically not connected through the GPU. This is a matter of hardware design, do not open issues regarding this. On such systems you should use other software for fan control which handles all fans instead of GPU only, such as [CoolerControl](https://gitlab.com/coolercontrol/coolercontrol).
+Fan monitoring or control might not be available on some laptops, because the fan is physically not connected through the GPU. This is a matter of hardware design. Do not open issues regarding this. On such systems you should use other software for fan control which handles all fans instead of GPU fans only, such as [CoolerControl](https://gitlab.com/coolercontrol/coolercontrol).
