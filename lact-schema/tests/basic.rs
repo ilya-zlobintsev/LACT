@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use lact_schema::{
-    FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response, clean_gpu_name,
+    DeviceListEntry, DeviceType, FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response,
+    clean_gpu_name,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -22,6 +23,24 @@ fn pong_response() {
         "data": null,
     });
     let response = Response::Ok(Pong.into());
+
+    assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
+}
+
+#[test]
+fn controllers_response() {
+    let expected_response = json!({
+        "status": "ok",
+        "data": [{ "id": "1002:67DF-1DA2:E387-0000:0f:00.0", "device_type": "Dedicated" }]
+    });
+    let response = Response::Ok(
+        vec![DeviceListEntry {
+            id: "1002:67DF-1DA2:E387-0000:0f:00.0".to_owned(),
+            name: None,
+            device_type: DeviceType::Dedicated,
+        }]
+        .into(),
+    );
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
 }
