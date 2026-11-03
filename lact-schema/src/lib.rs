@@ -56,6 +56,16 @@ pub const GUI_SUBCOMMAND: &str = "gui";
 /// Subcommand of the `lact` binary which runs the tray icon.
 pub const TRAY_SUBCOMMAND: &str = "tray";
 
+/// Whether the process runs inside a Flatpak sandbox.
+///
+/// Flatpak's D-Bus proxy does not let an application own the pid-based
+/// `org.kde.StatusNotifierItem-<pid>-<id>` name, which a tray icon normally takes, so the
+/// sandboxed process has to register under its unique bus name instead. The marker file is the
+/// one Flatpak itself guarantees inside every sandbox.
+pub fn is_flatpak() -> bool {
+    std::path::Path::new("/.flatpak-info").exists()
+}
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FanControlMode {

@@ -12,7 +12,7 @@ use gtk::{
     gio,
     glib::{self, variant::ToVariant as _},
 };
-use lact_schema::{TRAY_BUS_NAME, TRAY_SUBCOMMAND};
+use lact_schema::{TRAY_BUS_NAME, TRAY_SUBCOMMAND, is_flatpak};
 use nix::{
     sys::signal::{Signal, kill},
     unistd::Pid,
@@ -171,15 +171,20 @@ fn autostart_entry() -> anyhow::Result<String> {
     Ok(AUTOSTART_TEMPLATE.replace(EXEC_PLACEHOLDER, &exec))
 }
 
-fn is_flatpak() -> bool {
-    Path::new("/.flatpak-info").exists()
-}
-
 fn autostart_path() -> anyhow::Result<PathBuf> {
-    let config_dir = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
-        .context("Could not determine the config directory")?;
+    // Inside a Flatpak sandbox `XDG_CONFIG_HOME` points at the per-application directory
+    // (`~/.var/app/<app-id>/config`), which the session never reads. The host autostart directory
+    // is exposed as `~/.config/autostart` by the `--filesystem=xdg-config/autostart` permission.
+    let config_dir = if is_flatpak() {
+        std::env::var_os("HOME")
+            .map(|home| PathBuf::from(home).join(".config"))
+            .context("Could not determine the home directory")?
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+            .context("Could not determine the config directory")?
+    };
 
     Ok(config_dir.join("autostart").join(AUTOSTART_FILE))
 }

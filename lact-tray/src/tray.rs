@@ -55,9 +55,14 @@ impl LactTray {
     /// Registers the StatusNotifierItem and returns the handle used to publish new values.
     pub async fn spawn(&self) -> anyhow::Result<TrayHandle> {
         // `ksni` takes the service by value, hence the clone - all of its state is shared.
+        //
+        // Flatpak refuses to let the sandbox own the pid-based `org.kde.StatusNotifierItem-*`
+        // name, so inside a sandbox the item registers with its unique connection name instead,
+        // which the sandbox's D-Bus proxy does translate to the host.
         let handle = self
             .0
             .clone()
+            .disable_dbus_name(lact_schema::is_flatpak())
             .spawn()
             .await
             .context("Could not register the tray icon")?;

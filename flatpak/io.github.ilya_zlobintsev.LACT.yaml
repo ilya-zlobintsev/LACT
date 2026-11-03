@@ -15,6 +15,7 @@ finish-args:
   - --talk-name=org.kde.StatusNotifierWatcher
   - --system-talk-name=org.freedesktop.systemd1
   - --filesystem=/run/lactd.sock
+  - --filesystem=xdg-config/autostart
 cleanup:
   - /include
   - /share/vulkan/registry
