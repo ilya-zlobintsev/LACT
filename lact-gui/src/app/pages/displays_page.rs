@@ -101,7 +101,7 @@ impl relm4::factory::FactoryComponent for DisplayComponent {
                 set_column_spacing: 10,
                 set_homogeneous: true,
                 set_min_children_per_line: 2,
-                set_max_children_per_line: 4,
+                set_max_children_per_line: 2,
                 set_selection_mode: gtk::SelectionMode::None,
 
                 append_child = &InfoRow {
@@ -178,6 +178,8 @@ impl DisplayComponent {
 
                 if let Some(bandwidth) = bandwidth
                     && let Some(lanes) = lanes
+                    && bandwidth > 0
+                    && lanes > 0
                 {
                     let lane_rate = bandwidth as f64 / 1000.0;
                     write!(
@@ -195,5 +197,64 @@ impl DisplayComponent {
             DisplayConnector::Vga => "VGA".to_owned(),
             DisplayConnector::Other => fl!(I18N, "unknown-throttling"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn display(connector_type: DisplayConnector) -> DisplayComponent {
+        DisplayComponent {
+            display_id: "DP-1".to_owned(),
+            info: DisplayInfo {
+                model: None,
+                manufacturer: None,
+                product_code: 0,
+                manufacture_date: None,
+                size: None,
+                connector_type,
+                connector_id: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn formats_dp_link_info() {
+        let component = display(DisplayConnector::DisplayPort {
+            lanes: Some(4),
+            bandwidth: Some(5400),
+            embedded: false,
+        });
+        assert!(
+            component
+                .format_connector()
+                .starts_with("DisplayPort @ 21.6")
+        );
+        assert!(
+            component
+                .format_connector()
+                .ends_with("(5.4 Gbps x 4 lanes)")
+        );
+    }
+
+    #[test]
+    fn omits_unknown_dp_link_info() {
+        let component = display(DisplayConnector::DisplayPort {
+            lanes: None,
+            bandwidth: None,
+            embedded: false,
+        });
+        assert_eq!(component.format_connector(), "DisplayPort");
+    }
+
+    #[test]
+    fn omits_zero_dp_link_info() {
+        let component = display(DisplayConnector::DisplayPort {
+            lanes: Some(0),
+            bandwidth: Some(0),
+            embedded: false,
+        });
+        assert_eq!(component.format_connector(), "DisplayPort");
     }
 }
