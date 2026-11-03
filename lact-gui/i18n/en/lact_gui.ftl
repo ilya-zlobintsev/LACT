@@ -10,6 +10,10 @@ tray-icon = Tray Icon
 tray-icon-description = Show an icon in the system tray with basic GPU information. The icon runs in a separate lightweight process, the GUI exits when its window is closed.
 tray-start-on-login = Launch in tray when the system starts
 tray-start-on-login-description = Start the tray icon automatically when you log in.
+tray-icon-unsupported = Tray icon is not supported by this desktop
+tray-icon-unsupported-description = The desktop does not provide a StatusNotifierItem host, so the tray icon will not be visible.
+tray-icon-unsupported-description-gnome = GNOME only shows tray icons with the "AppIndicator and KStatusNotifierItem Support" extension installed.
+tray-icon-install-extension = Install Extension
 temperature = Temperature
 
 info-page = Hardware Info

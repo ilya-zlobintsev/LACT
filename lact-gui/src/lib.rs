@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod service_setup;
 mod tray_process;
+mod tray_support;
 
 use std::{
     panic,

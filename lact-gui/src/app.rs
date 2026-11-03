@@ -14,6 +14,7 @@ mod profiles;
 pub(crate) mod utils;
 
 use crate::tray_process;
+use crate::tray_support;
 use crate::{
     APP_ID, CONFIG, I18N,
     app::{
@@ -559,6 +560,10 @@ impl AsyncComponent for AppModel {
 
         if let Err(err) = tray_process::set_autostart(tray_enabled && tray_start_on_login) {
             warn!("could not update the tray autostart entry: {err:#}");
+        }
+
+        if tray_enabled && !tray_support::is_supported() {
+            show_tray_unsupported_toast(&widgets);
         }
 
         root.connect_close_request(move |root| {
@@ -1469,6 +1474,32 @@ impl AppModel {
 
         Ok(())
     }
+}
+
+/// Tells the user why the tray icon they have enabled is not visible: the desktop provides no
+/// StatusNotifierItem host. On GNOME the fix is an extension, so the toast offers to open its page.
+fn show_tray_unsupported_toast(widgets: &AppModelWidgets) {
+    let toast = adw::Toast::builder()
+        .title(fl!(I18N, "tray-icon-unsupported"))
+        .use_markup(false)
+        .build();
+
+    // An empty button label still renders a button, so only offer one where clicking it helps.
+    if tray_support::is_gnome() {
+        let button_label = fl!(I18N, "tray-icon-install-extension");
+        toast.set_button_label(Some(&button_label));
+
+        toast.connect_button_clicked(|_| {
+            if let Err(err) = gtk::gio::AppInfo::launch_default_for_uri(
+                tray_support::GNOME_EXTENSION_URL,
+                None::<&gtk::gio::AppLaunchContext>,
+            ) {
+                warn!("could not open the extension page: {err}");
+            }
+        });
+    }
+
+    widgets.toast_overlay.add_toast(toast);
 }
 
 fn start_stats_update_loop(

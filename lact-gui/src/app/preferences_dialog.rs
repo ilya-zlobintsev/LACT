@@ -9,6 +9,7 @@ use crate::{
         },
     },
     config::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS},
+    tray_support,
 };
 use adw::prelude::{
     ActionRowExt, AdwDialogExt, ComboRowExt, PreferencesDialogExt, PreferencesGroupExt,
@@ -205,6 +206,22 @@ impl relm4::Component for PreferencesDialog {
                             sender.input(PreferencesDialogMsg::TrayStartOnLoginChanged(row.is_active()));
                         },
                     },
+
+                    #[name = "tray_unsupported_row"]
+                    adw::ActionRow {
+                        set_title: &fl!(I18N, "tray-icon-unsupported"),
+                        set_subtitle: &fl!(I18N, "tray-icon-unsupported-description"),
+                        set_visible: false,
+                        add_css_class: "warning",
+
+                        #[name = "tray_extension_btn"]
+                        add_suffix = &gtk::LinkButton {
+                            set_label: &fl!(I18N, "tray-icon-install-extension"),
+                            set_uri: tray_support::GNOME_EXTENSION_URL,
+                            set_valign: gtk::Align::Center,
+                            set_visible: false,
+                        },
+                    },
                 },
 
                 add = &adw::PreferencesGroup {
@@ -268,7 +285,8 @@ impl relm4::Component for PreferencesDialog {
             system_info,
             languages,
         };
-        let widgets = view_output!();
+        let mut widgets = view_output!();
+        update_tray_warning(&mut widgets);
         ComponentParts { model, widgets }
     }
 
@@ -292,6 +310,7 @@ impl relm4::Component for PreferencesDialog {
             }
             PreferencesDialogMsg::Show => {
                 root.present(Some(&self.parent));
+                update_tray_warning(widgets);
             }
             PreferencesDialogMsg::ThemeSelected(theme) => {
                 styles::apply_theme(theme).expect("Could not apply theme");
@@ -314,6 +333,7 @@ impl relm4::Component for PreferencesDialog {
                     widgets.tray_autostart_row.set_active(false);
                 }
 
+                update_tray_warning(widgets);
                 APP_BROKER.send(AppMsg::TraySettingChanged);
             }
             PreferencesDialogMsg::TrayStartOnLoginChanged(active) => {
@@ -322,11 +342,37 @@ impl relm4::Component for PreferencesDialog {
                     widgets.tray_autostart_row.set_sensitive(true);
                 }
 
+                update_tray_warning(widgets);
                 APP_BROKER.send(AppMsg::TraySettingChanged);
             }
         }
         self.update_view(widgets, sender);
     }
+}
+
+/// Shows why the tray icon cannot work on this desktop: the row is only visible while the icon is
+/// enabled, and the suffix link only makes sense on GNOME, which needs an extension for tray icons.
+fn update_tray_warning(widgets: &mut PreferencesDialogWidgets) {
+    let enabled = CONFIG.read().tray_icon;
+    let supported = tray_support::is_supported();
+
+    widgets
+        .tray_unsupported_row
+        .set_visible(enabled && !supported);
+
+    if supported {
+        return;
+    }
+
+    let gnome = tray_support::is_gnome();
+    let subtitle = if gnome {
+        fl!(I18N, "tray-icon-unsupported-description-gnome")
+    } else {
+        fl!(I18N, "tray-icon-unsupported-description")
+    };
+
+    widgets.tray_unsupported_row.set_subtitle(&subtitle);
+    widgets.tray_extension_btn.set_visible(gnome);
 }
 
 fn build_language_list() -> (Vec<String>, gtk::StringList, u32) {
