@@ -6,7 +6,7 @@ use anyhow::Context as _;
 use i18n_embed_fl::fl;
 use ksni::{
     ToolTip, TrayMethods as _,
-    menu::{MenuItem, StandardItem},
+    menu::{CheckmarkItem, MenuItem, RadioGroup, RadioItem, StandardItem, SubMenu},
 };
 use lact_client::DaemonClient;
 use tokio::sync::mpsc;
@@ -21,6 +21,15 @@ use super::{
 pub enum TrayEvent {
     /// The host is about to open the menu, so the values it shows are worth refreshing.
     Show,
+    /// The user picked a profile in the menu.
+    SetProfile {
+        /// The name of the profile to activate, `None` for the default profile.
+        name: Option<String>,
+        /// The current automatic switching setting, passed back unchanged.
+        auto_switch: bool,
+    },
+    /// The user toggled automatic profile switching in the menu.
+    SetAutoSwitch(bool),
     /// The user asked to open the GUI.
     ShowWindow,
     /// The user asked to quit from the tray menu.
@@ -187,6 +196,12 @@ impl ksni::Tray for LactTrayImpl {
             );
         }
 
+        // A single entry would only offer the default profile, which is already active whenever
+        // no named profile is - the submenu is not worth showing in that case.
+        if !snapshot.profiles.names.is_empty() {
+            items.push(profile_submenu(&snapshot).into());
+        }
+
         if !items.is_empty() {
             items.push(MenuItem::Separator);
         }
@@ -217,6 +232,66 @@ impl ksni::Tray for LactTrayImpl {
         );
 
         items
+    }
+}
+
+/// Profiles as a submenu of radio items, the active one being preselected.
+fn profile_submenu(snapshot: &Snapshot) -> SubMenu<LactTrayImpl> {
+    let profiles = &snapshot.profiles;
+
+    SubMenu {
+        label: fl!(I18N, "profiles"),
+        submenu: vec![
+            RadioGroup {
+                selected: profiles.active_index(),
+                // The callback only knows the index: the names are read from the published
+                // snapshot, so nothing has to be captured per entry. Index 0 is the default
+                // profile, which the daemon represents as having no profile active.
+                select: Box::new(|tray: &mut LactTrayImpl, index: usize| {
+                    let Some(profiles) = tray.snapshot().map(|snapshot| snapshot.profiles) else {
+                        return;
+                    };
+
+                    let name = match index {
+                        0 => None,
+                        index => match profiles.names.get(index - 1) {
+                            Some(name) => Some(name.clone()),
+                            None => return,
+                        },
+                    };
+
+                    let _ = tray.events.send(TrayEvent::SetProfile {
+                        name,
+                        auto_switch: profiles.auto_switch,
+                    });
+                }),
+                options: std::iter::once(fl!(I18N, "profile-default"))
+                    .chain(profiles.names.iter().cloned())
+                    .map(|name| RadioItem {
+                        label: name,
+                        ..Default::default()
+                    })
+                    .collect(),
+            }
+            .into(),
+            MenuItem::Separator,
+            CheckmarkItem {
+                label: fl!(I18N, "profile-auto-switch"),
+                checked: profiles.auto_switch,
+                activate: Box::new(|tray: &mut LactTrayImpl| {
+                    let Some(profiles) = tray.snapshot().map(|snapshot| snapshot.profiles) else {
+                        return;
+                    };
+
+                    let _ = tray
+                        .events
+                        .send(TrayEvent::SetAutoSwitch(!profiles.auto_switch));
+                }),
+                ..Default::default()
+            }
+            .into(),
+        ],
+        ..Default::default()
     }
 }
 

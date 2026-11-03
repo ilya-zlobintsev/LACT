@@ -103,6 +103,33 @@ async fn serve() -> anyhow::Result<()> {
                 // Publishing the values is also what re-emits the properties. Reading them right
                 // away makes a freshly opened item show current values instead of the last tick.
                 TrayEvent::Show => handle.refresh(&daemon).await,
+                TrayEvent::SetProfile { name, auto_switch } => {
+                    debug!("switching to the {name:?} profile");
+                    if let Err(err) = daemon.set_profile(name, auto_switch).await {
+                        error!("could not switch the profile: {err:#}");
+                    }
+
+                    // Reads back the profile which actually became active.
+                    handle.refresh(&daemon).await;
+                }
+                TrayEvent::SetAutoSwitch(enabled) => {
+                    debug!("setting profile auto switching to {enabled}");
+                    // The active profile is read again instead of taken from the last published
+                    // snapshot: `set_profile` always carries both values, so a stale name would
+                    // silently switch the profile while only the setting was meant to change.
+                    match daemon.list_profiles(false).await {
+                        Ok(info) => {
+                            if let Err(err) =
+                                daemon.set_profile(info.current_profile, enabled).await
+                            {
+                                error!("could not change profile auto switching: {err:#}");
+                            }
+
+                            handle.refresh(&daemon).await;
+                        }
+                        Err(err) => error!("could not read the profiles: {err:#}"),
+                    }
+                }
                 TrayEvent::ShowWindow => {
                     if let Err(err) = gui::spawn() {
                         error!("could not open the GUI: {err:#}");
