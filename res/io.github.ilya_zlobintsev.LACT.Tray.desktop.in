@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LACT Tray Icon
+Comment=Show GPU information in the system tray
+Exec=@EXEC@
+Icon=io.github.ilya_zlobintsev.LACT
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

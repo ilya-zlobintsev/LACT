@@ -34,6 +34,8 @@ pub enum PreferencesDialogMsg {
     ThemeSelected(AppTheme),
     ColorSchemeSelected(AppColorScheme),
     LanguageSelected(u32),
+    TrayIconChanged(bool),
+    TrayStartOnLoginChanged(bool),
 }
 
 #[relm4::component(pub)]
@@ -170,6 +172,39 @@ impl relm4::Component for PreferencesDialog {
                             },
                         },
                     },
+
+                    #[name = "tray_icon_row"]
+                    adw::SwitchRow {
+                        set_title: &fl!(I18N, "tray-icon"),
+                        set_subtitle: &fl!(I18N, "tray-icon-description"),
+                        set_active: CONFIG.read().tray_icon,
+                        connect_active_notify[sender] => move |row| {
+                            CONFIG.write().edit(|config| {
+                                config.tray_icon = row.is_active();
+                                if !row.is_active() {
+                                    config.tray_start_on_login = false;
+                                }
+                            });
+                            sender.input(PreferencesDialogMsg::TrayIconChanged(row.is_active()));
+                        },
+                    },
+
+                    #[name = "tray_autostart_row"]
+                    adw::SwitchRow {
+                        set_title: &fl!(I18N, "tray-start-on-login"),
+                        set_subtitle: &fl!(I18N, "tray-start-on-login-description"),
+                        set_sensitive: CONFIG.read().tray_icon,
+                        set_active: CONFIG.read().tray_icon && CONFIG.read().tray_start_on_login,
+                        connect_active_notify[sender] => move |row| {
+                            CONFIG.write().edit(|config| {
+                                config.tray_start_on_login = row.is_active();
+                                if row.is_active() {
+                                    config.tray_icon = true;
+                                }
+                            });
+                            sender.input(PreferencesDialogMsg::TrayStartOnLoginChanged(row.is_active()));
+                        },
+                    },
                 },
 
                 add = &adw::PreferencesGroup {
@@ -272,6 +307,22 @@ impl relm4::Component for PreferencesDialog {
                 });
 
                 styles::apply_theme(CONFIG.read().theme).expect("Could not apply theme");
+            }
+            PreferencesDialogMsg::TrayIconChanged(active) => {
+                widgets.tray_autostart_row.set_sensitive(active);
+                if !active {
+                    widgets.tray_autostart_row.set_active(false);
+                }
+
+                APP_BROKER.send(AppMsg::TraySettingChanged);
+            }
+            PreferencesDialogMsg::TrayStartOnLoginChanged(active) => {
+                if active {
+                    widgets.tray_icon_row.set_active(true);
+                    widgets.tray_autostart_row.set_sensitive(true);
+                }
+
+                APP_BROKER.send(AppMsg::TraySettingChanged);
             }
         }
         self.update_view(widgets, sender);

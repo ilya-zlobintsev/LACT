@@ -6,6 +6,12 @@ experimental-features = Experimental Features
 nvidia-pstate-offsets = NVIDIA per-P-state offsets
 nvidia-pstate-offsets-description = Expose offsets for non-P0 states. Disabled by default because no known device/driver version supports it.
 
+tray-icon = Tray Icon
+tray-icon-description = Show an icon in the system tray with basic GPU information. The icon runs in a separate lightweight process, the GUI exits when its window is closed.
+tray-start-on-login = Launch in tray when the system starts
+tray-start-on-login-description = Start the tray icon automatically when you log in.
+temperature = Temperature
+
 info-page = Hardware Info
 oc-page = Overclocking
 thermals-page = Thermals

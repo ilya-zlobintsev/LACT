@@ -13,6 +13,7 @@ mod process_monitor;
 mod profiles;
 pub(crate) mod utils;
 
+use crate::tray_process;
 use crate::{
     APP_ID, CONFIG, I18N,
     app::{
@@ -348,6 +349,16 @@ impl AsyncComponent for AppModel {
             .application()
             .expect("Failed to get application from root window");
 
+        // Present the window when the application is activated while it is hidden in the tray,
+        // e.g. when `lact gui` is launched a second time.
+        application.connect_activate(clone!(
+            #[weak]
+            root,
+            move |_| {
+                root.present();
+            }
+        ));
+
         relm4::set_global_css_with_priority(styles::COMBINED_CSS, styles::APPLICATION_CSS_PRIORITY);
         root.settings().set_gtk_icon_theme_name(Some("Adwaita"));
 
@@ -537,7 +548,20 @@ impl AsyncComponent for AppModel {
 
         let widgets = view_output!();
 
-        root.connect_close_request(|root| {
+        let (tray_enabled, tray_start_on_login) = {
+            let config = CONFIG.read();
+            (config.tray_icon, config.tray_start_on_login)
+        };
+
+        if tray_enabled && let Err(err) = tray_process::start() {
+            error!("could not start the tray icon process: {err:#}");
+        }
+
+        if let Err(err) = tray_process::set_autostart(tray_enabled && tray_start_on_login) {
+            warn!("could not update the tray autostart entry: {err:#}");
+        }
+
+        root.connect_close_request(move |root| {
             let width = root.width();
             let height = root.height();
 
@@ -547,6 +571,7 @@ impl AsyncComponent for AppModel {
                 });
             }
 
+            // The tray icon runs in its own process, so the GUI can exit completely.
             root.application().unwrap().quit();
 
             glib::Propagation::Proceed
@@ -672,6 +697,22 @@ impl AppModel {
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
+            }
+            AppMsg::TraySettingChanged => {
+                let (tray_enabled, start_on_login) = {
+                    let config = CONFIG.read();
+                    (config.tray_icon, config.tray_start_on_login)
+                };
+
+                if tray_enabled {
+                    tray_process::start()?;
+                } else {
+                    tray_process::stop();
+                }
+
+                if let Err(err) = tray_process::set_autostart(tray_enabled && start_on_login) {
+                    error!("could not update the tray autostart entry: {err:#}");
+                }
             }
             AppMsg::ExperimentalFeaturesChanged => {
                 sender.input(AppMsg::ReloadData { full: false });
@@ -954,6 +995,7 @@ impl AppModel {
                 }
             }
             AppMsg::Quit => {
+                tray_process::stop();
                 self.application.quit();
             }
         }

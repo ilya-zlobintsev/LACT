@@ -37,6 +37,25 @@ use crate::{config::ProfileHooks, i18n::LANGUAGE_LOADER};
 
 pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA");
 
+/// Lower bound of the stats polling interval, in milliseconds.
+pub const MIN_STATS_POLL_INTERVAL_MS: i64 = 250;
+/// Upper bound of the stats polling interval, in milliseconds.
+pub const MAX_STATS_POLL_INTERVAL_MS: i64 = 5000;
+/// Stats polling interval used when the configuration does not set one, in milliseconds.
+pub const DEFAULT_STATS_POLL_INTERVAL_MS: i64 = 500;
+
+/// Application id, used for the GTK application and for the D-Bus names of LACT.
+pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
+
+/// Bus name owned by the tray icon process for as long as it runs, which is how the GUI finds it.
+pub const TRAY_BUS_NAME: &str = "io.github.ilya_zlobintsev.LACT.Tray";
+
+/// Subcommand of the `lact` binary which runs the GUI.
+pub const GUI_SUBCOMMAND: &str = "gui";
+
+/// Subcommand of the `lact` binary which runs the tray icon.
+pub const TRAY_SUBCOMMAND: &str = "tray";
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FanControlMode {
