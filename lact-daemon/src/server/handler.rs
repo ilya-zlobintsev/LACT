@@ -257,13 +257,18 @@ impl<'a> Handler {
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
         match load_controllers(&base_path, &pci_db, &detached_ids, &config) {
-            Ok(new_controllers) => {
+            Ok(mut new_controllers) => {
                 info!(
                     "GPU list reloaded with {} devices, reapplying configuration",
                     new_controllers.len()
                 );
 
-                for old_controller in controllers_guard.values() {
+                for (id, old_controller) in controllers_guard.iter() {
+                    if let Some(new_controller) = new_controllers.get_mut(id)
+                        && let Some(state) = old_controller.retained_state()
+                    {
+                        new_controller.restore_retained_state(state);
+                    }
                     old_controller.cleanup().await;
                     let _ = old_controller.reset_clocks();
                 }

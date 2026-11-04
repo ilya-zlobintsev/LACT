@@ -78,6 +78,78 @@ expression: device_info
         },
         "kind": "rdna"
       }
+    },
+    "table_default": {
+      "type": "amd",
+      "value": {
+        "data": {
+          "current_mclk_range": {
+            "max": 875,
+            "min": null
+          },
+          "current_sclk_range": {
+            "max": 1900,
+            "min": 500
+          },
+          "od_range": {
+            "curve_sclk_points": [
+              {
+                "max": 2200,
+                "min": 800
+              },
+              {
+                "max": 2200,
+                "min": 800
+              },
+              {
+                "max": 2200,
+                "min": 800
+              }
+            ],
+            "curve_voltage_points": [
+              {
+                "max": 1150,
+                "min": 700
+              },
+              {
+                "max": 1150,
+                "min": 700
+              },
+              {
+                "max": 1150,
+                "min": 700
+              }
+            ],
+            "mclk": {
+              "max": 930,
+              "min": 625
+            },
+            "sclk": {
+              "max": 2200,
+              "min": 800
+            },
+            "sclk_offset": null,
+            "voltage_offset": null
+          },
+          "sclk_offset": null,
+          "vddc_curve": [
+            {
+              "clockspeed": 500,
+              "voltage": 736
+            },
+            {
+              "clockspeed": 1200,
+              "voltage": 779
+            },
+            {
+              "clockspeed": 1900,
+              "voltage": 1102
+            }
+          ],
+          "voltage_offset": null
+        },
+        "kind": "rdna"
+      }
     }
   },
   "info": {
