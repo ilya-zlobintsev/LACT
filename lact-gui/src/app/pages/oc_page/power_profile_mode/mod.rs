@@ -2,16 +2,15 @@ mod heuristics_list;
 
 use crate::I18N;
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use gtk::StringObject;
 use heuristics_list::PowerProfileHeuristicsList;
 use i18n_embed_fl::fl;
-use lact_schema::PowerProfileModesInfo;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, RelmWidgetExt, css};
 
 pub struct AmdPowerProfileMode {
     performance_level: Option<PerformanceLevel>,
-    table: PowerProfileModesInfo,
+    table: PowerProfileModesTable,
     heuristics_components: Vec<relm4::Controller<PowerProfileHeuristicsList>>,
 }
 
@@ -28,7 +27,7 @@ pub enum AmdPowerProfileModeMsg {
 
 #[relm4::component(pub)]
 impl Component for AmdPowerProfileMode {
-    type Init = (PowerProfileModesInfo, Option<PerformanceLevel>);
+    type Init = (PowerProfileModesTable, Option<PerformanceLevel>);
     type Input = AmdPowerProfileModeMsg;
     type Output = ();
     type CommandOutput = ();

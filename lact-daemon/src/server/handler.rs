@@ -16,12 +16,14 @@ use crate::{
         system::DAEMON_VERSION,
     },
 };
-use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
+use amdgpu_sysfs::gpu_handle::{
+    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
+};
 use anyhow::{Context, anyhow, bail};
 use lact_schema::{
     ClocksInfo, DeviceApiInfo, DeviceInfo, DeviceListEntry, DeviceStats, DisplaysInfo,
-    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerProfileModesInfo, PowerStates,
-    ProcessList, ProfileRule, ProfileWatcherState, ProfilesInfo,
+    FanControlMode, FanOptions, GpuPciInfo, PmfwOptions, PowerStates, ProcessList, ProfileRule,
+    ProfileWatcherState, ProfilesInfo,
     config::{
         FanControlSettings, FanCurve, GpuConfig, Profile, ProfileHooks, default_fan_static_speed,
     },
@@ -676,7 +678,10 @@ impl<'a> Handler {
         .context("Failed to edit GPU config and batch set clocks")
     }
 
-    pub async fn get_power_profile_modes(&self, id: &str) -> anyhow::Result<PowerProfileModesInfo> {
+    pub async fn get_power_profile_modes(
+        &self,
+        id: &str,
+    ) -> anyhow::Result<PowerProfileModesTable> {
         let modes_table = self.controller_by_id(id).await?.get_power_profile_modes()?;
         Ok(modes_table)
     }
@@ -1360,7 +1365,7 @@ pub(crate) struct SnapshotDeviceInfo {
     pub stats: DeviceStats,
     #[serde(default)]
     pub clocks_info: Option<ClocksInfo>,
-    pub power_profile_modes: Option<PowerProfileModesInfo>,
+    pub power_profile_modes: Option<PowerProfileModesTable>,
     pub power_states: PowerStates,
 }
 

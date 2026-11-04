@@ -20,12 +20,12 @@ use crate::config::Config;
 use crate::server::handler::{AMD_DRM, INTEL_DRM};
 use crate::server::opencl::get_opencl_info;
 use crate::server::vulkan::get_vulkan_info;
+use amdgpu_sysfs::gpu_handle::power_profile_mode::PowerProfileModesTable;
 use anyhow::Context;
 use anyhow::anyhow;
 use futures::{FutureExt, future::LocalBoxFuture};
 use lact_schema::{
-    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerProfileModesInfo, PowerStates,
-    config::GpuConfig,
+    ClocksInfo, DeviceInfo, DeviceStats, GpuPciInfo, PciInfo, PowerStates, config::GpuConfig,
 };
 use std::io;
 use std::os::fd::OwnedFd;
@@ -102,7 +102,7 @@ pub trait GpuController {
 
     fn reset_clocks(&self) -> anyhow::Result<()>;
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo>;
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable>;
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>>;
 

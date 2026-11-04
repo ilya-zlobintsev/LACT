@@ -123,34 +123,6 @@ expression: device_info
   },
   "power_profile_modes": {
     "active": 1,
-    "custom_heuristics_default": [
-      {
-        "clock_type": "GFXCLK",
-        "values": [
-          0,
-          1,
-          0,
-          4,
-          800,
-          4587520,
-          -65536,
-          0
-        ]
-      },
-      {
-        "clock_type": "FCLK",
-        "values": [
-          0,
-          3,
-          0,
-          1,
-          0,
-          5898240,
-          -6553,
-          -6553
-        ]
-      }
-    ],
     "modes": {
       "0": {
         "components": [

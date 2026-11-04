@@ -15,12 +15,14 @@ use crate::app::pages::oc_page::igpu_frame::{IGpuFrame, IGpuFrameMsg};
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
+use amdgpu_sysfs::gpu_handle::{
+    PerformanceLevel, PowerLevelKind, power_profile_mode::PowerProfileModesTable,
+};
 use card_layout::{CardLayout, ColumnBias};
 use clocks_frame::{ClockDomain, ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerProfileModesInfo, PowerStates};
+use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
 use power_frame::{PowerFrame, PowerFrameMsg, PowerFrameSerialized};
 use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
@@ -60,7 +62,7 @@ pub enum OcPageMsg {
         table: Option<ClocksTable>,
         vf_curve_is_configured: bool,
     },
-    ProfileModesTable(Option<PowerProfileModesInfo>),
+    ProfileModesTable(Option<PowerProfileModesTable>),
     PowerStates {
         pstates: PowerStates,
         configured: bool,

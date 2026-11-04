@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use amdgpu_sysfs::{
-    gpu_handle::{PowerLevelId, fan_control::FanInfo},
+    gpu_handle::{PowerLevelId, fan_control::FanInfo, power_profile_mode::PowerProfileModesTable},
     hw_mon::Temperature,
 };
 use anyhow::{Context, anyhow, bail, ensure};
@@ -25,9 +25,8 @@ use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerProfileModesInfo, PowerState, PowerStates,
-    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
-    VoltageStats, VramStats,
+    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
+    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
@@ -1211,7 +1210,7 @@ impl GpuController for NvidiaGpuController {
         })
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
         Err(anyhow!("Not supported on Nvidia"))
     }
 

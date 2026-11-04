@@ -11,7 +11,7 @@ use amdgpu_sysfs::{
         CommitHandle, GpuHandle, PerformanceLevel, PowerLevelId, PowerLevelKind, PowerLevels,
         fan_control::FanCurve as PmfwCurve,
         overdrive::{ClocksTable, ClocksTableGen},
-        power_profile_mode::PowerProfileComponent,
+        power_profile_mode::PowerProfileModesTable,
     },
     hw_mon::{FanControlMethod, HwMon, Temperature},
     sysfs::SysFS,
@@ -26,7 +26,7 @@ use lact_schema::{
     ActivePowerStates, AmdCacheInstance, AmdUmaCarveout, CacheInfo, CacheType, ClocksInfo,
     ClocksTable as SchemaClocksTable, ClockspeedStats, DeviceApiInfo, DeviceFlag, DeviceInfo,
     DeviceStats, DeviceType, DrmInfo, FanControlMode, FanStats, LinkInfo, NvidiaThermalInfo,
-    PmfwInfo, PmfwOptions, PowerProfileModesInfo, PowerState, PowerStates, PowerStats, ProcessList,
+    PmfwInfo, PmfwOptions, PowerState, PowerStates, PowerStats, ProcessList,
     ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
     config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig},
 };
@@ -73,13 +73,11 @@ pub struct AmdGpuController {
     last_drm_util: RefCell<Option<DrmUtilMap>>,
     pmfw_options_default: PmfwOptions,
     clocks_table_default: Option<ClocksTableGen>,
-    custom_heuristics_default: Option<Vec<PowerProfileComponent>>,
 }
 
 pub struct AmdRetainedState {
     pmfw_options: PmfwOptions,
     clocks_table: Option<ClocksTableGen>,
-    custom_heuristics: Option<Vec<PowerProfileComponent>>,
 }
 
 impl AmdGpuController {
@@ -132,13 +130,6 @@ impl AmdGpuController {
                 .map(|info| info.current),
         };
         let clocks_table_default = handle.get_clocks_table().ok();
-        let custom_heuristics_default = handle.get_power_profile_modes().ok().and_then(|table| {
-            table
-                .modes
-                .values()
-                .find(|mode| mode.is_custom())
-                .map(|mode| mode.components.clone())
-        });
 
         Ok(Self {
             handle,
@@ -148,7 +139,6 @@ impl AmdGpuController {
             last_drm_util: RefCell::new(None),
             pmfw_options_default,
             clocks_table_default,
-            custom_heuristics_default,
         })
     }
 
@@ -1144,18 +1134,14 @@ impl GpuController for AmdGpuController {
         PowerStates { core, vram }
     }
 
-    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesInfo> {
-        Ok(PowerProfileModesInfo {
-            custom_heuristics_default: self.custom_heuristics_default.clone(),
-            ..self.handle.get_power_profile_modes()?.into()
-        })
+    fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
+        Ok(self.handle.get_power_profile_modes()?)
     }
 
     fn retained_state(&self) -> Option<ControllerRetainedState> {
         Some(ControllerRetainedState::Amd(Box::new(AmdRetainedState {
             pmfw_options: self.pmfw_options_default,
             clocks_table: self.clocks_table_default.clone(),
-            custom_heuristics: self.custom_heuristics_default.clone(),
         })))
     }
 
@@ -1163,7 +1149,6 @@ impl GpuController for AmdGpuController {
         if let ControllerRetainedState::Amd(state) = state {
             self.pmfw_options_default = state.pmfw_options;
             self.clocks_table_default = state.clocks_table;
-            self.custom_heuristics_default = state.custom_heuristics;
         }
     }
 

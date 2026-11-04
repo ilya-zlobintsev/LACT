@@ -17,9 +17,9 @@ use crate::{
     },
 };
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::PerformanceLevel;
+use amdgpu_sysfs::gpu_handle::{PerformanceLevel, power_profile_mode::PowerProfileModesTable};
 use i18n_embed_fl::fl;
-use lact_schema::{DeviceStats, PowerProfileModesInfo};
+use lact_schema::DeviceStats;
 use nvml_wrapper::enums::device::PowerMizerMode;
 use relm4::{
     ComponentController, ComponentParts, ComponentSender, Controller, WidgetTemplate,
@@ -63,7 +63,7 @@ pub struct PowerFrame {
 pub enum PowerFrameMsg {
     Stats(Arc<DeviceStats>),
     SetPerformanceLevel(PerformanceLevel),
-    PowerProfileModes(Option<PowerProfileModesInfo>),
+    PowerProfileModes(Option<PowerProfileModesTable>),
     SettingChanged(PowerSetting),
     Reset,
 }
