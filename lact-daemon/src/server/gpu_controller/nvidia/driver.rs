@@ -76,24 +76,14 @@ impl DriverHandle {
             client_request.hObjectNew
         };
 
-        let device_id = match unsafe {
-            Self::query_device_id(nvidiactl_fd.as_raw_fd(), client_handle, expected_slot)
-        } {
-            Ok(resolved_id) => {
-                if resolved_id != minor_number {
-                    warn!(
-                        "resolved RM device id {resolved_id} for pci slot {expected_slot:?}, but NVML reports minor number {minor_number}"
-                    );
-                }
-                resolved_id
-            }
-            Err(err) => {
-                warn!(
-                    "could not resolve RM device id: {err:#}, defaulting to NVML minor number {minor_number}"
-                );
-                minor_number
-            }
+        let device_id = unsafe {
+            Self::query_device_id(nvidiactl_fd.as_raw_fd(), client_handle, expected_slot)?
         };
+        if device_id != minor_number {
+            warn!(
+                "resolved RM device id {device_id} for pci slot {expected_slot:?}, but NVML reports minor number {minor_number}"
+            );
+        }
 
         let device_fd: OwnedFd = File::options()
             .read(true)
@@ -157,9 +147,8 @@ impl DriverHandle {
         })
     }
 
-    // NVML minor numbers usually match the device ids used for NV01_DEVICE_0 allocations,
-    // but the driver enumerates both independently and they may be swapped on multi-GPU systems.
-    // Ask the driver for the device id of the expected PCI slot directly to be sure.
+    // The RM device id used for NV01_DEVICE_0 may not match NVML minor number upon every boot.
+    // Resolve it by matching the controller's PCI slot against the driver's attached GPUs.
     unsafe fn query_device_id(
         nvidiactl_fd: RawFd,
         client_handle: NvHandle,
