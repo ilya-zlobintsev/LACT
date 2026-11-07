@@ -1340,6 +1340,7 @@ impl GpuController for AmdGpuController {
                 }
             }
 
+            #[allow(clippy::float_cmp)]
             if let Some(configured_cap) = config.power_cap {
                 let hw_mon = self.first_hw_mon()?;
 
