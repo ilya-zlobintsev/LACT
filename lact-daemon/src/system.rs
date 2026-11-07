@@ -1,7 +1,5 @@
-mod polkit;
+pub mod polkit;
 pub mod power_profiles_daemon;
-
-pub use polkit::setup_polkit;
 
 use anyhow::{Context, anyhow, bail, ensure};
 use lact_schema::{

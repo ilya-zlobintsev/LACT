@@ -1,13 +1,33 @@
-use crate::system::IS_FLATBOX;
+use super::{IS_FLATBOX, run_command};
 use anyhow::Context as _;
 use std::{fs, path::Path};
-use tracing::info;
+use tracing::{error, info, warn};
 use zbus_polkit::policykit1::AuthorityProxy;
 
 const FLATPAK_POLICY_PATH: &str = "/app/share/polkit-1/actions";
 const POLICY_FILE_NAME: &str = "io.github.ilya_zlobintsev.LACT.policy";
 
-pub async fn setup_polkit() -> anyhow::Result<AuthorityProxy<'static>> {
+pub mod actions {
+    pub const PROFILE_HOOK: &str = "io.github.ilya_zlobintsev.LACT.profile-hook";
+}
+
+#[derive(Clone)]
+pub struct PolkitWrapper {
+    pub proxy: AuthorityProxy<'static>,
+    version: Option<i64>,
+}
+
+impl PolkitWrapper {
+    pub fn supports_pidfd(&self) -> bool {
+        self.version.is_some_and(|version| version >= 124)
+    }
+
+    pub fn supports_run_dir_actions(&self) -> bool {
+        self.version.is_some_and(|version| version >= 126)
+    }
+}
+
+pub async fn setup_polkit() -> anyhow::Result<PolkitWrapper> {
     let conn = zbus::Connection::system()
         .await
         .context("Could not establish dbus connection")?;
@@ -16,22 +36,22 @@ pub async fn setup_polkit() -> anyhow::Result<AuthorityProxy<'static>> {
         .await
         .context("Could not connect to polkit")?;
 
+    let raw_version = proxy.backend_version().await?;
+    let version = raw_version.parse::<i64>().ok();
+
+    let wrapper = PolkitWrapper { proxy, version };
+
     if *IS_FLATBOX {
-        setup_flatpak_host_actions(&proxy)
+        setup_flatpak_host_actions(&wrapper)
             .await
             .context("Could not install polkit policy file")?;
     }
 
-    Ok(proxy)
+    Ok(wrapper)
 }
 
-async fn setup_flatpak_host_actions(proxy: &AuthorityProxy<'static>) -> anyhow::Result<()> {
-    let raw_version = proxy.backend_version().await?;
-    let version: i64 = raw_version
-        .parse()
-        .with_context(|| format!("Could not parse polkit version '{raw_version}'"))?;
-
-    let host_target_path = if version >= 126 {
+async fn setup_flatpak_host_actions(wrapper: &PolkitWrapper) -> anyhow::Result<()> {
+    let host_target_path = if wrapper.supports_run_dir_actions() {
         "run/polkit-1/actions"
     } else {
         // It's pretty ugly to be copying a file to a persistent path,
@@ -40,13 +60,7 @@ async fn setup_flatpak_host_actions(proxy: &AuthorityProxy<'static>) -> anyhow::
     };
     let target_path = Path::new("/run/host/root").join(host_target_path);
 
-    fs::create_dir_all(&target_path)
-        .with_context(|| format!("Could not create policy dir '{}'", target_path.display()))?;
-
-    info!(
-        target_path = target_path.display().to_string(),
-        "setting up polkit policy on the host system"
-    );
+    info!(?target_path, "setting up polkit policy on the host system");
 
     fs::copy(
         Path::new(FLATPAK_POLICY_PATH).join(POLICY_FILE_NAME),
@@ -54,7 +68,22 @@ async fn setup_flatpak_host_actions(proxy: &AuthorityProxy<'static>) -> anyhow::
     )
     .with_context(|| format!("Could not copy policy file to '{}'", target_path.display()))?;
 
-    // TODO: validate here
+    if let Err(err) = run_command("systemctl", &["reload", "polkit"]).await {
+        warn!(%err, "could not reload polkit");
+    }
+
+    let available_actions = wrapper
+        .proxy
+        .enumerate_actions("")
+        .await
+        .context("Could not list actions")?;
+
+    if !available_actions
+        .iter()
+        .any(|action| action.action_id == actions::PROFILE_HOOK)
+    {
+        error!("polkit action was installed successfully, but not picked up by polkit");
+    }
 
     Ok(())
 }

@@ -48,14 +48,14 @@ impl Server {
 
         system::power_profiles_daemon::setup().await;
 
-        let polkit_proxy = system::setup_polkit()
+        let polkit_wrapper = system::polkit::setup_polkit()
             .await
             .inspect_err(|err| {
                 warn!("could not connect to polkit, admin checks will not be available: {err:#}");
             })
             .ok();
 
-        let handler = Handler::new(config, polkit_proxy).await?;
+        let handler = Handler::new(config, polkit_wrapper).await?;
 
         socket::set_permissions(&socket_path, &handler.config.read().await.daemon)
             .await

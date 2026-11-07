@@ -5,7 +5,10 @@ use super::{
 };
 #[cfg(feature = "display-info")]
 use crate::server::display;
-use crate::system::run_command;
+use crate::system::{
+    polkit::{self, PolkitWrapper},
+    run_command,
+};
 use crate::{
     bindings::intel::IntelDrm,
     config::Config,
@@ -56,7 +59,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, trace, warn};
-use zbus_polkit::policykit1::{self, AuthorityProxy};
+use zbus_polkit::policykit1;
 
 const CONTROLLERS_LOAD_RETRY_ATTEMPTS: u8 = 5;
 const CONTROLLERS_LOAD_RETRY_INTERVAL: u64 = 3;
@@ -90,10 +93,6 @@ const SNAPSHOT_EXCLUDED_FILENAME_PREFIXES: &[&str] = &[
 ];
 const CONFIG_RESET_CMDLINE_ARG: &str = "lact-reset";
 
-mod polkit_actions {
-    pub const PROFILE_HOOK: &str = "io.github.ilya_zlobintsev.LACT.profile-hook";
-}
-
 type ProfileHolds = Rc<RefCell<Vec<(u64, Rc<str>, mpsc::Sender<()>)>>>;
 type ProfileHoldSnapshot = Rc<RefCell<Option<(Option<Rc<str>>, bool)>>>;
 
@@ -109,7 +108,7 @@ pub struct Handler {
     profile_holds: ProfileHolds,
     profile_hold_snapshot: ProfileHoldSnapshot,
     next_hold_cookie: Rc<Cell<u64>>,
-    polkit_proxy: Option<AuthorityProxy<'static>>,
+    polkit_wrapper: Option<PolkitWrapper>,
     ignored_gpu_ids: Rc<RwLock<Vec<String>>>,
     reload_tx: Rc<mpsc::Sender<Duration>>,
 }
@@ -117,19 +116,19 @@ pub struct Handler {
 impl<'a> Handler {
     pub async fn new(
         config: Config,
-        polkit_proxy: Option<AuthorityProxy<'static>>,
+        polkit_wrapper: Option<PolkitWrapper>,
     ) -> anyhow::Result<Self> {
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
 
-        Self::with_base_path(&base_path, config, &pci_db, polkit_proxy).await
+        Self::with_base_path(&base_path, config, &pci_db, polkit_wrapper).await
     }
 
     pub(crate) async fn with_base_path(
         base_path: &Path,
         mut config: Config,
         pci_db: &Database,
-        polkit_proxy: Option<AuthorityProxy<'static>>,
+        polkit_proxy: Option<PolkitWrapper>,
     ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
@@ -206,7 +205,7 @@ impl<'a> Handler {
             profile_holds: Rc::new(RefCell::new(Vec::new())),
             profile_hold_snapshot: Rc::new(RefCell::new(None)),
             next_hold_cookie: Rc::new(Cell::new(1)),
-            polkit_proxy,
+            polkit_wrapper: polkit_proxy,
             ignored_gpu_ids: Rc::new(RwLock::new(Vec::new())),
             reload_tx: Rc::new(reload_tx),
         };
@@ -961,7 +960,7 @@ impl<'a> Handler {
                 ProfileBase::Provided(profile) => {
                     if !profile.hooks.is_empty() {
                         self.check_auth(
-                            polkit_actions::PROFILE_HOOK,
+                            polkit::actions::PROFILE_HOOK,
                             "User was not authorized to set profile rule hooks",
                             ctx,
                         )
@@ -1087,7 +1086,7 @@ impl<'a> Handler {
     ) -> anyhow::Result<()> {
         if !hooks.is_empty() {
             self.check_auth(
-                polkit_actions::PROFILE_HOOK,
+                polkit::actions::PROFILE_HOOK,
                 "User was not authorized to set profile rule hooks",
                 ctx,
             )
@@ -1317,8 +1316,8 @@ impl<'a> Handler {
         error_msg: &str,
         ctx: &ClientContext,
     ) -> anyhow::Result<()> {
-        let polkit_proxy = self
-            .polkit_proxy
+        let polkit = self
+            .polkit_wrapper
             .as_ref()
             .context("Polkit not available, cannot ask for authorization")?;
 
@@ -1326,11 +1325,14 @@ impl<'a> Handler {
         let pid = ctx.pid.context("No client PID available")?;
 
         let subject = match &ctx.pid_fd {
-            Some(pid_fd) => policykit1::Subject::new_for_owner(pid_fd, uid)?,
-            None => policykit1::Subject::new_for_pid(pid, None, Some(uid))?,
+            Some(pid_fd) if polkit.supports_pidfd() => {
+                policykit1::Subject::new_for_owner(pid_fd, uid)?
+            }
+            _ => policykit1::Subject::new_for_pid(pid, None, Some(uid))?,
         };
 
-        let result = polkit_proxy
+        let result = polkit
+            .proxy
             .check_authorization(
                 &subject,
                 action,
