@@ -7,14 +7,17 @@ use std::{
 
 use crate::bindings::nvidia::{
     DRM_COMMAND_BASE, DRM_IOCTL_BASE, DRM_NVIDIA_GET_DPY_ID_FOR_CONNECTOR_ID, NV_ESC_REGISTER_FD,
-    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV01_DEVICE_0, NV20_SUBDEVICE_0,
-    NV0080_ALLOC_PARAMETERS, NV2080_ALLOC_PARAMETERS, NV2080_CTRL_CMD_FB_GET_INFO,
-    NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER, NV2080_CTRL_CMD_GR_GET_ROP_INFO,
-    NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO, NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH,
-    NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE, NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID,
-    NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON,
-    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
+    NV_ESC_RM_ALLOC, NV_ESC_RM_CONTROL, NV_IOCTL_MAGIC, NV0000_CTRL_CMD_GPU_GET_ATTACHED_IDS,
+    NV0000_CTRL_CMD_GPU_GET_ID_INFO_V2, NV0000_CTRL_CMD_GPU_GET_PCI_INFO,
+    NV0000_CTRL_GPU_GET_ATTACHED_IDS_PARAMS, NV0000_CTRL_GPU_GET_ID_INFO_V2_PARAMS,
+    NV0000_CTRL_GPU_GET_PCI_INFO_PARAMS, NV0000_CTRL_GPU_INVALID_ID, NV01_DEVICE_0,
+    NV20_SUBDEVICE_0, NV0080_ALLOC_PARAMETERS, NV2080_ALLOC_PARAMETERS,
+    NV2080_CTRL_CMD_FB_GET_INFO, NV2080_CTRL_CMD_GR_GET_GLOBAL_SM_ORDER,
+    NV2080_CTRL_CMD_GR_GET_ROP_INFO, NV2080_CTRL_FB_GET_INFO_PARAMS, NV2080_CTRL_FB_INFO,
+    NV2080_CTRL_FB_INFO_INDEX_BUS_WIDTH, NV2080_CTRL_FB_INFO_INDEX_L2CACHE_SIZE,
+    NV2080_CTRL_FB_INFO_INDEX_MEMORYINFO_VENDOR_ID, NV2080_CTRL_FB_INFO_INDEX_RAM_TYPE,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ELPIDA, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ESMT,
+    NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_ETRON, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_HYNIX,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MICRON,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_MOSEL, NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_NANYA,
     NV2080_CTRL_FB_INFO_MEMORYINFO_VENDOR_ID_QIMONDA,
@@ -39,9 +42,11 @@ use crate::bindings::nvidia::{
 use crate::bindings::nvidia::{
     NV04_DISPLAY_COMMON, NV0073_CTRL_CMD_DP_GET_LINK_CONFIG, NV0073_CTRL_DP_GET_LINK_CONFIG_PARAMS,
 };
+use crate::server::gpu_controller::PciSlotInfo;
 use anyhow::{Context, bail};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
+use tracing::warn;
 
 pub struct DriverHandle {
     nvidiactl_fd: OwnedFd,
@@ -57,7 +62,7 @@ pub struct DriverHandle {
 }
 
 impl DriverHandle {
-    pub fn open(minor_number: u32) -> anyhow::Result<Self> {
+    pub fn open(minor_number: u32, expected_slot: &PciSlotInfo) -> anyhow::Result<Self> {
         let nvidiactl_fd: OwnedFd = File::options()
             .read(true)
             .write(true)
@@ -71,6 +76,10 @@ impl DriverHandle {
             client_request.hObjectNew
         };
 
+        let device_id = unsafe {
+            Self::query_device_id(nvidiactl_fd.as_raw_fd(), client_handle, expected_slot)?
+        };
+
         let device_fd: OwnedFd = File::options()
             .read(true)
             .write(true)
@@ -82,7 +91,7 @@ impl DriverHandle {
             register_fd(device_fd.as_raw_fd(), &mut nvidiactl_fd.as_raw_fd())?;
 
             let mut alloc_params: NV0080_ALLOC_PARAMETERS = mem::zeroed();
-            alloc_params.deviceId = minor_number;
+            alloc_params.deviceId = device_id;
 
             alloc_object(
                 client_handle,
@@ -131,6 +140,68 @@ impl DriverHandle {
             #[cfg(feature = "display-info")]
             display_handle,
         })
+    }
+
+    // The RM device id used for NV01_DEVICE_0 may not match NVML minor number upon every boot.
+    // Resolve it by matching the controller's PCI slot against the driver's attached GPUs.
+    unsafe fn query_device_id(
+        nvidiactl_fd: RawFd,
+        client_handle: NvHandle,
+        expected_slot: &PciSlotInfo,
+    ) -> anyhow::Result<u32> {
+        let mut attached: NV0000_CTRL_GPU_GET_ATTACHED_IDS_PARAMS = unsafe { mem::zeroed() };
+        unsafe {
+            rm_control(
+                nvidiactl_fd,
+                client_handle,
+                client_handle,
+                NV0000_CTRL_CMD_GPU_GET_ATTACHED_IDS,
+                &mut attached,
+            )?;
+        }
+
+        for &gpu_id in &attached.gpuIds {
+            if gpu_id == NV0000_CTRL_GPU_INVALID_ID {
+                continue;
+            }
+
+            let mut pci_info: NV0000_CTRL_GPU_GET_PCI_INFO_PARAMS = unsafe { mem::zeroed() };
+            pci_info.gpuId = gpu_id;
+
+            unsafe {
+                if rm_control(
+                    nvidiactl_fd,
+                    client_handle,
+                    client_handle,
+                    NV0000_CTRL_CMD_GPU_GET_PCI_INFO,
+                    &mut pci_info,
+                )
+                .is_err()
+                {
+                    continue;
+                }
+            }
+
+            if pci_info.domain == u32::from(expected_slot.domain)
+                && pci_info.bus == expected_slot.bus
+                && pci_info.slot == expected_slot.dev
+            {
+                let mut id_info: NV0000_CTRL_GPU_GET_ID_INFO_V2_PARAMS = unsafe { mem::zeroed() };
+                id_info.gpuId = gpu_id;
+                unsafe {
+                    rm_control(
+                        nvidiactl_fd,
+                        client_handle,
+                        client_handle,
+                        NV0000_CTRL_CMD_GPU_GET_ID_INFO_V2,
+                        &mut id_info,
+                    )?;
+                }
+                return Ok(id_info.deviceInstance);
+            }
+        }
+
+        bail!("no Nvidia driver device found for pci slot {expected_slot:?}");
     }
 
     pub fn get_rop_info(&self) -> anyhow::Result<RopInfo> {
@@ -271,24 +342,15 @@ impl DriverHandle {
         object: u32,
         params: &mut T,
     ) -> anyhow::Result<()> {
-        let mut request = NVOS54_PARAMETERS {
-            hClient: self.client_handle,
-            hObject: object,
-            cmd,
-            flags: 0,
-            params: ptr::from_mut(params).cast(),
-            paramsSize: mem::size_of::<T>().try_into().unwrap(),
-            status: 0,
-        };
         unsafe {
-            rm_control_nvos54(self.nvidiactl_fd.as_raw_fd(), &raw mut request)?;
+            rm_control(
+                self.nvidiactl_fd.as_raw_fd(),
+                self.client_handle,
+                object,
+                cmd,
+                params,
+            )
         }
-
-        if request.status != 0 {
-            bail!("Nvidia request failed with status {:x}", request.status);
-        }
-
-        Ok(())
     }
 }
 
@@ -302,6 +364,32 @@ pub fn connector_id_to_display_id(connector_id: u32, drm_device: RawFd) -> anyho
         get_dpy_id_for_connector_id(drm_device, &raw mut params)?;
     }
     Ok(params.dpyId)
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn rm_control<T: Copy>(
+    nvidiactl_fd: RawFd,
+    client_handle: NvHandle,
+    object: NvHandle,
+    cmd: u32,
+    params: &mut T,
+) -> anyhow::Result<()> {
+    let mut request = NVOS54_PARAMETERS {
+        hClient: client_handle,
+        hObject: object,
+        cmd,
+        flags: 0,
+        params: ptr::from_mut(params).cast(),
+        paramsSize: mem::size_of::<T>().try_into().unwrap(),
+        status: 0,
+    };
+    rm_control_nvos54(nvidiactl_fd, &raw mut request)?;
+
+    if request.status != 0 {
+        bail!("Nvidia request failed with status {:x}", request.status);
+    }
+
+    Ok(())
 }
 
 #[allow(unsafe_op_in_unsafe_fn)]
