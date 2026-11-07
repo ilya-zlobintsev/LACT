@@ -46,7 +46,6 @@ use crate::server::gpu_controller::PciSlotInfo;
 use anyhow::{Context, bail};
 use lact_schema::RopInfo;
 use nix::ioctl_readwrite;
-use tracing::warn;
 
 pub struct DriverHandle {
     nvidiactl_fd: OwnedFd,
@@ -76,7 +75,7 @@ impl DriverHandle {
             client_request.hObjectNew
         };
 
-        let device_id = unsafe {
+        let rm_device_id = unsafe {
             Self::query_device_id(nvidiactl_fd.as_raw_fd(), client_handle, expected_slot)?
         };
 
@@ -91,7 +90,7 @@ impl DriverHandle {
             register_fd(device_fd.as_raw_fd(), &mut nvidiactl_fd.as_raw_fd())?;
 
             let mut alloc_params: NV0080_ALLOC_PARAMETERS = mem::zeroed();
-            alloc_params.deviceId = device_id;
+            alloc_params.deviceId = rm_device_id;
 
             alloc_object(
                 client_handle,
