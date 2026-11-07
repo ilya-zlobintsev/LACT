@@ -1459,8 +1459,6 @@ impl GpuController for AmdGpuController {
 
     #[cfg(feature = "display-info")]
     fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
-        const UHBR_RATE_THRESHOLD: u32 = 1000;
-
         let debugfs = self.debugfs_path().context("Could not get debugfs")?;
 
         for (connector, info) in &mut info.displays {
@@ -1471,33 +1469,29 @@ impl GpuController for AmdGpuController {
             } = &mut info.connector_type
             {
                 let link_settings_path = debugfs.join(connector).join("link_settings");
-                let link_settings = fs::read_to_string(link_settings_path)?;
 
-                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+                let link_settings = fs::read_to_string(&link_settings_path)
+                    .with_context(|| format!("Could not read {}", link_settings_path.display()));
 
-                *lanes = Some(
-                    parts
-                        .next()
-                        .context("Missing lane count")?
-                        .parse::<u16>()
-                        .context("Invalid lane count")?,
-                );
-
-                let bw_enum = parts
-                    .next()
-                    .context("Missing bandwidth")?
-                    .strip_prefix("0x")
-                    .and_then(|value| u32::from_str_radix(value, 16).ok())
-                    .context("Invalid bandwidth value")?;
-
-                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
-                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
-                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
-                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
-                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
-                } else {
-                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
-                });
+                match link_settings
+                    .and_then(|contents| crate::server::display::parse_dp_link_settings(&contents))
+                {
+                    Ok(Some((lane_count, lane_bandwidth))) => {
+                        *lanes = Some(lane_count);
+                        *bandwidth = Some(lane_bandwidth);
+                    }
+                    // Zero link settings mean the connector is not driving a DP
+                    // link (e.g. an HDMI sink behind a passive DP++ adapter), so
+                    // there is nothing to report.
+                    Ok(None) => {
+                        debug!("display {connector} has no DisplayPort link settings");
+                    }
+                    // A single unreadable connector must not drop the link info
+                    // of every other display.
+                    Err(err) => {
+                        warn!("could not read link settings of {connector}: {err:#}");
+                    }
+                }
             }
         }
 
