@@ -115,17 +115,21 @@ pub struct Handler {
 }
 
 impl<'a> Handler {
-    pub async fn new(config: Config) -> anyhow::Result<Self> {
+    pub async fn new(
+        config: Config,
+        polkit_proxy: Option<AuthorityProxy<'static>>,
+    ) -> anyhow::Result<Self> {
         let base_path = drm_base_path();
         let pci_db = read_pci_db();
 
-        Self::with_base_path(&base_path, config, &pci_db).await
+        Self::with_base_path(&base_path, config, &pci_db, polkit_proxy).await
     }
 
     pub(crate) async fn with_base_path(
         base_path: &Path,
         mut config: Config,
         pci_db: &Database,
+        polkit_proxy: Option<AuthorityProxy<'static>>,
     ) -> anyhow::Result<Self> {
         let mut controllers = BTreeMap::new();
 
@@ -188,13 +192,6 @@ impl<'a> Handler {
         if config.version != original_config_version {
             config.save(&Cell::new(Instant::now()))?;
         }
-
-        let polkit_proxy = connect_polkit_proxy()
-            .await
-            .inspect_err(|err| {
-                warn!("could not connect to polkit, admin checks will not be available: {err:#}");
-            })
-            .ok();
 
         let (reload_tx, reload_rx) = mpsc::channel(16);
 
@@ -1642,18 +1639,6 @@ fn controller_vendor_is_unique(
                 .vendor_id
                 == *vendor_id
     })
-}
-
-async fn connect_polkit_proxy() -> anyhow::Result<AuthorityProxy<'static>> {
-    let conn = zbus::Connection::system()
-        .await
-        .context("Could not establish dbus connection")?;
-
-    let proxy = AuthorityProxy::new(&conn)
-        .await
-        .context("Could not connect to polkit")?;
-
-    Ok(proxy)
 }
 
 async fn handle_reload_events(handler: Handler, mut rx: mpsc::Receiver<Duration>) {
