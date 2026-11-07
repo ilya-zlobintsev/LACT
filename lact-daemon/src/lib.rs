@@ -83,7 +83,7 @@ pub fn run_embedded(stream: StdUnixStream) -> anyhow::Result<()> {
         .expect("Could not initialize tokio runtime");
     rt.block_on(async {
         let config = Config::default();
-        let handler = Handler::new(config).await?;
+        let handler = Handler::new(config, None).await?;
         let stream = UnixStream::try_from(stream)?;
         let ctx = ClientContext::default();
 

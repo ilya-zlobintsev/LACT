@@ -1,3 +1,4 @@
+pub mod polkit;
 pub mod power_profiles_daemon;
 
 use anyhow::{Context, anyhow, bail, ensure};
