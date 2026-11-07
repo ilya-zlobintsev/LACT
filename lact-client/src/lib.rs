@@ -1,3 +1,6 @@
+#![warn(clippy::pedantic)]
+#![allow(clippy::missing_panics_doc, clippy::missing_errors_doc)]
+
 mod connection;
 #[macro_use]
 mod macros;
@@ -78,6 +81,7 @@ impl DaemonClient {
         })
     }
 
+    #[must_use]
     pub fn status_receiver(&self) -> broadcast::Receiver<ConnectionStatusMsg> {
         self.status_tx.subscribe()
     }
@@ -264,7 +268,8 @@ impl fmt::Debug for DaemonClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DaemonClient")
             .field("embedded", &self.embedded)
-            .finish()
+            .field("reconnect", &self.reconnect)
+            .finish_non_exhaustive()
     }
 }
 
@@ -276,7 +281,7 @@ fn get_socket_path() -> Option<PathBuf> {
     }
 
     let uid = getuid();
-    let user_path = PathBuf::from(format!("/run/user/{}/lactd.sock", uid));
+    let user_path = PathBuf::from(format!("/run/user/{uid}/lactd.sock"));
 
     if user_path.exists() {
         Some(user_path)

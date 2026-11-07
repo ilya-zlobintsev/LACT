@@ -1,3 +1,6 @@
+#![warn(clippy::pedantic)]
+#![allow(clippy::missing_panics_doc, clippy::must_use_candidate)]
+
 #[cfg(feature = "args")]
 pub mod args;
 pub mod config;
@@ -63,6 +66,7 @@ pub fn default_fan_curve() -> FanCurveMap {
     [(40, 0.3), (50, 0.35), (60, 0.5), (70, 0.75), (80, 1.0)].into()
 }
 
+#[allow(clippy::cast_precision_loss)]
 pub fn bytes_to_mib(bytes: u64) -> f64 {
     bytes as f64 / 1024.0 / 1024.0
 }
@@ -203,8 +207,7 @@ impl DeviceInfo {
     pub fn vram_clock_ratio(&self) -> f64 {
         self.drm_info
             .as_ref()
-            .map(|info| info.vram_clock_ratio)
-            .unwrap_or(1.0)
+            .map_or(1.0, |info| info.vram_clock_ratio)
     }
 
     pub fn info_elements(&self, stats: Option<&DeviceStats>) -> Vec<(String, Option<String>)> {
@@ -256,7 +259,7 @@ impl DeviceInfo {
             );
 
             let _ = write!(card_model, " (0x{})", pci_info.subsystem_pci_info.model_id);
-        };
+        }
 
         let mut elements = vec![
             (fl!(LANGUAGE_LOADER, "gpu-model"), Some(gpu_model)),
@@ -284,7 +287,7 @@ impl DeviceInfo {
 
         let mut elements = elements
             .into_iter()
-            .map(|(key, value)| (key.to_owned(), value))
+            .map(|(key, value)| (key.clone(), value))
             .collect::<Vec<_>>();
 
         if let Some(drm_info) = &self.drm_info {
@@ -359,7 +362,7 @@ impl DeviceInfo {
                     } else {
                         fl!(LANGUAGE_LOADER, "disabled")
                     };
-                    elements.push((fl!(LANGUAGE_LOADER, "rebar"), Some(rebar.to_owned())));
+                    elements.push((fl!(LANGUAGE_LOADER, "rebar"), Some(rebar.clone())));
                 }
 
                 elements.push((
@@ -542,11 +545,11 @@ pub struct NvidiaVfPoint {
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
 pub struct IntelClocksTable {
     pub gt_freq: Option<(u64, u64)>,
-    /// - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
+    /// - `rpn_freq`: The Render Performance (RP) N level, which is the minimal one.
     pub rpn_freq: Option<u64>,
-    /// - rpe_freq: The Render Performance (RP) E level, which is the efficient one.
+    /// - `rpe_freq`: The Render Performance (RP) E level, which is the efficient one.
     pub rpe_freq: Option<u64>,
-    /// - rp0_freq: The Render Performance (RP) 0 level, which is the maximum one.
+    /// - `rp0_freq`: The Render Performance (RP) 0 level, which is the maximum one.
     pub rp0_freq: Option<u64>,
 }
 
@@ -558,6 +561,7 @@ pub struct NvidiaClockOffset {
 }
 
 impl From<AmdClocksTableGen> for ClocksInfo {
+    #[allow(clippy::similar_names)]
     fn from(table: AmdClocksTableGen) -> Self {
         let max_sclk = table.get_max_sclk();
         let max_mclk = table.get_max_mclk();
@@ -689,9 +693,10 @@ pub struct FanStats {
 }
 
 impl FanStats {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn percent(&self) -> Option<u64> {
         self.pwm_current
-            .map(|pwm| ((pwm as f64 / u8::MAX as f64) * 100.0).round() as u64)
+            .map(|pwm| ((f64::from(pwm) / f64::from(u8::MAX)) * 100.0).round() as u64)
     }
 }
 
