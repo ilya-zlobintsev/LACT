@@ -79,11 +79,6 @@ impl DriverHandle {
         let device_id = unsafe {
             Self::query_device_id(nvidiactl_fd.as_raw_fd(), client_handle, expected_slot)?
         };
-        if device_id != minor_number {
-            warn!(
-                "resolved RM device id {device_id} for pci slot {expected_slot:?}, but NVML reports minor number {minor_number}"
-            );
-        }
 
         let device_fd: OwnedFd = File::options()
             .read(true)
