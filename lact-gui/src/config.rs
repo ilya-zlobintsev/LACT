@@ -8,8 +8,7 @@ use serde_with::skip_serializing_none;
 use std::{collections::HashMap, env, fs, path::PathBuf};
 use tracing::{debug, error};
 
-pub const MIN_STATS_POLL_INTERVAL_MS: i64 = 250;
-pub const MAX_STATS_POLL_INTERVAL_MS: i64 = 5000;
+pub use lact_schema::{MAX_STATS_POLL_INTERVAL_MS, MIN_STATS_POLL_INTERVAL_MS};
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize)]
@@ -32,6 +31,12 @@ pub struct UiConfig {
     pub color_scheme: AppColorScheme,
     #[serde(default)]
     pub experimental_nvidia_pstate_offsets: bool,
+    /// Show an icon in the system tray with basic GPU information.
+    #[serde(default)]
+    pub tray_icon: bool,
+    /// Start the tray icon automatically on login.
+    #[serde(default)]
+    pub tray_start_on_login: bool,
     pub language: Option<String>,
     pub window_size: Option<WindowSize>,
 }
@@ -48,6 +53,8 @@ impl Default for UiConfig {
             theme: AppTheme::Automatic,
             color_scheme: AppColorScheme::default(),
             experimental_nvidia_pstate_offsets: false,
+            tray_icon: false,
+            tray_start_on_login: false,
             language: None,
             window_size: None,
         }
@@ -120,7 +127,7 @@ fn config_path() -> PathBuf {
 }
 
 fn default_stats_poll_interval() -> i64 {
-    500
+    lact_schema::DEFAULT_STATS_POLL_INTERVAL_MS
 }
 
 fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
@@ -130,4 +137,16 @@ fn deserialize_poll_interval<'de, D: Deserializer<'de>>(deserializer: D) -> Resu
 
 fn default_tab() -> String {
     PageId::Info.as_str().to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tray_icon_is_disabled_by_default() {
+        let config: UiConfig = serde_norway::from_str("selected_tab: info_page\n").unwrap();
+        assert!(!config.tray_icon);
+        assert!(!config.tray_start_on_login);
+    }
 }

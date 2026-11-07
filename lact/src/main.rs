@@ -10,6 +10,7 @@ fn main() -> anyhow::Result<()> {
         Command::Daemon => lact_daemon::run(),
         Command::Gui(gui_args) => run_gui(gui_args),
         Command::Cli(cli_args) => lact_cli::run(cli_args),
+        Command::Tray => lact_tray::run(),
     }
 }
 

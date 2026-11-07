@@ -1,6 +1,8 @@
 mod app;
 mod config;
 mod service_setup;
+mod tray_process;
+mod tray_support;
 
 use std::{
     panic,
@@ -28,7 +30,7 @@ static CONFIG: SharedState<UiConfig> = SharedState::new();
 static PANICKED: AtomicBool = AtomicBool::new(false);
 
 const GUI_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const APP_ID: &str = "io.github.ilya_zlobintsev.LACT";
+pub use lact_schema::APP_ID;
 pub const REPO_URL: &str = "https://github.com/ilya-zlobintsev/LACT";
 
 pub(crate) static I18N: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
