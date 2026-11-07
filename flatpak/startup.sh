@@ -1,16 +1,16 @@
 #!/bin/env bash
-set -e 
+set -e
 
 DAEMON_SOCKET=/run/lactd.sock
 UNIT_PATH=/etc/systemd/system/lactd.service
 
 if [ ! -e "${DAEMON_SOCKET}" ]; then
     echo "${DAEMON_SOCKET} does not exist, showing setup prompt"
-    
+
     APP_COMMIT=$(grep app-commit= /.flatpak-info | sed "s/app-commit=//")
     APP_PATH=$(grep app-path= /.flatpak-info | sed "s/app-path=//" | sed "s/${APP_COMMIT}/active/")
     DAEMON_SH_PATH="${APP_PATH}/bin/daemon.sh"
-    
+
     set +e
 
     if [ "${LACT_UNATTENDED_SETUP}" == "true" ]; then
@@ -30,9 +30,9 @@ Do you wish to install the service?" \
         EXIT_CODE=$?
     fi
 
-    
+
     set -e
-    
+
     if [ ${EXIT_CODE} -eq 0 ]; then
         IFS="|" read -ra OPTIONS <<< "$YAD_OUTPUT"
         AUTOSTART="${OPTIONS[0]}"
@@ -65,7 +65,7 @@ WantedBy=multi-user.target\
 
         flatpak-spawn --host $ROOT_WRAPPER sh -c "cp /tmp/lact-unit-setup ${UNIT_PATH} && (chcon -R -t bin_t $DAEMON_SH_PATH || true)"
         echo "Unit file created at ${UNIT_PATH}"
-        
+
         flatpak-spawn --host rm /tmp/lact-unit-setup
 
         if [ "${AUTOSTART}" == "TRUE" ]; then
@@ -77,7 +77,8 @@ WantedBy=multi-user.target\
         fi
 
         if [ "${LACT_UNATTENDED_SETUP}" != "true" ]; then
-            yad --text 'The service has been started. Please run LACT again.'  --button=OK:0
+            sleep 1
+            flatpak-spawn lact &
         fi
         exit 0
     else
