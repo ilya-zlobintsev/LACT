@@ -1459,8 +1459,6 @@ impl GpuController for AmdGpuController {
 
     #[cfg(feature = "display-info")]
     fn populate_displays_info(&self, info: &mut DisplaysInfo) -> anyhow::Result<()> {
-        const UHBR_RATE_THRESHOLD: u32 = 1000;
-
         let debugfs = self.debugfs_path().context("Could not get debugfs")?;
 
         for (connector, info) in &mut info.displays {
@@ -1471,38 +1469,60 @@ impl GpuController for AmdGpuController {
             } = &mut info.connector_type
             {
                 let link_settings_path = debugfs.join(connector).join("link_settings");
-                let link_settings = fs::read_to_string(link_settings_path)?;
 
-                let mut parts = link_settings.split_ascii_whitespace().skip(1);
+                let link_settings = fs::read_to_string(&link_settings_path)
+                    .with_context(|| format!("Could not read {}", link_settings_path.display()));
 
-                *lanes = Some(
-                    parts
-                        .next()
-                        .context("Missing lane count")?
-                        .parse::<u16>()
-                        .context("Invalid lane count")?,
-                );
-
-                let bw_enum = parts
-                    .next()
-                    .context("Missing bandwidth")?
-                    .strip_prefix("0x")
-                    .and_then(|value| u32::from_str_radix(value, 16).ok())
-                    .context("Invalid bandwidth value")?;
-
-                // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
-                // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
-                // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
-                *bandwidth = Some(if bw_enum < UHBR_RATE_THRESHOLD {
-                    crate::server::display::dp1_rate_to_bandwidth(bw_enum)
-                } else {
-                    crate::server::display::dp2_rate_to_bandwidth(bw_enum)
-                });
+                match link_settings.and_then(|contents| parse_dp_link_settings(&contents)) {
+                    Ok(Some((lane_count, lane_bandwidth))) => {
+                        *lanes = Some(lane_count);
+                        *bandwidth = Some(lane_bandwidth);
+                    }
+                    Ok(None) => {
+                        debug!("display {connector} has no DisplayPort link settings");
+                    }
+                    Err(err) => {
+                        warn!("could not read link settings of {connector}: {err:#}");
+                    }
+                }
             }
         }
 
         Ok(())
     }
+}
+
+#[cfg(feature = "display-info")]
+fn parse_dp_link_settings(contents: &str) -> anyhow::Result<Option<(u16, u32)>> {
+    const UHBR_RATE_THRESHOLD: u32 = 1000;
+
+    let mut parts = contents.split_ascii_whitespace().skip(1);
+
+    let lanes = parts
+        .next()
+        .context("Missing lane count")?
+        .parse::<u16>()
+        .context("Invalid lane count")?;
+
+    let rate = parts
+        .next()
+        .context("Missing bandwidth")?
+        .strip_prefix("0x")
+        .and_then(|value| u32::from_str_radix(value, 16).ok())
+        .context("Invalid bandwidth value")?;
+
+    if lanes == 0 || rate == 0 {
+        return Ok(None);
+    }
+
+    // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
+    let bandwidth = if rate < UHBR_RATE_THRESHOLD {
+        crate::server::display::dp1_rate_to_bandwidth(rate)
+    } else {
+        crate::server::display::dp2_rate_to_bandwidth(rate)
+    };
+
+    Ok(Some((lanes, bandwidth)))
 }
 
 fn apply_clocks_config_to_table(
@@ -1828,5 +1848,36 @@ mod tests {
 
     fn level_ids<T>(levels: &PowerLevels<T>) -> Vec<PowerLevelId> {
         levels.levels.iter().map(|level| level.id).collect()
+    }
+
+    // Output of `cat /sys/kernel/debug/dri/<card>/DP-x/link_settings` on a
+    // trained HBR3 link.
+    const TRAINED_LINK: &str = "Current:  4  0x14  0  Verified:  4  0x14  16  Reported:  4  0x14  16  Preferred:  0  0x0  0\n";
+    // A DP++ (TMDS) connection, e.g. an HDMI monitor behind a passive adapter.
+    const UNTRAINED_LINK: &str =
+        "Current:  0  0x0  0  Verified:  0  0x0  0  Reported:  0  0x0  0  Preferred:  0  0x0  0\n";
+
+    #[test]
+    fn parses_current_link_settings() {
+        assert_eq!(
+            parse_dp_link_settings(TRAINED_LINK).unwrap(),
+            Some((4, 5400))
+        );
+    }
+
+    #[test]
+    fn parses_uhbr_link_settings() {
+        let contents = "Current:  4  0x7d0  0  Verified:  4  0x7d0  0  Reported:  4  0x7d0  0  Preferred:  0  0x0  0\n";
+        assert_eq!(parse_dp_link_settings(contents).unwrap(), Some((4, 20000)));
+    }
+
+    #[test]
+    fn zero_link_settings_are_reported_as_unknown() {
+        assert_eq!(parse_dp_link_settings(UNTRAINED_LINK).unwrap(), None);
+    }
+
+    #[test]
+    fn rejects_invalid_link_settings() {
+        assert!(parse_dp_link_settings("garbage").is_err());
     }
 }
