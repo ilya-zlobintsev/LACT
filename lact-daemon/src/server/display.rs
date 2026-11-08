@@ -4,7 +4,6 @@ use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
 // Values are for conversion to Mbps
-const UHBR_RATE_THRESHOLD: u32 = 1000;
 const BASE_RATE_MULTIPLIER: u32 = 270;
 const UHBR_RATE_MULTIPLIER: u32 = 10;
 
@@ -127,83 +126,4 @@ pub fn dp1_rate_to_bandwidth(value: u32) -> u32 {
 // Values are for conversion to Mbps
 pub fn dp2_rate_to_bandwidth(value: u32) -> u32 {
     value * UHBR_RATE_MULTIPLIER
-}
-
-/// Parse the contents of the amdgpu debugfs `link_settings` file, returning the
-/// current lane count and per-lane bandwidth in Mbps.
-///
-/// The file contains the current, verified, reported and preferred settings on a
-/// single line. The current settings describe the link the display is actually
-/// running on, so those are the ones reported here.
-///
-/// Returns `None` when the current link settings are all zero: the connector is
-/// then not driving a `DisplayPort` link at all. This happens for example with an
-/// HDMI sink behind a passive DP++ adapter, where the GPU uses TMDS signalling
-/// and there is no lane count or per-lane rate to report.
-pub fn parse_dp_link_settings(contents: &str) -> anyhow::Result<Option<(u16, u32)>> {
-    let mut parts = contents.split_ascii_whitespace().skip(1);
-
-    let lanes = parts
-        .next()
-        .context("Missing lane count")?
-        .parse::<u16>()
-        .context("Invalid lane count")?;
-
-    let rate = parts
-        .next()
-        .context("Missing bandwidth")?
-        .strip_prefix("0x")
-        .and_then(|value| u32::from_str_radix(value, 16).ok())
-        .context("Invalid bandwidth value")?;
-
-    if lanes == 0 || rate == 0 {
-        return Ok(None);
-    }
-
-    // Ref: https://elixir.bootlin.com/linux/v7.0.10/source/drivers/gpu/drm/amd/display/dc/dc_dp_types.h#L41
-    // AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR
-    // rates are reported in 10 Mbps units. UHBR10 starts at 1000.
-    let bandwidth = if rate < UHBR_RATE_THRESHOLD {
-        dp1_rate_to_bandwidth(rate)
-    } else {
-        dp2_rate_to_bandwidth(rate)
-    };
-
-    Ok(Some((lanes, bandwidth)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Output of `cat /sys/kernel/debug/dri/<card>/DP-x/link_settings` on a
-    // trained HBR3 link.
-    const TRAINED_LINK: &str = "Current:  4  0x14  0  Verified:  4  0x14  16  Reported:  4  0x14  16  Preferred:  0  0x0  0\n";
-    // A DP++ (TMDS) connection, e.g. an HDMI monitor behind a passive adapter.
-    const UNTRAINED_LINK: &str =
-        "Current:  0  0x0  0  Verified:  0  0x0  0  Reported:  0  0x0  0  Preferred:  0  0x0  0\n";
-
-    #[test]
-    fn parses_current_link_settings() {
-        assert_eq!(
-            parse_dp_link_settings(TRAINED_LINK).unwrap(),
-            Some((4, 5400))
-        );
-    }
-
-    #[test]
-    fn parses_uhbr_link_settings() {
-        let contents = "Current:  4  0x7d0  0  Verified:  4  0x7d0  0  Reported:  4  0x7d0  0  Preferred:  0  0x0  0\n";
-        assert_eq!(parse_dp_link_settings(contents).unwrap(), Some((4, 20000)));
-    }
-
-    #[test]
-    fn zero_link_settings_are_reported_as_unknown() {
-        assert_eq!(parse_dp_link_settings(UNTRAINED_LINK).unwrap(), None);
-    }
-
-    #[test]
-    fn rejects_invalid_link_settings() {
-        assert!(parse_dp_link_settings("garbage").is_err());
-    }
 }
