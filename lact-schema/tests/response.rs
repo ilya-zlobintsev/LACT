@@ -248,15 +248,30 @@ fn test_all_response_payloads_validate() {
 
     // Every `ResponseData` variant has to be present in the generated union,
     // and each one is covered by a representative payload above.
-    let union_len = schema_value["$defs"]["ResponseData"]["anyOf"]
+    let union = schema_value["$defs"]["ResponseData"]["oneOf"]
         .as_array()
-        .expect("ResponseData schema is not a union")
-        .len();
+        .expect("ResponseData schema is not a union");
 
     assert_eq!(
-        union_len,
+        union.len(),
         variants.len(),
         "the response payload list is out of sync with ResponseData"
     );
+
+    // The union is discriminated by the `type` tag, so every variant must
+    // expose exactly one distinct tag value.
+    let mut tags: Vec<&str> = union
+        .iter()
+        .map(|branch| {
+            branch["properties"]["type"]["const"]
+                .as_str()
+                .expect("ResponseData variant has no `type` tag")
+        })
+        .collect();
+    tags.sort_unstable();
+    let unique_count = tags.len();
+    tags.dedup();
+
+    assert_eq!(unique_count, tags.len(), "duplicate `type` tags: {tags:?}");
     assert_eq!(validated, variants.len() + extra_count);
 }

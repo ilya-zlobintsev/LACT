@@ -2982,89 +2982,336 @@
       ]
     },
     "ResponseData": {
-      "description": "Union of every possible response payload.\n\n`untagged` deserialization tries the variants in the order they are\ndeclared and keeps the first one that accepts the input, so payloads with a\ndistinctive JSON shape come first and payloads that accept an arbitrary\nJSON object come last.",
-      "anyOf": [
+      "description": "Union of every possible response payload.\n\nThe payload is adjacently tagged: `type` identifies the variant and `data`\nholds its value, mirroring how [`Request`](crate::Request) uses\n`command`/`args`. Adjacent tagging is required because several payloads are\nnot JSON objects (`null`, numbers, strings, arrays) and therefore cannot be\ntagged in-place.",
+      "oneOf": [
         {
-          "type": "null"
-        },
-        {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0
-        },
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "string"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "format": "uint8",
-            "maximum": 255,
-            "minimum": 0
-          }
-        },
-        {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/DeviceListEntry"
-          }
-        },
-        {
-          "$ref": "#/$defs/SystemInfo"
-        },
-        {
-          "$ref": "#/$defs/DeviceInfo"
-        },
-        {
-          "$ref": "#/$defs/DeviceStats"
-        },
-        {
-          "$ref": "#/$defs/ProcessList"
-        },
-        {
-          "$ref": "#/$defs/ProfilesInfo"
-        },
-        {
-          "$ref": "#/$defs/PowerStates"
-        },
-        {
-          "$ref": "#/$defs/DisplaysInfo"
-        },
-        {
-          "type": "object"
-        },
-        {
-          "$ref": "#/$defs/ClocksInfo"
-        },
-        {
-          "$ref": "#/$defs/DeviceApiInfo"
-        },
-        {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Profile"
-            },
-            {
+          "type": "object",
+          "properties": {
+            "data": {
               "type": "null"
+            },
+            "type": {
+              "type": "string",
+              "const": "no_data"
             }
+          },
+          "required": [
+            "type",
+            "data"
           ]
         },
         {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/GpuConfig"
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
             },
-            {
-              "type": "null"
+            "type": {
+              "type": "string",
+              "const": "integer"
             }
+          },
+          "required": [
+            "type",
+            "data"
           ]
         },
         {
-          "$ref": "#/$defs/Pong"
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "evaluate_profile_rule"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "generate_snapshot"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "vbios_dump"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/DeviceListEntry"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "list_devices"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/SystemInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "system_info"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/DeviceInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "device_info"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/DeviceStats"
+            },
+            "type": {
+              "type": "string",
+              "const": "device_stats"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/ProcessList"
+            },
+            "type": {
+              "type": "string",
+              "const": "process_list"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/ProfilesInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "list_profiles"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/PowerStates"
+            },
+            "type": {
+              "type": "string",
+              "const": "get_power_states"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/DisplaysInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "displays_info"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object"
+            },
+            "type": {
+              "type": "string",
+              "const": "device_power_profile_modes"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/ClocksInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "device_clocks_info"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/DeviceApiInfo"
+            },
+            "type": {
+              "type": "string",
+              "const": "device_api_info"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Profile"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "get_profile"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GpuConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "get_gpu_config"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Pong"
+            },
+            "type": {
+              "type": "string",
+              "const": "ping"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
         }
       ]
     },

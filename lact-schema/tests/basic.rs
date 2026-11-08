@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use lact_schema::{
     DeviceListEntry, DeviceType, FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response,
-    clean_gpu_name,
+    ResponseData, clean_gpu_name,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -20,7 +20,10 @@ fn ping_requset() {
 fn pong_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": null,
+        "data": {
+            "type": "ping",
+            "data": null,
+        },
     });
     let response = Response::Ok(Pong.into());
 
@@ -31,7 +34,10 @@ fn pong_response() {
 fn controllers_response() {
     let expected_response = json!({
         "status": "ok",
-        "data": [{ "id": "1002:67DF-1DA2:E387-0000:0f:00.0", "device_type": "Dedicated" }]
+        "data": {
+            "type": "list_devices",
+            "data": [{ "id": "1002:67DF-1DA2:E387-0000:0f:00.0", "device_type": "Dedicated" }],
+        },
     });
     let response = Response::Ok(
         vec![DeviceListEntry {
@@ -43,6 +49,62 @@ fn controllers_response() {
     );
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
+}
+
+#[test]
+fn response_data_is_adjacently_tagged() {
+    let cases = [
+        (
+            ResponseData::NoData(()),
+            json!({ "type": "no_data", "data": null }),
+        ),
+        (
+            ResponseData::Integer(42),
+            json!({ "type": "integer", "data": 42 }),
+        ),
+        (
+            ResponseData::EvaluateProfileRule(false),
+            json!({ "type": "evaluate_profile_rule", "data": false }),
+        ),
+        (
+            ResponseData::GenerateSnapshot("lact-snapshot.tar.gz".to_owned()),
+            json!({ "type": "generate_snapshot", "data": "lact-snapshot.tar.gz" }),
+        ),
+        (
+            ResponseData::Ping(Pong),
+            json!({ "type": "ping", "data": null }),
+        ),
+        (
+            ResponseData::GetProfile(None),
+            json!({ "type": "get_profile", "data": null }),
+        ),
+    ];
+
+    for (data, expected) in cases {
+        let value = serde_json::to_value(&data).expect("Could not serialize response data");
+        assert_eq!(value, expected);
+
+        let decoded: ResponseData =
+            serde_json::from_value(value).expect("Could not deserialize response data");
+        assert_eq!(
+            format!("{data:?}"),
+            format!("{decoded:?}"),
+            "response data did not round-trip"
+        );
+    }
+}
+
+#[test]
+fn response_data_rejects_mismatched_tag_content() {
+    let result = serde_json::from_value::<ResponseData>(json!({
+        "type": "integer",
+        "data": true,
+    }));
+
+    assert!(
+        result.is_err(),
+        "a payload must not deserialize as a variant whose tag it does not carry"
+    );
 }
 
 #[test]

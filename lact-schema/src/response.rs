@@ -34,24 +34,23 @@ impl From<serde_error::Error> for Response {
 
 /// Union of every possible response payload.
 ///
-/// `untagged` deserialization tries the variants in the order they are
-/// declared and keeps the first one that accepts the input, so payloads with a
-/// distinctive JSON shape come first and payloads that accept an arbitrary
-/// JSON object come last.
+/// The payload is adjacently tagged: `type` identifies the variant and `data`
+/// holds its value, mirroring how [`Request`](crate::Request) uses
+/// `command`/`args`. Adjacent tagging is required because several payloads are
+/// not JSON objects (`null`, numbers, strings, arrays) and therefore cannot be
+/// tagged in-place.
 #[derive(Serialize, Deserialize, Debug, From, TryInto)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[try_into(owned, ref, ref_mut)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
 #[allow(clippy::large_enum_variant)]
 pub enum ResponseData {
-    // Distinctive shapes: null, numbers, booleans, strings, arrays.
     NoData(()),
     Integer(u64),
     EvaluateProfileRule(bool),
     GenerateSnapshot(String),
     VbiosDump(Vec<u8>),
     ListDevices(Vec<DeviceListEntry>),
-    // Objects with at least one mandatory field.
     SystemInfo(SystemInfo),
     DeviceInfo(DeviceInfo),
     DeviceStats(DeviceStats),
@@ -64,13 +63,10 @@ pub enum ResponseData {
         schemars(schema_with = "power_profile_mode_schema")
     )]
     DevicePowerProfileModes(PowerProfileModesTable),
-    // Objects where every field is optional, so they accept any JSON object.
     DeviceClocksInfo(ClocksInfo),
     DeviceApiInfo(DeviceApiInfo),
     GetProfile(Option<Profile>),
     GetGpuConfig(Option<GpuConfig>),
-    // `Pong` is a unit struct, which also deserializes from `null`. It is
-    // declared after `NoData` so that it cannot shadow it.
     Ping(Pong),
 }
 
