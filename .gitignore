@@ -10,3 +10,4 @@ build/
 .flatpak-builder/
 .vscode
 .idea
+.worktrees/

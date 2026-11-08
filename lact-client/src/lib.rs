@@ -7,7 +7,7 @@ mod macros;
 
 pub use lact_schema as schema;
 use lact_schema::{
-    DeviceApiInfo, DisplaysInfo, Pong, ProcessList, ProfileRule,
+    DeviceApiInfo, DisplaysInfo, Pong, ProcessList, ProfileRule, ResponseData,
     config::{GpuConfig, Profile, ProfileHooks},
 };
 
@@ -86,7 +86,11 @@ impl DaemonClient {
         self.status_tx.subscribe()
     }
 
-    fn make_request<'a, T: DeserializeOwned>(
+    fn make_request<
+        'a,
+        T: DeserializeOwned + TryFrom<ResponseData, Error = E>,
+        E: std::error::Error + Sync + Send + 'static,
+    >(
         &'a self,
         request: Request<'a>,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<T>> + 'a>> {
@@ -98,10 +102,12 @@ impl DaemonClient {
 
             match stream.request(&request_payload).await {
                 Ok(response_payload) => {
-                    let response: Response<T> = serde_json::from_str(&response_payload)
+                    let response: Response = serde_json::from_str(&response_payload)
                         .context("Could not deserialize response from daemon")?;
                     match response {
-                        Response::Ok(data) => Ok(data),
+                        Response::Ok(data) => Ok(data
+                            .try_into()
+                            .context("Could not convert response data to expected type")?),
                         Response::Error(err) => Err(anyhow::Error::new(err)
                             .context("Got error from daemon, end of client boundary")),
                     }

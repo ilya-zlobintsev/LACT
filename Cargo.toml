@@ -20,6 +20,7 @@ serde_with = { version = "3.24.0", default-features = false, features = [
     "macros",
 ] }
 serde_json = "1.0.154"
+schemars = { version = "1.0.4" }
 anyhow = "1.0.104"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

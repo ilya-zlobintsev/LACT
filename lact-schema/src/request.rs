@@ -1,3 +1,5 @@
+#![allow(clippy::needless_lifetimes)]
+
 use std::fmt;
 
 use crate::{
@@ -5,9 +7,12 @@ use crate::{
     config::{GpuConfig, Profile, ProfileHooks},
 };
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
+#[cfg(feature = "schema")]
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(tag = "command", content = "args", rename_all = "snake_case")]
 pub enum Request<'a> {
     Ping,
@@ -43,6 +48,7 @@ pub enum Request<'a> {
     },
     SetPerformanceLevel {
         id: &'a str,
+        #[cfg_attr(feature = "schema", schemars(schema_with = "performance_level_schema"))]
         performance_level: PerformanceLevel,
     },
     SetClocksValue {
@@ -64,6 +70,7 @@ pub enum Request<'a> {
     },
     SetEnabledPowerStates {
         id: &'a str,
+        #[cfg_attr(feature = "schema", schemars(schema_with = "power_level_kind_schema"))]
         kind: PowerLevelKind,
         states: Vec<u8>,
     },
@@ -136,6 +143,7 @@ pub enum Request<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum ConfirmCommand {
     Confirm,
@@ -143,6 +151,7 @@ pub enum ConfirmCommand {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct SetClocksCommand {
     pub r#type: ClockspeedType,
     pub value: Option<i32>,
@@ -159,6 +168,7 @@ impl SetClocksCommand {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Eq, Hash)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ClockspeedType {
     MaxCoreClock,
@@ -184,6 +194,7 @@ pub enum ClockspeedType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ProfileBase {
     Empty,
@@ -202,6 +213,39 @@ impl fmt::Display for ProfileBase {
         };
         text.fmt(f)
     }
+}
+
+#[cfg(feature = "schema")]
+fn performance_level_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let enum_values = [
+        PerformanceLevel::Auto,
+        PerformanceLevel::High,
+        PerformanceLevel::Low,
+        PerformanceLevel::Manual,
+    ]
+    .map(|value| serde_json::to_value(value).unwrap());
+
+    json_schema!({
+        "enum": enum_values,
+        "type": "string"
+    })
+}
+
+#[cfg(feature = "schema")]
+fn power_level_kind_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let enum_values = [
+        PowerLevelKind::CoreClock,
+        PowerLevelKind::MemoryClock,
+        PowerLevelKind::SOCClock,
+        PowerLevelKind::FabricClock,
+        PowerLevelKind::DCEFClock,
+        PowerLevelKind::PcieSpeed,
+    ];
+
+    json_schema!({
+        "enum": enum_values,
+        "type": "string"
+    })
 }
 
 #[cfg(test)]

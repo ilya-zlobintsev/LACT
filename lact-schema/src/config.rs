@@ -1,6 +1,8 @@
 use amdgpu_sysfs::gpu_handle::{PerformanceLevel, PowerLevelKind};
 use indexmap::IndexMap;
 use nvml_wrapper::enums::device::PowerMizerMode;
+#[cfg(feature = "schema")]
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -11,8 +13,13 @@ use crate::{
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct Profile {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, GpuConfig>")
+    )]
     pub gpus: IndexMap<String, GpuConfig>,
     pub rule: Option<ProfileRule>,
     #[serde(default, skip_serializing_if = "ProfileHooks::is_empty")]
@@ -21,6 +28,7 @@ pub struct Profile {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ProfileHooks {
     pub activated: Option<String>,
     pub deactivated: Option<String>,
@@ -34,6 +42,7 @@ impl ProfileHooks {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct GpuConfig {
     #[serde(default)]
     pub fan_control_enabled: bool,
@@ -42,8 +51,13 @@ pub struct GpuConfig {
     pub pmfw_options: PmfwOptions,
     #[serde(default, skip_serializing_if = "NvidiaThermalOptions::is_empty")]
     pub nvidia_thermal_options: NvidiaThermalOptions,
+    #[cfg_attr(
+        feature = "schema",
+        schemars(schema_with = "crate::power_mizer_mode_schema", default)
+    )]
     pub power_mizer_mode: Option<PowerMizerMode>,
     pub power_cap: Option<f64>,
+    #[cfg_attr(feature = "schema", schemars(with = "String", default))]
     pub performance_level: Option<PerformanceLevel>,
     #[serde(default, flatten)]
     pub clocks_configuration: ClocksConfiguration,
@@ -52,12 +66,17 @@ pub struct GpuConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_power_profile_mode_hueristics: Vec<Vec<Option<i32>>>,
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, Vec<u8>>")
+    )]
     pub power_states: IndexMap<PowerLevelKind, Vec<u8>>,
     pub uma_carveout: Option<usize>,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ClocksConfiguration {
     pub min_core_clock: Option<i32>,
     pub min_memory_clock: Option<i32>,
@@ -70,11 +89,19 @@ pub struct ClocksConfiguration {
         skip_serializing_if = "IndexMap::is_empty",
         deserialize_with = "int_map::deserialize"
     )]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, i32>")
+    )]
     pub gpu_clock_offsets: IndexMap<u32, i32>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
         deserialize_with = "int_map::deserialize"
+    )]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, i32>")
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
     #[serde(
@@ -82,17 +109,29 @@ pub struct ClocksConfiguration {
         skip_serializing_if = "IndexMap::is_empty",
         deserialize_with = "int_map::deserialize"
     )]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, CurvePoint>")
+    )]
     pub gpu_vf_curve: IndexMap<u8, CurvePoint>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
         deserialize_with = "int_map::deserialize"
     )]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, CurvePoint>")
+    )]
     pub mem_vf_curve: IndexMap<u8, CurvePoint>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
         deserialize_with = "int_map::deserialize"
+    )]
+    #[cfg_attr(
+        feature = "schema",
+        schemars(with = "std::collections::HashMap<String, NvidiaCurvePoint>")
     )]
     pub nvidia_gpu_vf_curve: IndexMap<u8, NvidiaCurvePoint>,
     pub voltage_offset: Option<i32>,
@@ -148,6 +187,7 @@ impl ClocksConfiguration {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct CurvePoint {
     pub voltage: Option<i32>,
     pub clockspeed: Option<i32>,
@@ -155,6 +195,7 @@ pub struct CurvePoint {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct NvidiaCurvePoint {
     pub clockspeed_offset: i32,
     pub voltage: Option<u32>,
@@ -198,6 +239,7 @@ impl GpuConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FanCurve(pub FanCurveMap);
 
 impl Default for FanCurve {
@@ -208,6 +250,7 @@ impl Default for FanCurve {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FanControlSettings {
     #[serde(default)]
     pub mode: FanControlMode,
