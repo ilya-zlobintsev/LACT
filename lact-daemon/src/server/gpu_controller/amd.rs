@@ -1491,9 +1491,10 @@ impl GpuController for AmdGpuController {
     }
 }
 
-const UHBR_RATE_THRESHOLD: u32 = 1000;
-
+#[cfg(feature = "display-info")]
 fn parse_dp_link_settings(contents: &str) -> anyhow::Result<Option<(u16, u32)>> {
+    const UHBR_RATE_THRESHOLD: u32 = 1000;
+
     let mut parts = contents.split_ascii_whitespace().skip(1);
 
     let lanes = parts
