@@ -3,7 +3,6 @@ use lact_schema::{DisplayConnector, DisplayInfo, DisplayManufactureDate, Display
 use std::{collections::BTreeMap, fs, path::Path};
 use tracing::warn;
 
-// Values are for conversion to Mbps
 const BASE_RATE_MULTIPLIER: u32 = 270;
 const UHBR_RATE_MULTIPLIER: u32 = 10;
 

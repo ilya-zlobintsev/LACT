@@ -1477,14 +1477,9 @@ impl GpuController for AmdGpuController {
                         *lanes = Some(lane_count);
                         *bandwidth = Some(lane_bandwidth);
                     }
-                    // Zero link settings mean the connector is not driving a DP
-                    // link (e.g. an HDMI sink behind a passive DP++ adapter), so
-                    // there is nothing to report.
                     Ok(None) => {
                         debug!("display {connector} has no DisplayPort link settings");
                     }
-                    // A single unreadable connector must not drop the link info
-                    // of every other display.
                     Err(err) => {
                         warn!("could not read link settings of {connector}: {err:#}");
                     }
@@ -1496,21 +1491,8 @@ impl GpuController for AmdGpuController {
     }
 }
 
-// AMD reports legacy DP link rates as DP spec codes, while DP2 UHBR rates are
-// reported in 10 Mbps units. UHBR10 starts at 1000.
 const UHBR_RATE_THRESHOLD: u32 = 1000;
 
-/// Parse the contents of the amdgpu debugfs `link_settings` file, returning the
-/// current lane count and per-lane bandwidth in Mbps.
-///
-/// The file contains the current, verified, reported and preferred settings on a
-/// single line. The current settings describe the link the display is actually
-/// running on, so those are the ones reported here.
-///
-/// Returns `None` when the current link settings are all zero: the connector is
-/// then not driving a `DisplayPort` link at all. This happens for example with an
-/// HDMI sink behind a passive DP++ adapter, where the GPU uses TMDS signalling
-/// and there is no lane count or per-lane rate to report.
 fn parse_dp_link_settings(contents: &str) -> anyhow::Result<Option<(u16, u32)>> {
     let mut parts = contents.split_ascii_whitespace().skip(1);
 
