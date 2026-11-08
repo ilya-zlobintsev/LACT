@@ -7,7 +7,7 @@ use crate::I18N;
 use crate::app::utils::dnd::DynamicIndexValue;
 use crate::app::utils::ext::FlowBoxExt;
 use gtk::{
-    gdk, glib,
+    gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
     prelude::{
         AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, DrawingAreaExt, DrawingAreaExtManual,
@@ -84,8 +84,25 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                         },
                     },
 
-                    #[name = "legend"]
-                    LegendContainer {},
+                    gtk::ScrolledWindow {
+                        set_hscrollbar_policy: gtk::PolicyType::Never,
+                        set_vscrollbar_policy: gtk::PolicyType::Never,
+                        set_propagate_natural_width: false,
+                        set_propagate_natural_height: true,
+                        set_has_frame: false,
+
+                        #[name = "legend"]
+                        gtk::FlowBox {
+                            set_selection_mode: gtk::SelectionMode::None,
+                            set_homogeneous: false,
+                            set_column_spacing: 16,
+                            set_row_spacing: 4,
+                            set_margin_all: 6,
+                            set_margin_bottom: 8,
+                            set_max_children_per_line: 6,
+                            set_halign: gtk::Align::Center,
+                        },
+                    },
                 },
 
                 add_overlay = &gtk::Box {
@@ -286,10 +303,8 @@ impl PlotComponent {
             return;
         }
 
-        let legend = widgets.legend.flow_box();
-
-        while let Some(child) = legend.first_child() {
-            legend.remove(&child);
+        while let Some(child) = widgets.legend.first_child() {
+            widgets.legend.remove(&child);
         }
 
         self.legend_labels.clear();
@@ -316,9 +331,10 @@ impl PlotComponent {
 
             row.append(&swatch);
             let text = gtk::Label::new(Some(&label.text));
+            text.set_ellipsize(gtk::pango::EllipsizeMode::End);
             text.add_css_class("caption");
             row.append(&text);
-            legend.append_child(&row);
+            widgets.legend.append_child(&row);
             self.legend_labels.push(text);
         }
     }
@@ -382,126 +398,5 @@ impl relm4::factory::FactoryComponent for StatTypeRow {
         });
 
         Self { stat, enabled }
-    }
-}
-
-mod legend_container {
-    use std::cell::RefCell;
-
-    use gtk::glib;
-    use gtk::gsk;
-    use gtk::prelude::*;
-    use gtk::subclass::prelude::*;
-
-    /// Container of the plot legend.
-    ///
-    /// It reports no width to its parent, so the legend never changes the size
-    /// of the chart. The chart defines the width of the cell, the legend just
-    /// wraps inside it and grows vertically when needed.
-    ///
-    /// This is a plain widget instead of a `GtkBox`, because a box delegates
-    /// measuring and allocating to its layout manager, which would ignore the
-    /// custom `measure` implementation.
-    #[derive(Default)]
-    pub struct LegendContainer {
-        pub flow_box: RefCell<Option<gtk::FlowBox>>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for LegendContainer {
-        const NAME: &'static str = "LactPlotLegend";
-        type Type = super::LegendContainer;
-        type ParentType = gtk::Widget;
-    }
-
-    impl ObjectImpl for LegendContainer {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            let flow_box = gtk::FlowBox::new();
-            flow_box.set_selection_mode(gtk::SelectionMode::None);
-            flow_box.set_homogeneous(false);
-            flow_box.set_column_spacing(16);
-            flow_box.set_row_spacing(4);
-            flow_box.set_margin_start(6);
-            flow_box.set_margin_end(6);
-            flow_box.set_margin_top(6);
-            flow_box.set_margin_bottom(8);
-            flow_box.set_max_children_per_line(6);
-            flow_box.set_halign(gtk::Align::Center);
-
-            flow_box.set_parent(&*self.obj());
-            *self.flow_box.borrow_mut() = Some(flow_box);
-        }
-
-        fn dispose(&self) {
-            if let Some(flow_box) = self.flow_box.borrow().as_ref() {
-                flow_box.unparent();
-            }
-        }
-    }
-
-    impl WidgetImpl for LegendContainer {
-        fn request_mode(&self) -> gtk::SizeRequestMode {
-            // The height of the legend depends on how many lines the flow box
-            // needs, which in turn depends on the width given by the chart.
-            gtk::SizeRequestMode::HeightForWidth
-        }
-
-        fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
-            if orientation == gtk::Orientation::Horizontal {
-                // The labels change with the values, and a plot with more
-                // entries would otherwise get wider than one with fewer.
-                (0, 0, -1, -1)
-            } else if let Some(flow_box) = self.flow_box.borrow().as_ref() {
-                flow_box.measure(orientation, for_size)
-            } else {
-                (0, 0, -1, -1)
-            }
-        }
-
-        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
-            let Some(flow_box) = self.flow_box.borrow().clone() else {
-                return;
-            };
-
-            let (_, natural_width, _, _) = flow_box.measure(gtk::Orientation::Horizontal, height);
-            let child_width = natural_width.min(width);
-            let x = (width - child_width) / 2;
-
-            let transform =
-                gsk::Transform::new().translate(&gtk::graphene::Point::new(x as f32, 0.0));
-            flow_box.allocate(child_width, height, baseline, Some(transform));
-        }
-
-        fn snapshot(&self, snapshot: &gtk::Snapshot) {
-            if let Some(flow_box) = self.flow_box.borrow().as_ref() {
-                self.obj().snapshot_child(flow_box, snapshot);
-            }
-        }
-    }
-}
-
-glib::wrapper! {
-    /// Legend below the plot. Reports no width to its parent, so that the
-    /// legend never changes the size of the chart.
-    pub struct LegendContainer(ObjectSubclass<legend_container::LegendContainer>)
-        @extends gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
-}
-
-impl Default for LegendContainer {
-    fn default() -> Self {
-        glib::Object::builder().build()
-    }
-}
-
-impl LegendContainer {
-    fn flow_box(&self) -> gtk::FlowBox {
-        self.imp()
-            .flow_box
-            .borrow()
-            .clone()
-            .expect("legend flow box is created in constructed()")
     }
 }

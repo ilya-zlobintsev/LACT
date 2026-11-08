@@ -141,6 +141,7 @@ impl relm4::Component for GraphsWindow {
                             set_margin_top: 7,
                             set_row_spacing: 10,
                             set_column_spacing: 10,
+                            set_column_homogeneous: true,
                         },
                     },
                 },
