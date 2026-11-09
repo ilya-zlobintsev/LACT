@@ -63,6 +63,8 @@ pub struct NvidiaGpuController {
     common: CommonControllerInfo,
     fan_control_handle: RefCell<Option<FanControlHandle>>,
     initial_target_temp: Option<u32>,
+    initial_thermal_policies: RefCell<Option<nvapi::ThermalPolicies>>,
+    thermal_policy_written: Cell<bool>,
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
@@ -149,6 +151,8 @@ impl NvidiaGpuController {
             driver_handle,
             nvapi_thermals_info,
             initial_target_temp: target_temp,
+            initial_thermal_policies: RefCell::new(None),
+            thermal_policy_written: Cell::new(false),
             last_util_timestamp: Cell::new(None),
             fan_control_handle: RefCell::new(None),
             last_applied_offsets: RefCell::new(HashMap::new()),
@@ -521,6 +525,31 @@ impl NvidiaGpuController {
         }
         self.voltage_boost_written.set(false);
 
+        Ok(())
+    }
+
+    fn apply_thermal_policy_temperature(&self, target: Option<u32>) -> anyhow::Result<()> {
+        if target.is_none() && !self.thermal_policy_written.get() {
+            return Ok(());
+        }
+        let (api, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+        let mut initial = self.initial_thermal_policies.borrow_mut();
+        if initial.is_none() {
+            *initial = Some(unsafe { nvapi::ThermalPolicies::read(api, *handle)? });
+        }
+        let policies = initial.as_ref().unwrap();
+        if let Some(target) = target {
+            let hardware_limit = self
+                .device()
+                .temperature_threshold(TemperatureThreshold::Slowdown)
+                .context("Could not read the hardware thermal limit")?;
+            // A failed setter can still have changed hardware; include it in rollback.
+            self.thermal_policy_written.set(true);
+            unsafe { policies.apply(api, *handle, target, hardware_limit) }?;
+        } else {
+            unsafe { policies.restore(api, *handle) }?;
+            self.thermal_policy_written.set(false);
+        }
         Ok(())
     }
 
@@ -1376,6 +1405,11 @@ impl GpuController for NvidiaGpuController {
                     warn!("could not reset target temperature: {err:#}");
                 }
             }
+
+            self.apply_thermal_policy_temperature(
+                config.nvidia_thermal_options.throttle_temperature,
+            )
+            .context("Could not apply NVIDIA thermal slowdown policy")?;
 
             Ok(())
         })
