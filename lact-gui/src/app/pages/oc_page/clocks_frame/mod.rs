@@ -6,8 +6,8 @@ use crate::{
             checkbox_button::CheckboxButton,
             page_section::PageSection,
             setting_row::{
-                AdjustmentControlMsg, AdjustmentInit, SelectInit, SettingControl, SettingRow,
-                SettingRowInit, SettingRowMsg, SettingRowValue,
+                AdjustmentControlMsg, AdjustmentInit, SelectInit, SelectOption, SettingControl,
+                SettingRow, SettingRowInit, SettingRowMsg, SettingRowValue,
             },
         },
         msg::AppMsg,
@@ -16,7 +16,9 @@ use crate::{
     },
 };
 use adw::prelude::*;
-use amdgpu_sysfs::gpu_handle::{PowerLevelId, overdrive::ClocksTableGen as AmdClocksTable};
+use amdgpu_sysfs::gpu_handle::{
+    PowerLevelId, UmaCarveoutOption, overdrive::ClocksTableGen as AmdClocksTable,
+};
 use i18n_embed_fl::fl;
 use lact_schema::{
     AmdUmaCarveout, ClocksTable, DeviceStats, IntelClocksTable, NvidiaClockOffset,
@@ -404,7 +406,7 @@ impl relm4::Component for ClocksFrame {
                         ClocksTable::Intel(table) => self.set_intel_table(table),
                     }
                 }
-                self.set_uma_carveout_row();
+                self.set_uma_carveout();
 
                 widgets
                     .vf_curve_editing_togglebutton
@@ -426,17 +428,13 @@ impl relm4::Component for ClocksFrame {
                     }
                 }
             }
-            ClocksFrameMsg::SettingChanged(setting) => {
-                self.changed_settings.insert(setting);
-                APP_BROKER.send(AppMsg::SettingsChanged);
-            }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
                 self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::UmaCarveout(carveout) => {
                 self.uma_carveout = carveout.filter(|carveout| !carveout.options.is_empty());
-                self.set_uma_carveout_row();
+                self.set_uma_carveout();
             }
             ClocksFrameMsg::PowerStatesAvailable(available) => {
                 self.has_power_states = available;
@@ -474,6 +472,10 @@ impl relm4::Component for ClocksFrame {
                     };
                     self.rows.send(setting, SettingRowMsg::SetVisible(visible));
                 }
+            }
+            ClocksFrameMsg::SettingChanged(setting) => {
+                self.changed_settings.insert(setting);
+                APP_BROKER.send(AppMsg::SettingsChanged);
             }
         }
 
@@ -537,7 +539,7 @@ impl ClocksFrame {
         }
     }
 
-    fn set_uma_carveout_row(&mut self) {
+    fn set_uma_carveout(&mut self) {
         self.changed_settings.remove(&ClocksSetting::UmaCarveout);
         match &self.uma_carveout {
             Some(carveout) => {
@@ -547,20 +549,9 @@ impl ClocksFrame {
                         title: fl!(I18N, "uma-carveout"),
                         info_text: fl!(I18N, "uma-carveout-caption"),
                         control: SelectInit {
-                            options: carveout
-                                .options
-                                .iter()
-                                .map(|option| {
-                                    let size = formatting::fmt_human_bytes(option.size_bytes, None);
-                                    match &option.name {
-                                        Some(name) => format!("{size} ({name})"),
-                                        None => size,
-                                    }
-                                    .into()
-                                })
-                                .collect(),
+                            options: carveout.options.iter().map(uma_carveout_option).collect(),
                             selected: Some(carveout.current as u32),
-                            default_value: None,
+                            ..Default::default()
                         }
                         .into(),
                         ..Default::default()
@@ -970,6 +961,15 @@ fn clock_default(clock_type: ClockspeedType) -> Option<f64> {
             | ClockspeedType::VoltageBoost
     )
     .then_some(0.0)
+}
+
+fn uma_carveout_option(option: &UmaCarveoutOption) -> SelectOption {
+    let size = formatting::fmt_human_bytes(option.size_bytes, None);
+    match &option.name {
+        Some(name) => format!("{size} ({name})"),
+        None => size,
+    }
+    .into()
 }
 
 fn get_row_step(clock_type: ClockspeedType) -> f64 {
