@@ -435,7 +435,7 @@ impl relm4::Component for ClocksFrame {
                 self.update_vram_clock_ratio();
             }
             ClocksFrameMsg::UmaCarveout(carveout) => {
-                self.uma_carveout = carveout;
+                self.uma_carveout = carveout.filter(|carveout| !carveout.options.is_empty());
                 self.set_uma_carveout_row();
             }
             ClocksFrameMsg::PowerStatesAvailable(available) => {
