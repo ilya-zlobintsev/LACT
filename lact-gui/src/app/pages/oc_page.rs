@@ -20,7 +20,7 @@ use card_layout::{CardLayout, ColumnBias};
 use clocks_frame::{ClockDomain, ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use lact_schema::{ClocksTable, DeviceInfo, PowerStates, request::SetClocksCommand};
 use power_frame::{PowerFrame, PowerFrameMsg, PowerFrameSerialized};
 use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
@@ -308,31 +308,28 @@ impl OcPage {
 
     // stored_config is temporary here, long term serialization should be derevied from SettingRow values
     pub fn serialize(&self, stored_config: &config::GpuConfig) -> OcPageSerialized {
+        let vram_clocks = self.vram_clocks_frame.model().serialize();
+        let mut clocks_commands = self.gpu_clocks_frame.model().serialize().commands;
+        clocks_commands.extend(vram_clocks.commands);
         OcPageSerialized {
             power: self.power_frame.model().serialize(),
-            clocks_configuration: self.serialize_clocks(stored_config.clocks_configuration.clone()),
+            clocks_configuration: self
+                .serialize_clocks(stored_config.clocks_configuration.clone(), clocks_commands),
             power_states: if self.get_performance_level() == Some(PerformanceLevel::Manual) {
                 self.power_states_dialog.model().get_enabled_power_states()
             } else {
                 IndexMap::new()
             },
             // Avoids applying the setting if it's the default but doesn't wipe it if it's unchanged in the UI
-            uma_carveout: self
-                .vram_clocks_frame
-                .model()
-                .uma_carveout()
-                .map(|value| value as usize)
-                .or(stored_config.uma_carveout),
+            uma_carveout: vram_clocks.uma_carveout.or(stored_config.uma_carveout),
         }
     }
 
     fn serialize_clocks(
         &self,
         mut config: config::ClocksConfiguration,
+        commands: Vec<SetClocksCommand>,
     ) -> config::ClocksConfiguration {
-        let mut commands = self.gpu_clocks_frame.model().get_commands();
-        commands.extend(self.vram_clocks_frame.model().get_commands());
-
         debug!("applying clocks commands {commands:#?}");
 
         for command in commands {

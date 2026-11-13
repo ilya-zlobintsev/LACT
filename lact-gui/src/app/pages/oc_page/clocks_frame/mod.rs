@@ -39,6 +39,11 @@ pub enum ClocksSetting {
     UmaCarveout,
 }
 
+pub struct ClocksFrameSerialized {
+    pub commands: Vec<SetClocksCommand>,
+    pub uma_carveout: Option<usize>,
+}
+
 pub struct ClocksFrame {
     rows: FactoryHashMap<ClocksSetting, SettingRow<ClocksSetting>>,
     size_groups: SizeGroups,
@@ -484,6 +489,13 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
+    pub fn serialize(&self) -> ClocksFrameSerialized {
+        ClocksFrameSerialized {
+            commands: self.get_commands(),
+            uma_carveout: self.uma_carveout().map(|value| value as usize),
+        }
+    }
+
     fn power_state_clock_label(&self) -> String {
         match self.current_clock {
             Some(clock) => {
@@ -564,7 +576,7 @@ impl ClocksFrame {
         }
     }
 
-    pub fn uma_carveout(&self) -> Option<u32> {
+    fn uma_carveout(&self) -> Option<u32> {
         if !self.changed_settings.contains(&ClocksSetting::UmaCarveout) {
             return None;
         }
@@ -859,7 +871,7 @@ impl ClocksFrame {
         }
     }
 
-    pub fn get_commands(&self) -> Vec<SetClocksCommand> {
+    fn get_commands(&self) -> Vec<SetClocksCommand> {
         self.rows
             .iter()
             .filter_map(|(setting, row)| {
