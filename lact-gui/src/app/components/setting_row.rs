@@ -6,7 +6,6 @@ use self::{
     adjustment_control::AdjustmentControl, boolean_control::BooleanControl,
     select_control::SelectControl,
 };
-#[expect(unused_imports, reason = "setting-row-migration")]
 pub use self::{
     adjustment_control::{AdjustmentControlMsg, AdjustmentInit},
     boolean_control::BooleanInit,
@@ -247,7 +246,6 @@ impl SettingControl {
 pub enum SettingRowMsg {
     Reset,
     SetValue(SettingRowValue),
-    #[expect(dead_code, reason = "setting-row-migration")]
     SetVisible(bool),
 }
 

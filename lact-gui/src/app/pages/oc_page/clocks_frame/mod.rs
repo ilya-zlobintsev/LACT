@@ -3,9 +3,12 @@ use crate::{
     app::{
         components::{
             adjustment_card::AdjustmentCard,
-            adjustment_row::{AdjustmentRow, AdjustmentRowInit, AdjustmentRowMsg},
             checkbox_button::CheckboxButton,
             page_section::PageSection,
+            setting_row::{
+                AdjustmentControlMsg, AdjustmentInit, SettingControl, SettingRow, SettingRowInit,
+                SettingRowMsg, SettingRowValue,
+            },
         },
         msg::AppMsg,
         pages::oc_page::OcPageMsg,
@@ -19,15 +22,17 @@ use lact_schema::{
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
-    ComponentParts, ComponentSender, RelmObjectExt, WidgetTemplate, binding::BoolBinding, css,
-    factory::FactoryHashMap,
+    ComponentController, ComponentParts, ComponentSender, RelmObjectExt, WidgetTemplate,
+    binding::BoolBinding, css, factory::FactoryHashMap,
 };
 use std::{collections::HashSet, sync::Arc};
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
 pub struct ClocksFrame {
-    adjustments: FactoryHashMap<ClockspeedType, AdjustmentRow<ClockspeedType>>,
+    rows: FactoryHashMap<ClockspeedType, SettingRow<ClockspeedType>>,
+    size_groups: SizeGroups,
+    changed_clocks: HashSet<ClockspeedType>,
     secondary_p_state_clocks: HashSet<ClockspeedType>,
     domain: ClockDomain,
     vram_clock_ratio: f64,
@@ -39,6 +44,25 @@ pub struct ClocksFrame {
     has_power_states: bool,
     active_power_state: Option<PowerLevelId>,
     current_clock: Option<u64>,
+}
+
+struct SizeGroups {
+    label: gtk::SizeGroup,
+    input: gtk::SizeGroup,
+    lower_label: gtk::SizeGroup,
+    upper_label: gtk::SizeGroup,
+}
+
+impl Default for SizeGroups {
+    fn default() -> Self {
+        let group = || gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
+        Self {
+            label: group(),
+            input: group(),
+            lower_label: group(),
+            upper_label: group(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -107,6 +131,7 @@ pub enum ClocksFrameMsg {
     Stats(Arc<DeviceStats>),
     TogglePStatesVisibility,
     ResetGpuClockOffsets,
+    SettingChanged(ClockspeedType),
 }
 
 #[relm4::component(pub)]
@@ -289,9 +314,13 @@ impl relm4::Component for ClocksFrame {
     ) -> ComponentParts<Self> {
         let card = AdjustmentCard::init(());
         let model = Self {
-            adjustments: FactoryHashMap::builder()
+            rows: FactoryHashMap::builder()
                 .launch(card.content.clone())
-                .forward(APP_BROKER.sender(), |()| AppMsg::SettingsChanged),
+                .forward(sender.input_sender(), |(clock_type, _)| {
+                    ClocksFrameMsg::SettingChanged(clock_type)
+                }),
+            size_groups: SizeGroups::default(),
+            changed_clocks: HashSet::new(),
             secondary_p_state_clocks: HashSet::new(),
             domain,
             vram_clock_ratio: 1.0,
@@ -318,7 +347,7 @@ impl relm4::Component for ClocksFrame {
 
         let widgets = view_output!();
 
-        model.adjustments.widget().set_sort_func(|left, right| {
+        model.rows.widget().set_sort_func(|left, right| {
             // Keep the pstates row after dynamically inserted clock controls.
             left.has_css_class("pstates")
                 .cmp(&right.has_css_class("pstates"))
@@ -347,7 +376,10 @@ impl relm4::Component for ClocksFrame {
                     .locked_clocks_togglebutton
                     .block_signal(&widgets.locked_clock_signal);
 
-                self.adjustments.clear();
+                self.rows.clear();
+                // Fresh groups, so widgets of the removed rows don't affect the new layout
+                self.size_groups = SizeGroups::default();
+                self.changed_clocks.clear();
                 self.secondary_p_state_clocks.clear();
 
                 self.enable_locked_clocks.set_value(false);
@@ -362,23 +394,6 @@ impl relm4::Component for ClocksFrame {
                     }
                 }
 
-                let label_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-                let input_size_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-                let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-                let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
-
-                for clock_type in self.adjustments.keys() {
-                    self.adjustments.send(
-                        clock_type,
-                        AdjustmentRowMsg::AddSizeGroup {
-                            label_group: label_size_group.clone(),
-                            input_group: input_size_group.clone(),
-                            lower_label_group: lower_label_group.clone(),
-                            upper_label_group: upper_label_group.clone(),
-                        },
-                    );
-                }
-
                 widgets
                     .vf_curve_editing_togglebutton
                     .unblock_signal(&widgets.vf_curve_editing_signal);
@@ -390,12 +405,15 @@ impl relm4::Component for ClocksFrame {
                 sender.input(ClocksFrameMsg::TogglePStatesVisibility);
             }
             ClocksFrameMsg::ResetGpuClockOffsets => {
-                for clock_type in self.adjustments.keys() {
+                for clock_type in self.rows.keys() {
                     if matches!(clock_type, ClockspeedType::GpuClockOffset(_)) {
-                        self.adjustments
-                            .send(clock_type, AdjustmentRowMsg::SetValue(0.0));
+                        self.rows.send(clock_type, SettingRowMsg::Reset);
                     }
                 }
+            }
+            ClocksFrameMsg::SettingChanged(clock_type) => {
+                self.changed_clocks.insert(clock_type);
+                APP_BROKER.send(AppMsg::SettingsChanged);
             }
             ClocksFrameMsg::VramRatio(vram_ratio) => {
                 self.vram_clock_ratio = vram_ratio;
@@ -415,7 +433,7 @@ impl relm4::Component for ClocksFrame {
                 if !self.secondary_p_states_enabled() && self.show_all_pstates.value() {
                     self.show_all_pstates.set_value(false);
                 }
-                for clock_type in self.adjustments.keys() {
+                for clock_type in self.rows.keys() {
                     let visible = match clock_type {
                         ClockspeedType::MaxCoreClock
                         | ClockspeedType::MinCoreClock
@@ -436,8 +454,8 @@ impl relm4::Component for ClocksFrame {
                                     && self.show_all_pstates.value())
                         }
                     };
-                    self.adjustments
-                        .send(clock_type, AdjustmentRowMsg::SetVisible(visible));
+                    self.rows
+                        .send(clock_type, SettingRowMsg::SetVisible(visible));
                 }
             }
         }
@@ -469,20 +487,29 @@ impl ClocksFrame {
             return;
         }
 
-        self.adjustments.insert(
+        self.rows.insert(
             clock_type,
-            AdjustmentRowInit {
+            SettingRowInit {
                 title: data.custom_title.unwrap_or_else(|| clock_title(clock_type)),
-                unit: clock_unit(clock_type),
                 info_text: if clock_type == ClockspeedType::VoltageBoost {
                     fl!(I18N, "gpu-voltage-boost-tooltip")
                 } else {
                     String::new()
                 },
-                value: f64::from(data.current),
-                lower: f64::from(data.min),
-                upper: f64::from(data.max),
-                step_increment: get_row_step(clock_type),
+                label_group: Some(self.size_groups.label.clone()),
+                input_group: Some(self.size_groups.input.clone()),
+                control: AdjustmentInit {
+                    unit: clock_unit(clock_type),
+                    value: f64::from(data.current),
+                    default_value: clock_default(clock_type),
+                    lower: f64::from(data.min),
+                    upper: f64::from(data.max),
+                    step_increment: get_row_step(clock_type),
+                    lower_label_group: Some(self.size_groups.lower_label.clone()),
+                    upper_label_group: Some(self.size_groups.upper_label.clone()),
+                    ..Default::default()
+                }
+                .into(),
                 ..Default::default()
             },
         );
@@ -494,7 +521,7 @@ impl ClocksFrame {
     }
 
     fn has_any_clocks(&self) -> bool {
-        !self.adjustments.is_empty()
+        !self.rows.is_empty()
     }
 
     fn has_secondary_p_states(&self) -> bool {
@@ -502,17 +529,15 @@ impl ClocksFrame {
     }
 
     fn update_vram_clock_ratio(&self) {
-        for clock_type in self.adjustments.keys() {
+        for (clock_type, row) in self.rows.iter() {
             if matches!(
                 clock_type,
                 ClockspeedType::MaxMemoryClock
                     | ClockspeedType::MinMemoryClock
                     | ClockspeedType::MemClockOffset(_)
-            ) {
-                self.adjustments.send(
-                    clock_type,
-                    AdjustmentRowMsg::ValueRatio(self.vram_clock_ratio),
-                );
+            ) && let SettingControl::Adjustment(control) = &row.control
+            {
+                control.emit(AdjustmentControlMsg::SetValueRatio(self.vram_clock_ratio));
             }
         }
     }
@@ -779,7 +804,7 @@ impl ClocksFrame {
     }
 
     pub fn get_commands(&self) -> Vec<SetClocksCommand> {
-        self.adjustments
+        self.rows
             .iter()
             .filter_map(|(clock_type, row)| {
                 if !self.secondary_p_states_enabled()
@@ -787,26 +812,27 @@ impl ClocksFrame {
                 {
                     return None;
                 }
-                let configured_value = row.get_changed_value().map(|value| value as i32);
-                // If nvidia options are enabled, we always set locked clocks to None or Some
-                let value = if self.show_nvidia_options {
-                    match clock_type {
-                        ClockspeedType::MinCoreClock
-                        | ClockspeedType::MaxCoreClock
-                        | ClockspeedType::MinMemoryClock
-                        | ClockspeedType::MaxMemoryClock => self
-                            .enable_locked_clocks
-                            .value()
-                            .then(|| row.get_value() as i32),
-                        _ => Some(configured_value?),
+                let value = match clock_type {
+                    // If nvidia options are enabled, we always set locked clocks to None or Some
+                    ClockspeedType::MinCoreClock
+                    | ClockspeedType::MaxCoreClock
+                    | ClockspeedType::MinMemoryClock
+                    | ClockspeedType::MaxMemoryClock
+                        if self.show_nvidia_options =>
+                    {
+                        self.enable_locked_clocks.value().then(|| row.get_value())
                     }
-                } else {
-                    Some(configured_value?)
+                    _ if clock_default(*clock_type).is_some() => row.serialize(),
+                    // Values without a known default are merged with the stored config
+                    _ if self.changed_clocks.contains(clock_type) => Some(row.get_value()),
+                    _ => return None,
                 };
 
                 Some(SetClocksCommand {
                     r#type: *clock_type,
-                    value,
+                    value: value
+                        .and_then(SettingRowValue::as_numeric)
+                        .map(|value| value as i32),
                 })
             })
             .collect()
@@ -865,6 +891,17 @@ fn clock_unit(clock_type: ClockspeedType) -> String {
         ClockspeedType::VoltageBoost => "%".into(),
         ClockspeedType::Reset => unreachable!(),
     }
+}
+
+fn clock_default(clock_type: ClockspeedType) -> Option<f64> {
+    matches!(
+        clock_type,
+        ClockspeedType::GpuClockOffset(_)
+            | ClockspeedType::MemClockOffset(_)
+            | ClockspeedType::VoltageOffset
+            | ClockspeedType::VoltageBoost
+    )
+    .then_some(0.0)
 }
 
 fn get_row_step(clock_type: ClockspeedType) -> f64 {

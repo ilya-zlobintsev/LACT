@@ -47,9 +47,11 @@ impl Default for AdjustmentRowInit {
 #[derive(Debug)]
 pub enum AdjustmentRowMsg {
     /// Change display units and reset the edit state.
+    #[expect(dead_code, reason = "setting-row-migration")]
     ValueRatio(f64),
     /// Set a value as an edit, for example when the user presses Reset.
     SetValue(f64),
+    #[expect(dead_code, reason = "setting-row-migration")]
     SetVisible(bool),
     AddSizeGroup {
         label_group: gtk::SizeGroup,
