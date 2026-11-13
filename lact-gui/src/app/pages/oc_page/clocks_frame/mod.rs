@@ -22,7 +22,7 @@ use amdgpu_sysfs::gpu_handle::{
 use i18n_embed_fl::fl;
 use lact_schema::{
     AmdUmaCarveout, ClocksTable, DeviceStats, IntelClocksTable, NvidiaClockOffset,
-    NvidiaClocksTable,
+    NvidiaClocksTable, config,
     request::{ClockspeedType, SetClocksCommand},
 };
 use relm4::{
@@ -30,6 +30,7 @@ use relm4::{
     binding::BoolBinding, css, factory::FactoryHashMap,
 };
 use std::{collections::HashSet, sync::Arc};
+use tracing::debug;
 
 const DEFAULT_VOLTAGE_OFFSET_RANGE: i32 = 250;
 
@@ -40,7 +41,7 @@ pub enum ClocksSetting {
 }
 
 pub struct ClocksFrameSerialized {
-    pub commands: Vec<SetClocksCommand>,
+    pub clocks_configuration: config::ClocksConfiguration,
     pub uma_carveout: Option<usize>,
 }
 
@@ -489,9 +490,26 @@ impl relm4::Component for ClocksFrame {
 }
 
 impl ClocksFrame {
-    pub fn serialize(&self) -> ClocksFrameSerialized {
+    pub fn serialize(
+        &self,
+        mut clocks_configuration: config::ClocksConfiguration,
+    ) -> ClocksFrameSerialized {
+        let commands = self.get_commands();
+        debug!("applying clocks commands {commands:#?}");
+        for command in commands {
+            clocks_configuration.apply_clocks_command(&command);
+        }
+
+        if !self.secondary_p_states_enabled() {
+            match self.domain {
+                ClockDomain::Gpu => &mut clocks_configuration.gpu_clock_offsets,
+                ClockDomain::Vram => &mut clocks_configuration.mem_clock_offsets,
+            }
+            .retain(|pstate, _| *pstate == 0);
+        }
+
         ClocksFrameSerialized {
-            commands: self.get_commands(),
+            clocks_configuration,
             uma_carveout: self.uma_carveout().map(|value| value as usize),
         }
     }
