@@ -1,17 +1,14 @@
 mod card_layout;
 mod clocks_frame;
-mod igpu_frame;
 mod power_frame;
 mod power_profile_mode;
 mod power_states;
 mod vf_curve;
 
-use crate::CONFIG;
 use crate::app::components::gpu_stats_section::{
     GpuStat, GpuStatsSection, GpuStatsSectionConfig, GpuStatsSectionMsg,
 };
 use crate::app::pages::PageUpdate;
-use crate::app::pages::oc_page::igpu_frame::{IGpuFrame, IGpuFrameMsg};
 use crate::app::utils::ext::RelmLaunchable as _;
 use crate::app::{msg::AppMsg, utils::ext::RelmDefaultLauchable};
 use adw::prelude::*;
@@ -22,25 +19,22 @@ use card_layout::{CardLayout, ColumnBias};
 use clocks_frame::{ClockDomain, ClocksFrame, ClocksFrameInit, ClocksFrameMsg};
 use indexmap::IndexMap;
 use lact_schema::config;
-use lact_schema::{ClocksTable, DeviceInfo, PowerStates};
+use lact_schema::{ClocksTable, PowerStates};
 use power_frame::{PowerFrame, PowerFrameMsg, PowerFrameSerialized};
 use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tracing::debug;
 use vf_curve::{VfCurveEditor, VfCurveEditorInit, VfCurveEditorMsg};
 
 pub struct OcPage {
     stats_section: relm4::Controller<GpuStatsSection>,
-    device_info: Option<Arc<DeviceInfo>>,
 
     power_frame: relm4::Controller<PowerFrame>,
     power_states_dialog: relm4::Controller<PowerStatesDialog>,
     gpu_clocks_frame: relm4::Controller<ClocksFrame>,
     vram_clocks_frame: relm4::Controller<ClocksFrame>,
-    igpu_frame: relm4::Controller<IGpuFrame>,
 
     vf_curve_editor: relm4::Controller<VfCurveEditor>,
 }
@@ -96,8 +90,6 @@ impl relm4::Component for OcPage {
                     ColumnBias::Left,    // Core
                     ColumnBias::Right,   // VRAM
                     ColumnBias::Left,    // Power
-                    ColumnBias::Right,   // Integrated Graphics
-
                 ])),
                 set_valign: gtk::Align::Start,
 
@@ -110,10 +102,6 @@ impl relm4::Component for OcPage {
                 },
 
                 model.power_frame.widget() {
-                    add_css_class: "oc-page-section",
-                },
-
-                model.igpu_frame.widget() {
                     add_css_class: "oc-page-section",
                 },
             },
@@ -157,7 +145,6 @@ impl relm4::Component for OcPage {
         let power_states_dialog =
             PowerStatesDialog::launch_default().forward(sender.input_sender(), |msg| msg);
         let power_frame = PowerFrame::launch_default().forward(sender.input_sender(), |msg| msg);
-        let igpu_frame = IGpuFrame::launch_default().forward(sender.input_sender(), |msg| msg);
 
         let vf_curve_editor = VfCurveEditor::detach(VfCurveEditorInit {
             global_settings_changed: settings_changed,
@@ -166,12 +153,10 @@ impl relm4::Component for OcPage {
 
         let model = Self {
             stats_section,
-            device_info: None,
             power_frame,
             power_states_dialog,
             gpu_clocks_frame,
             vram_clocks_frame,
-            igpu_frame,
             vf_curve_editor,
         };
 
@@ -210,7 +195,6 @@ impl relm4::Component for OcPage {
                 PageUpdate::Info(info) => {
                     let vram_clock_ratio = info.vram_clock_ratio();
 
-                    self.device_info = Some(info.clone());
                     self.stats_section
                         .emit(GpuStatsSectionMsg::Info(info.clone()));
                     self.power_states_dialog
@@ -222,8 +206,8 @@ impl relm4::Component for OcPage {
                         .drm_info
                         .as_ref()
                         .and_then(|info| info.amd_uma_carveout.clone());
-                    self.igpu_frame
-                        .emit(IGpuFrameMsg::UmaCarveout(uma_carveout));
+                    self.vram_clocks_frame
+                        .emit(ClocksFrameMsg::UmaCarveout(uma_carveout));
                 }
             },
             OcPageMsg::ClocksTable {
@@ -319,51 +303,26 @@ impl OcPage {
 
     // stored_config is temporary here, long term serialization should be derevied from SettingRow values
     pub fn serialize(&self, stored_config: &config::GpuConfig) -> OcPageSerialized {
+        let mut clocks = self.vram_clocks_frame.model().serialize(
+            self.gpu_clocks_frame
+                .model()
+                .serialize(stored_config.clocks_configuration.clone())
+                .clocks_configuration,
+        );
+        if !self.vf_curve_editor.model().is_empty() {
+            clocks.clocks_configuration.nvidia_gpu_vf_curve =
+                self.vf_curve_editor.model().get_configured_curve();
+        }
         OcPageSerialized {
             power: self.power_frame.model().serialize(),
-            clocks_configuration: self.serialize_clocks(stored_config.clocks_configuration.clone()),
+            clocks_configuration: clocks.clocks_configuration,
             power_states: if self.get_performance_level() == Some(PerformanceLevel::Manual) {
                 self.power_states_dialog.model().get_enabled_power_states()
             } else {
                 IndexMap::new()
             },
             // Avoids applying the setting if it's the default but doesn't wipe it if it's unchanged in the UI
-            uma_carveout: self
-                .igpu_frame
-                .model()
-                .get_uma_carveout()
-                .map(|value| value as usize)
-                .or(stored_config.uma_carveout),
+            uma_carveout: clocks.uma_carveout.or(stored_config.uma_carveout),
         }
-    }
-
-    fn serialize_clocks(
-        &self,
-        mut config: config::ClocksConfiguration,
-    ) -> config::ClocksConfiguration {
-        let mut commands = self.gpu_clocks_frame.model().get_commands();
-        commands.extend(self.vram_clocks_frame.model().get_commands());
-
-        debug!("applying clocks commands {commands:#?}");
-
-        for command in commands {
-            config.apply_clocks_command(&command);
-        }
-
-        if !self.vf_curve_editor.model().is_empty() {
-            config.nvidia_gpu_vf_curve = self.vf_curve_editor.model().get_configured_curve();
-        }
-
-        if self
-            .device_info
-            .as_ref()
-            .is_some_and(|info| info.driver == "nvidia")
-            && !CONFIG.read().experimental_nvidia_pstate_offsets
-        {
-            config.gpu_clock_offsets.retain(|pstate, _| *pstate == 0);
-            config.mem_clock_offsets.retain(|pstate, _| *pstate == 0);
-        }
-
-        config
     }
 }
