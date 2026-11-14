@@ -210,6 +210,7 @@ mod benches {
                         gtt_used: None,
                     },
                     throttle_info: None,
+                    throttle_time_ms: Default::default(),
                 };
 
                 data.update_with_timestamp(&stats, 1.0, timestamp.as_millisecond());

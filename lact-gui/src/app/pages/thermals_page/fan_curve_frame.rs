@@ -27,7 +27,8 @@ use plotters::{
 use plotters_cairo::CairoBackend;
 use relm4::{
     ComponentParts, ComponentSender, RelmObjectExt, RelmWidgetExt, WidgetTemplate,
-    binding::U32Binding, factory::FactoryHashMap,
+    binding::{Binding, BoolBinding, ConnectBinding, U32Binding},
+    factory::FactoryHashMap,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -53,6 +54,15 @@ pub(super) struct FanCurveFrame {
     chart: Rc<ChartState>,
     temp_keys: gtk::StringList,
     current_temp_key: U32Binding,
+
+    /// Slot 0 is the main curve, the others are per-sensor curves. The shown slot's curve lives
+    /// in the chart data while it is shown.
+    slots: RefCell<Vec<CurveSlot>>,
+    shown_slot: Cell<usize>,
+    slot_names: gtk::StringList,
+    selected_slot: U32Binding,
+    slot_enabled: BoolBinding,
+    sensor_curves_supported: bool,
 }
 
 struct ChartState {
@@ -79,9 +89,18 @@ pub(super) enum CurveSetting {
     AutoThreshold,
 }
 
+#[derive(Clone, Default)]
+struct CurveSlot {
+    key: String,
+    curve: Vec<(i32, f32)>,
+    enabled: bool,
+}
+
 #[derive(Debug)]
 pub(super) enum FanCurveFrameMsg {
-    Curve(CurveSetupMsg),
+    Curve(Box<CurveSetupMsg>),
+    SlotSelected,
+    SlotEnabled,
     DragStart,
     DragUpdate(f64, f64),
     DragEnd,
@@ -104,6 +123,7 @@ pub(super) struct CurveSetupMsg {
     /// Nvidia only
     pub auto_threshold_supported: bool,
     pub auto_threshold: Option<u64>,
+    pub sensor_curves: IndexMap<String, FanCurveMap>,
 }
 
 #[relm4::component(pub)]
@@ -181,6 +201,37 @@ impl relm4::Component for FanCurveFrame {
                 add_css_class: "fan-control-option",
                 set_spacing: 5,
                 #[watch]
+                set_visible: model.sensor_curves_supported,
+
+                gtk::Label {
+                    set_label: &fl!(I18N, "fan-curve-for"),
+                    set_tooltip_text: Some(&fl!(I18N, "fan-curve-for-tooltip")),
+                    set_xalign: 0.0,
+                    set_size_group: &model.label_size_group,
+                },
+
+                gtk::Switch {
+                    bind: &model.slot_enabled,
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Center,
+                    set_tooltip_text: Some(&fl!(I18N, "sensor-curve-enabled")),
+                    #[watch]
+                    set_visible: model.selected_slot.value() != 0,
+                },
+
+                gtk::DropDown {
+                    set_hexpand: true,
+                    set_halign: gtk::Align::End,
+                    add_binding: (&model.selected_slot, "selected"),
+                    set_model: Some(&model.slot_names),
+                },
+            },
+
+            gtk::Box {
+                set_orientation: gtk::Orientation::Horizontal,
+                set_spacing: 5,
+                #[watch]
                 set_visible: model.temp_keys_available(),
 
                 gtk::Label {
@@ -245,10 +296,25 @@ impl relm4::Component for FanCurveFrame {
             }),
             temp_keys,
             current_temp_key,
+            slots: RefCell::default(),
+            shown_slot: Cell::new(0),
+            slot_names: gtk::StringList::default(),
+            selected_slot: U32Binding::new(0u32),
+            slot_enabled: BoolBinding::new(false),
+            sensor_curves_supported: false,
         };
 
         let current_temp_key = &model.current_temp_key;
         let widgets = view_output!();
+
+        model.selected_slot.connect_value_notify({
+            let sender = sender.clone();
+            move |_| sender.input(FanCurveFrameMsg::SlotSelected)
+        });
+        model.slot_enabled.connect_value_notify({
+            let sender = sender.clone();
+            move |_| sender.input(FanCurveFrameMsg::SlotEnabled)
+        });
 
         ComponentParts { model, widgets }
     }
@@ -265,13 +331,18 @@ impl relm4::Component for FanCurveFrame {
                 *self.chart.data.borrow_mut() =
                     normalize_fan_curve(msg.curve, &msg.temperature_range, &msg.speed_range)
                         .collect();
-                *self.chart.speed_range.borrow_mut() = msg.speed_range;
+                *self.chart.speed_range.borrow_mut() = msg.speed_range.clone();
                 *self.chart.temperature_range.borrow_mut() = msg.temperature_range.clone();
                 self.hw_based_fan_curve = msg.hw_based;
 
                 self.current_temp_key
                     .block_signal(&widgets.temp_key_change_signal);
 
+                let sensor_keys = msg.current_temperatures.keys().cloned().collect::<Vec<_>>();
+                let main_key = msg
+                    .temperature_key
+                    .clone()
+                    .unwrap_or_else(|| "GPU".to_owned());
                 let mut temp_keys = msg
                     .current_temperatures
                     .into_iter()
@@ -340,6 +411,51 @@ impl relm4::Component for FanCurveFrame {
                     );
                 }
 
+                let main_curve = self.chart.data.borrow().clone();
+                let mut slots = vec![CurveSlot {
+                    key: main_key.clone(),
+                    curve: main_curve.clone(),
+                    enabled: true,
+                }];
+                let mut sensor_keys: Vec<String> = sensor_keys;
+                sensor_keys.extend(msg.sensor_curves.keys().cloned());
+                for key in sensor_keys {
+                    if key == main_key || slots.iter().any(|slot| slot.key == key) {
+                        continue;
+                    }
+                    let (curve, enabled) = match msg.sensor_curves.get(&key) {
+                        Some(curve) => (
+                            normalize_fan_curve(
+                                curve.clone(),
+                                &msg.temperature_range,
+                                &msg.speed_range,
+                            )
+                            .collect(),
+                            true,
+                        ),
+                        None => (main_curve.clone(), false),
+                    };
+                    slots.push(CurveSlot {
+                        key,
+                        curve,
+                        enabled,
+                    });
+                }
+
+                while self.slot_names.n_items() > 0 {
+                    self.slot_names.remove(0);
+                }
+                self.slot_names.append(&fl!(I18N, "main-fan-curve"));
+                for slot in &slots[1..] {
+                    self.slot_names.append(&slot.key);
+                }
+                self.sensor_curves_supported =
+                    msg.auto_threshold_supported && !msg.hw_based && slots.len() > 1;
+                *self.slots.borrow_mut() = slots;
+                self.shown_slot.set(0);
+                self.selected_slot.set(0);
+                self.slot_enabled.set(true);
+
                 let lower_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 let upper_label_group = gtk::SizeGroup::new(gtk::SizeGroupMode::Horizontal);
                 for setting in self.adjustments.keys() {
@@ -354,6 +470,31 @@ impl relm4::Component for FanCurveFrame {
                     );
                 }
                 widgets.drawing_area.queue_draw();
+            }
+            FanCurveFrameMsg::SlotSelected => {
+                let new = self.selected_slot.value() as usize;
+                let old = self.shown_slot.get();
+                let mut slots = self.slots.borrow_mut();
+                if new != old && new < slots.len() {
+                    slots[old].curve = self.chart.data.borrow().clone();
+                    *self.chart.data.borrow_mut() = slots[new].curve.clone();
+                    self.shown_slot.set(new);
+                    let enabled = slots[new].enabled;
+                    drop(slots);
+                    self.slot_enabled.set(enabled);
+                    widgets.drawing_area.queue_draw();
+                }
+            }
+            FanCurveFrameMsg::SlotEnabled => {
+                let enabled = self.slot_enabled.value();
+                let shown = self.shown_slot.get();
+                let mut slots = self.slots.borrow_mut();
+                // Slot 0 (the main curve) is always enabled; a value equal to the slot's is a
+                // programmatic set from `SlotSelected` or `Curve`.
+                if shown != 0 && shown < slots.len() && slots[shown].enabled != enabled {
+                    slots[shown].enabled = enabled;
+                    APP_BROKER.send(AppMsg::SettingsChanged);
+                }
             }
             FanCurveFrameMsg::DragStart => {
                 self.chart.is_dragging.set(true);
@@ -420,7 +561,36 @@ impl relm4::Component for FanCurveFrame {
 
 impl FanCurveFrame {
     pub fn get_curve(&self) -> FanCurveMap {
-        self.chart.data.borrow().iter().copied().collect()
+        self.slot_curve(0)
+    }
+
+    /// The enabled per-sensor curves, or `None` where the GPU does not support them.
+    pub fn sensor_curves(&self) -> Option<IndexMap<String, FanCurveMap>> {
+        if !self.sensor_curves_supported {
+            return None;
+        }
+        let slots = self.slots.borrow();
+        Some(
+            slots
+                .iter()
+                .enumerate()
+                .skip(1)
+                .filter(|(_, slot)| slot.enabled)
+                .map(|(idx, slot)| (slot.key.clone(), self.slot_curve(idx)))
+                .collect(),
+        )
+    }
+
+    fn slot_curve(&self, idx: usize) -> FanCurveMap {
+        if idx == self.shown_slot.get() {
+            self.chart.data.borrow().iter().copied().collect()
+        } else {
+            self.slots
+                .borrow()
+                .get(idx)
+                .map(|slot| slot.curve.iter().copied().collect())
+                .unwrap_or_default()
+        }
     }
 
     pub fn spindown_delay(&self) -> u64 {

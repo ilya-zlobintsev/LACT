@@ -642,6 +642,9 @@ pub struct DeviceStats {
     pub supported_power_mizer_modes: Option<Vec<PowerMizerMode>>,
     pub active_power_states: Option<ActivePowerStates>,
     pub throttle_info: Option<BTreeMap<String, Vec<String>>>,
+    /// Cumulative time the driver has limited clocks, in milliseconds, per reason (Nvidia only)
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub throttle_time_ms: BTreeMap<String, u64>,
 }
 
 #[skip_serializing_none]
@@ -687,6 +690,9 @@ pub struct FanStats {
     pub change_threshold: Option<u64>,
     /// Nvidia-only
     pub auto_threshold: Option<u64>,
+    /// Nvidia-only
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub sensor_curves: IndexMap<String, FanCurveMap>,
     // RDNA3+ params
     #[serde(default)]
     pub pmfw_info: PmfwInfo,

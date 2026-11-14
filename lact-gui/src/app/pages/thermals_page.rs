@@ -337,7 +337,7 @@ impl relm4::Component for ThermalsPage {
                             .map(|(start, end)| start as f32..=end as f32)
                             .unwrap_or(DEFAULT_TEMP_RANGE);
 
-                        let msg = CurveSetupMsg {
+                        let msg = Box::new(CurveSetupMsg {
                             curve: stats.fan.curve.clone().unwrap_or_else(default_fan_curve),
                             hw_based: self.has_pmfw,
                             current_temperatures: stats.temps.clone(),
@@ -348,7 +348,8 @@ impl relm4::Component for ThermalsPage {
                             temperature_range,
                             auto_threshold_supported: self.has_auto_threshold,
                             auto_threshold: stats.fan.auto_threshold,
-                        };
+                            sensor_curves: stats.fan.sensor_curves.clone(),
+                        });
                         self.fan_curve_frame.emit(FanCurveFrameMsg::Curve(msg));
 
                         let info = stats.fan.pmfw_info;
@@ -472,6 +473,13 @@ impl ThermalsPage {
 
                     if let Some(temp_key) = fan_curve_model.temperature_key() {
                         fan_settings.temperature_key = temp_key;
+                    }
+
+                    if let Some(sensor_curves) = fan_curve_model.sensor_curves() {
+                        fan_settings.sensor_curves = sensor_curves
+                            .into_iter()
+                            .map(|(key, curve)| (key, FanCurve(curve)))
+                            .collect();
                     }
                 }
                 FanControlMode::Static => {

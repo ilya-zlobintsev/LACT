@@ -6,6 +6,8 @@ use std::{borrow::Cow, collections::BTreeMap};
 pub struct StatsData {
     stats: BTreeMap<StatType, Vec<(i64, f64)>>,
     throttling: Vec<Vec<(i64, Vec<String>)>>,
+    /// The previous sample's timestamp and cumulative throttle time per reason
+    last_throttle_time: BTreeMap<String, (i64, u64)>,
 }
 
 impl StatsData {
@@ -115,6 +117,22 @@ impl StatsData {
             }
         }
 
+        for (name, &total_ms) in &stats.throttle_time_ms {
+            if let Some((last_timestamp, last_ms)) = self
+                .last_throttle_time
+                .insert(name.clone(), (timestamp, total_ms))
+                && timestamp > last_timestamp
+                && total_ms >= last_ms
+            {
+                let share =
+                    (total_ms - last_ms) as f64 / (timestamp - last_timestamp) as f64 * 100.0;
+                self.stats
+                    .entry(StatType::ThrottleTime(name.clone()))
+                    .or_default()
+                    .push((timestamp, share.min(100.0)));
+            }
+        }
+
         let is_throttling = stats
             .throttle_info
             .as_ref()
@@ -188,6 +206,7 @@ impl StatsData {
     pub fn clear(&mut self) {
         self.stats.clear();
         self.throttling.clear();
+        self.last_throttle_time.clear();
     }
 
     pub fn trim(&mut self, last_seconds: i64) {
@@ -242,6 +261,8 @@ pub enum StatType {
     GpuVoltage,
     Clockspeed(String),
     Voltage(String),
+    /// Share of the sample interval the driver limited clocks for this reason
+    ThrottleTime(String),
 }
 
 impl StatType {
@@ -266,6 +287,7 @@ impl StatType {
             PowerCurrent => "Power Draw".into(),
             PowerAverage => "Power Draw (Avg)".into(),
             PowerCap => "Power Cap".into(),
+            ThrottleTime(name) => format!("Time Limited ({name})").into(),
         }
     }
 
@@ -278,7 +300,7 @@ impl StatType {
             Temperature(_) => "℃",
             FanRpm => "RPM",
             FanPwm => "%",
-            GpuUsage => "%",
+            GpuUsage | ThrottleTime(_) => "%",
             PowerCurrent | PowerAverage | PowerCap | Power(_) => "W",
         }
     }
@@ -295,11 +317,32 @@ impl StatType {
             Temperature(_) => 1,
             GpuUsage | VramSize | VramUsed | GttSize | GttUsed => 0,
             GpuVoltage | Voltage(_) => 0,
+            ThrottleTime(_) => 1,
         }
     }
 
     pub fn show_peak(&self) -> bool {
         use StatType::*;
         !matches!(self, VramSize | PowerCap)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{StatType, StatsData};
+    use lact_schema::DeviceStats;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn throttle_time_share_per_interval() {
+        let mut data = StatsData::default();
+        let mut stats = DeviceStats::default();
+        for (timestamp, power_ms) in [(1_000, 5_000), (1_500, 5_100), (2_500, 5_100)] {
+            stats.throttle_time_ms = BTreeMap::from([("Power".to_owned(), power_ms)]);
+            data.update_with_timestamp(&stats, 1.0, timestamp);
+        }
+
+        let points = &data.all_stats()[&StatType::ThrottleTime("Power".to_owned())];
+        assert_eq!(points, &[(1_500, 20.0), (2_500, 0.0)]);
     }
 }
