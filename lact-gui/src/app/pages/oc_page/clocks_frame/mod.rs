@@ -396,7 +396,6 @@ impl relm4::Component for ClocksFrame {
                     .block_signal(&widgets.locked_clock_signal);
 
                 self.rows.clear();
-                // Fresh groups, so widgets of the removed rows don't affect the new layout
                 self.size_groups = SizeGroups::default();
                 self.changed_settings.clear();
                 self.secondary_p_state_clocks.clear();
