@@ -163,7 +163,7 @@ impl<'a> Handler {
                     .any(|item| item == CONFIG_RESET_CMDLINE_ARG)
                 {
                     // Save old config in a different file
-                    let datetime = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S");
+                    let datetime = jiff::ZonedDateTime::now().strftime("%Y%m%d-%H%M%S");
                     let backup_filename = format!("config.reset-{datetime}.yaml");
 
                     if let Err(err) =
@@ -713,7 +713,7 @@ impl<'a> Handler {
     }
 
     pub async fn generate_snapshot(&self) -> anyhow::Result<String> {
-        let datetime = jiff::Zoned::now().strftime("%Y%m%d-%H%M%S");
+        let datetime = jiff::ZonedDateTime::now().strftime("%Y%m%d-%H%M%S");
         let out_path = format!("/tmp/LACT-v{DAEMON_VERSION}-snapshot-{datetime}.tar.gz");
 
         let out_file = File::create_new(&out_path)

@@ -48,11 +48,11 @@ libdrm_amdgpu_sys = { version = "0.9.0", default-features = false, features = [
 tar = "0.4.46"
 libflate = "2.3.2"
 os-release = "0.1.0"
-notify = { version = "8.2.0", default-features = false }
+notify = { version = "8.2.2", default-features = false }
 libcopes = "1.0.0"
-libloading = "0.8.9" # Can be updated when https://github.com/rust-lang/rust-bindgen/issues/3332 is released
+libloading = "0.9.1"
 
-ureq = { version = "3.5.0", features = ["json", "rustls"] }
+ureq = { version = "3.5.2", features = ["json", "rustls"] }
 libdisplay-info = { version= "0.3.0", optional = true }
 
 [dev-dependencies]
