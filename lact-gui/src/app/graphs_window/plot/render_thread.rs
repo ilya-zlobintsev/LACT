@@ -178,12 +178,11 @@ pub(super) fn process_request(
 
     // The surface does not inherit the font options of GTK, without hinting the
     // small labels look blurry.
-    if let Ok(mut font_options) = cairo::FontOptions::new() {
-        font_options.set_antialias(cairo::Antialias::Gray);
-        font_options.set_hint_style(cairo::HintStyle::Full);
-        font_options.set_hint_metrics(cairo::HintMetrics::On);
-        cairo_context.set_font_options(&font_options);
-    }
+    let mut font_options = cairo::FontOptions::new().expect("Failed to create Cairo font options");
+    font_options.set_antialias(cairo::Antialias::Gray);
+    font_options.set_hint_style(cairo::HintStyle::Full);
+    font_options.set_hint_metrics(cairo::HintMetrics::On);
+    cairo_context.set_font_options(&font_options);
 
     match render_request.draw(&cairo_context) {
         Ok(new_labels) => *labels.lock().unwrap() = new_labels,
@@ -252,23 +251,15 @@ struct LegendEntry {
     color: RGBAColor,
 }
 
-/// Format a legend label. Without values, a fixed width placeholder is used, so
-/// that the width of the label does not follow the data.
-fn stat_label(stat: &StatType, values: Option<(f64, f64, f64)>, print_extra_info: bool) -> String {
+/// Format a legend label.
+fn stat_label(stat: &StatType, values: (f64, f64, f64), print_extra_info: bool) -> String {
     let precision = stat.precision();
     let suffix = stat.metric();
 
-    let (current, peak, avg) = match values {
-        Some((current, peak, avg)) => (
-            format!("{current:.*}", precision),
-            format!("{peak:.*}", precision),
-            format!("{avg:.*}", precision),
-        ),
-        None => {
-            let placeholder = if precision > 0 { "00000.0" } else { "00000" }.to_owned();
-            (placeholder.clone(), placeholder.clone(), placeholder)
-        }
-    };
+    let (current, peak, avg) = values;
+    let current = format!("{current:.*}", precision);
+    let peak = format!("{peak:.*}", precision);
+    let avg = format!("{avg:.*}", precision);
 
     let mut label = format!("{}: {current}{suffix}", stat.display());
     if print_extra_info {
@@ -364,7 +355,7 @@ impl RenderRequest {
                 let avg = points.iter().map(|(_, value)| *value).sum::<f64>() / points.len() as f64;
 
                 LegendEntry {
-                    label: stat_label(stat_type, Some((current, peak, avg)), self.print_extra_info),
+                    label: stat_label(stat_type, (current, peak, avg), self.print_extra_info),
                     color: Palette99::pick(idx).to_rgba(),
                 }
             })
@@ -496,12 +487,8 @@ mod tests {
         let stat = crate::app::graphs_window::stat::StatType::Temperature("edge".into());
 
         assert_eq!(
-            stat_label(&stat, Some((50.0, 60.0, 55.0)), true),
+            stat_label(&stat, (50.0, 60.0, 55.0), true),
             "Temp (edge): 50.0\u{2103}, Peak 60.0\u{2103}, Avg 55.0\u{2103}"
-        );
-        assert_eq!(
-            stat_label(&stat, None, true),
-            "Temp (edge): 00000.0\u{2103}, Peak 00000.0\u{2103}, Avg 00000.0\u{2103}"
         );
     }
 }

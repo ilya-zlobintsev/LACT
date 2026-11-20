@@ -51,8 +51,6 @@ impl WidgetImpl for Plot {
         let height = self.obj().height() as u32;
         let scale_factor = self.obj().scale_factor();
 
-        let colors = PlotColorScheme::current();
-
         if width == 0 || height == 0 {
             return;
         }
@@ -64,6 +62,8 @@ impl WidgetImpl for Plot {
             .unwrap_or(true);
 
         if self.dirty.replace(false) || size_changed {
+            let colors = PlotColorScheme::current();
+
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
                 stats: self.stats.borrow().clone(),
