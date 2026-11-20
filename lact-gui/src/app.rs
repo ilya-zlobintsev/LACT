@@ -13,6 +13,8 @@ mod process_monitor;
 mod profiles;
 pub(crate) mod utils;
 
+use crate::tray_process;
+use crate::tray_support;
 use crate::{
     APP_ID, CONFIG, I18N,
     app::{
@@ -348,6 +350,16 @@ impl AsyncComponent for AppModel {
             .application()
             .expect("Failed to get application from root window");
 
+        // Present the window when the application is activated while it is hidden in the tray,
+        // e.g. when `lact gui` is launched a second time.
+        application.connect_activate(clone!(
+            #[weak]
+            root,
+            move |_| {
+                root.present();
+            }
+        ));
+
         relm4::set_global_css_with_priority(styles::COMBINED_CSS, styles::APPLICATION_CSS_PRIORITY);
         root.settings().set_gtk_icon_theme_name(Some("Adwaita"));
 
@@ -537,7 +549,24 @@ impl AsyncComponent for AppModel {
 
         let widgets = view_output!();
 
-        root.connect_close_request(|root| {
+        let (tray_enabled, tray_start_on_login) = {
+            let config = CONFIG.read();
+            (config.tray_icon, config.tray_start_on_login)
+        };
+
+        if tray_enabled && let Err(err) = tray_process::start() {
+            error!("could not start the tray icon process: {err:#}");
+        }
+
+        if let Err(err) = tray_process::set_autostart(tray_enabled && tray_start_on_login) {
+            warn!("could not update the tray autostart entry: {err:#}");
+        }
+
+        if tray_enabled && !tray_support::is_supported() {
+            show_tray_unsupported_toast(&widgets);
+        }
+
+        root.connect_close_request(move |root| {
             let width = root.width();
             let height = root.height();
 
@@ -547,6 +576,7 @@ impl AsyncComponent for AppModel {
                 });
             }
 
+            // The tray icon runs in its own process, so the GUI can exit completely.
             root.application().unwrap().quit();
 
             glib::Propagation::Proceed
@@ -672,6 +702,22 @@ impl AppModel {
             }
             AppMsg::ShowPreferencesDialog => {
                 self.preferences_dialog.emit(PreferencesDialogMsg::Show);
+            }
+            AppMsg::TraySettingChanged => {
+                let (tray_enabled, start_on_login) = {
+                    let config = CONFIG.read();
+                    (config.tray_icon, config.tray_start_on_login)
+                };
+
+                if tray_enabled {
+                    tray_process::start()?;
+                } else {
+                    tray_process::stop();
+                }
+
+                if let Err(err) = tray_process::set_autostart(tray_enabled && start_on_login) {
+                    error!("could not update the tray autostart entry: {err:#}");
+                }
             }
             AppMsg::ExperimentalFeaturesChanged => {
                 sender.input(AppMsg::ReloadData { full: false });
@@ -954,6 +1000,7 @@ impl AppModel {
                 }
             }
             AppMsg::Quit => {
+                tray_process::stop();
                 self.application.quit();
             }
         }
@@ -1427,6 +1474,32 @@ impl AppModel {
 
         Ok(())
     }
+}
+
+/// Tells the user why the tray icon they have enabled is not visible: the desktop provides no
+/// StatusNotifierItem host. On GNOME the fix is an extension, so the toast offers to open its page.
+fn show_tray_unsupported_toast(widgets: &AppModelWidgets) {
+    let toast = adw::Toast::builder()
+        .title(fl!(I18N, "tray-icon-unsupported"))
+        .use_markup(false)
+        .build();
+
+    // An empty button label still renders a button, so only offer one where clicking it helps.
+    if tray_support::is_gnome() {
+        let button_label = fl!(I18N, "tray-icon-install-extension");
+        toast.set_button_label(Some(&button_label));
+
+        toast.connect_button_clicked(|_| {
+            if let Err(err) = gtk::gio::AppInfo::launch_default_for_uri(
+                tray_support::GNOME_EXTENSION_URL,
+                None::<&gtk::gio::AppLaunchContext>,
+            ) {
+                warn!("could not open the extension page: {err}");
+            }
+        });
+    }
+
+    widgets.toast_overlay.add_toast(toast);
 }
 
 fn start_stats_update_loop(

@@ -19,6 +19,8 @@ pub enum Command {
     Gui(GuiArgs),
     /// Run the CLI
     Cli(CliArgs),
+    /// Run the tray icon
+    Tray,
 }
 
 #[derive(Default, Parser)]

@@ -1,0 +1,27 @@
+[package]
+name = "lact-tray"
+version = "0.10.1"
+authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
+edition.workspace = true
+
+[dependencies]
+lact-client = { path = "../lact-client" }
+lact-schema = { path = "../lact-schema" }
+
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_norway = { workspace = true }
+tokio = { workspace = true, features = ["rt", "time", "macros", "process"] }
+zbus = { workspace = true }
+nix = { workspace = true, features = ["signal", "process"] }
+ksni = "0.3.7"
+
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
+
+[dev-dependencies]
+amdgpu-sysfs = { workspace = true }
+indexmap = { workspace = true }

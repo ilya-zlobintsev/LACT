@@ -38,6 +38,7 @@ i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
 
 futures = { workspace = true }
+nix = { workspace = true, features = ["signal", "process"] }
 zbus = { workspace = true }
 
 plotters = { version = "0.3.7", default-features = false, features = [
