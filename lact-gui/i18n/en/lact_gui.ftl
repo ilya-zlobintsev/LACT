@@ -76,6 +76,10 @@ default-button = Default
 pmfw-reset-warning = Warning: this resets the fan firmware settings!
 
 temperature-sensor = Temperature Sensor
+fan-curve-for = Curve For
+fan-curve-for-tooltip = Each enabled sensor follows its own curve; the fan runs at the highest speed any of them asks for
+main-fan-curve = Main
+sensor-curve-enabled = Use this sensor's curve
 spindown-delay = Spindown Delay (ms)
 spindown-delay-tooltip = How long the GPU needs to remain at a lower temperature value before ramping down the fan
 speed-change-threshold = Speed Change Threshold (°C)

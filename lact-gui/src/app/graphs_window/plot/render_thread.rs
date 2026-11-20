@@ -6,7 +6,6 @@ use crate::app::utils::formatting;
 use anyhow::Context;
 use cairo::{Context as CairoContext, ImageSurface};
 use gtk::gdk::MemoryTexture;
-use indexmap::IndexSet;
 use plotters::prelude::*;
 use plotters::style::text_anchor::Pos;
 use plotters_cairo::CairoBackend;
@@ -342,12 +341,6 @@ impl RenderRequest {
             .any(|section| !section.is_empty())
         {
             let throttling_color = self.colors.throttling.mix(0.5).filled();
-            let names: IndexSet<&str> = data_guard
-                .throttling_sections()
-                .iter()
-                .flat_map(|section| section.iter().flat_map(|(_, values)| values))
-                .map(|value| value.as_str())
-                .collect();
 
             chart
                 .draw_series(
@@ -366,10 +359,37 @@ impl RenderRequest {
                         }),
                 )
                 .context("Failed to draw throttling histogram")?
-                .label(format!(
-                    "Throttling: {}",
-                    names.into_iter().collect::<Vec<_>>().join(",")
-                ))
+                .label({
+                    // The bands show the history; the label shows the latest sample. A sample
+                    // without throttling starts an empty section.
+                    let current = data_guard
+                        .throttling_sections()
+                        .last()
+                        .and_then(|section| section.last())
+                        .map(|(_, reasons)| reasons.join(","))
+                        .unwrap_or_else(|| "No".to_owned());
+                    let mut label = format!("Throttling: {current}");
+                    // A band covers whole sample intervals; the driver's counters say how long
+                    // clocks were actually limited.
+                    let limited: Vec<String> = data_guard
+                        .all_stats()
+                        .iter()
+                        .filter_map(|(stat, points)| {
+                            let StatType::ThrottleTime(name) = stat else {
+                                return None;
+                            };
+                            let limited_ms: f64 = points
+                                .windows(2)
+                                .map(|pair| pair[1].1 / 100.0 * (pair[1].0 - pair[0].0) as f64)
+                                .sum();
+                            Some(format!("{name} {:.2} s", limited_ms / 1000.0))
+                        })
+                        .collect();
+                    if !limited.is_empty() {
+                        write!(label, " (limited: {})", limited.join(", ")).unwrap();
+                    }
+                    label
+                })
                 .legend(move |(x, y)| {
                     let offset = 7;
                     Rectangle::new(

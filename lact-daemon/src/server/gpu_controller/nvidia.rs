@@ -33,8 +33,10 @@ use nvapi::NvApi;
 use nvml_wrapper::{
     Device, Nvml,
     bitmasks::device::{PowerMizerModes, ThrottleReasons},
-    enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
+    enum_wrappers::device::{
+        Clock, PerformancePolicy, PerformanceState, TemperatureSensor, TemperatureThreshold,
+    },
+    enums::device::{DeviceArchitecture, GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
 };
 use std::{
@@ -58,6 +60,90 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 
 const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
 
+const VRAM_CHIP_PREFIX: &str = "VRAM Chip ";
+
+/// The temperature sensors a fan curve can follow, under the names `get_stats` reports.
+struct FanSensors {
+    nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
+    thermals_info: Option<Rc<NvApiThermChannelInfo>>,
+    arch: Option<DeviceArchitecture>,
+    vram_type: Option<&'static str>,
+}
+
+impl FanSensors {
+    fn read(&self, device: &Device, with_nvapi: bool, with_chips: bool) -> IndexMap<String, f32> {
+        let mut temps = IndexMap::new();
+        if let Ok(temp) = device.temperature(TemperatureSensor::Gpu) {
+            #[allow(clippy::cast_precision_loss)]
+            temps.insert("GPU".to_owned(), temp as f32);
+        }
+        if with_nvapi
+            && let Some((nvapi, handle)) = self.nvapi.as_ref()
+            && let Some(thermals_info) = self.thermals_info.as_ref()
+        {
+            let nvapi_temps = unsafe {
+                read_nvapi_temps(
+                    nvapi,
+                    *handle,
+                    thermals_info,
+                    self.arch.as_ref(),
+                    self.vram_type,
+                    with_chips,
+                )
+            };
+            temps.extend(
+                nvapi_temps
+                    .into_iter()
+                    .map(|(name, value, _)| (name, value)),
+            );
+        }
+        temps
+    }
+}
+
+/// Hotspot, VRAM and (with `with_chips`) per-chip VRAM temperatures: name, value and whether the
+/// sensor is primary.
+#[allow(clippy::cast_precision_loss)]
+unsafe fn read_nvapi_temps(
+    nvapi: &NvApi,
+    handle: NvPhysicalGpuHandle,
+    thermals_info: &NvApiThermChannelInfo,
+    arch: Option<&DeviceArchitecture>,
+    vram_type: Option<&'static str>,
+    with_chips: bool,
+) -> Vec<(String, f32, bool)> {
+    let mut temps = Vec::new();
+    let Ok(thermals) = (unsafe { nvapi.therm_channel_get_status(handle, thermals_info.mask()) })
+    else {
+        return temps;
+    };
+
+    if let Some(hotspot) =
+        nvapi.read_hotspot(&thermals, thermals_info.hotspot_channel(), handle, arch)
+    {
+        temps.push(("GPU Hotspot".to_owned(), hotspot as f32, true));
+    }
+    if let Some(vram) = thermals_info
+        .vram_channel()
+        .and_then(|channel| thermals.get_value(channel))
+    {
+        temps.push(("VRAM".to_owned(), vram as f32, true));
+    }
+    if with_chips {
+        match nvapi.read_vram_temps(handle, vram_type) {
+            Ok(sensors) => {
+                for (label, value) in sensors {
+                    temps.push((format!("{VRAM_CHIP_PREFIX}{label}"), value as f32, false));
+                }
+            }
+            Err(err) => {
+                warn!("could not read VRAM sensors: {err:#}");
+            }
+        }
+    }
+    temps
+}
+
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
     common: CommonControllerInfo,
@@ -66,7 +152,7 @@ pub struct NvidiaGpuController {
 
     nvapi: Option<(Rc<NvApi>, NvPhysicalGpuHandle)>,
     driver_handle: Option<DriverHandle>,
-    nvapi_thermals_info: Option<NvApiThermChannelInfo>,
+    nvapi_thermals_info: Option<Rc<NvApiThermChannelInfo>>,
 
     last_util_timestamp: Cell<Option<u64>>,
     // Store last applied offsets as a workaround when the driver doesn't tell us the current offset
@@ -119,7 +205,7 @@ impl NvidiaGpuController {
                         .ok()
                 });
 
-                (gpu_handle, thermals_info)
+                (gpu_handle, thermals_info.map(Rc::new))
             }
             None => (None, None),
         };
@@ -157,6 +243,12 @@ impl NvidiaGpuController {
             vf_curve_written: Cell::new(false),
             voltage_boost_written: Cell::new(false),
         })
+    }
+
+    fn vram_type(&self) -> Option<&'static str> {
+        self.driver_handle
+            .as_ref()
+            .and_then(|driver| driver.get_ram_type().ok())
     }
 
     fn device(&self) -> Device<'_> {
@@ -203,6 +295,40 @@ impl NvidiaGpuController {
             .temperature(TemperatureSensor::Gpu)
             .context("Could not read temperature")?;
 
+        let sensors = FanSensors {
+            nvapi: self.nvapi.clone(),
+            thermals_info: self.nvapi_thermals_info.clone(),
+            arch: device.architecture().ok(),
+            vram_type: self.vram_type(),
+        };
+        let available = sensors.read(&device, true, true);
+        let main_key = if available.contains_key(&settings.temperature_key) {
+            settings.temperature_key.clone()
+        } else {
+            "GPU".to_owned()
+        };
+        let mut curves = vec![(main_key, curve)];
+        for (key, sensor_curve) in &settings.sensor_curves {
+            // a missing sensor (e. g. renamed by a driver update) must not
+            // take the main curve down with it
+            if !available.contains_key(key) {
+                warn!(
+                    "ignoring fan curve for sensor {key}: not found, available sensors: {}",
+                    available
+                        .keys()
+                        .map(String::as_str)
+                        .collect::<Vec<&str>>()
+                        .join(",")
+                );
+                continue;
+            }
+            curves.push((key.clone(), sensor_curve.clone()));
+        }
+        let with_nvapi = curves.iter().any(|(key, _)| key != "GPU");
+        let with_chips = curves
+            .iter()
+            .any(|(key, _)| key.starts_with(VRAM_CHIP_PREFIX));
+
         let fan_count = device.num_fans().context("Could not read fan count")?;
         if fan_count == 0 {
             return Err(anyhow!("Device has no fans"));
@@ -218,6 +344,7 @@ impl NvidiaGpuController {
 
         let nvml = self.nvml.clone();
         let pci_slot_id = self.common.pci_slot_name.clone();
+        let curves_keys: Vec<String> = curves.iter().map(|(key, _)| key.clone()).collect();
         debug!("spawning new fan control task");
 
         let handle = tokio::task::spawn_local(async move {
@@ -226,7 +353,7 @@ impl NvidiaGpuController {
                 .expect("Can no longer get device");
 
             let mut last_pwm = (None, Instant::now());
-            let mut last_temp = 0;
+            let mut last_temps: Vec<Option<i32>> = vec![None; curves.len()];
 
             let interval = Duration::from_millis(settings.interval_ms);
             let spindown_delay = Duration::from_millis(settings.spindown_delay_ms.unwrap_or(0));
@@ -243,19 +370,33 @@ impl NvidiaGpuController {
                     () = task_notify.notified() => break,
                 }
 
-                #[allow(clippy::cast_possible_wrap)]
-                let current_temp = device
-                    .temperature(TemperatureSensor::Gpu)
-                    .expect("Could not read temperature") as i32;
+                let temps = sensors.read(&device, with_nvapi, with_chips);
+                #[allow(clippy::cast_possible_truncation)]
+                let current_temps: Vec<Option<i32>> = curves
+                    .iter()
+                    .map(|(key, _)| temps.get(key).map(|temp| *temp as i32))
+                    .collect();
+                let Some(hottest) = current_temps.iter().flatten().max().copied() else {
+                    warn!("could not read any fan curve sensor, skipping speed adjustment");
+                    continue;
+                };
 
-                if (last_temp - current_temp).abs() < change_threshold {
+                let changed = current_temps
+                    .iter()
+                    .zip(&last_temps)
+                    .any(|pair| match pair {
+                        (Some(current), Some(last)) => (last - current).abs() >= change_threshold,
+                        (Some(_), None) => true,
+                        (None, _) => false,
+                    });
+                if !changed {
                     trace!(
-                        "temperature changed from {last_temp}°C to {current_temp}°C, which is less than the {change_threshold}°C threshold, skipping speed adjustment"
+                        "temperatures {current_temps:?} changed less than the {change_threshold}°C threshold from {last_temps:?}, skipping speed adjustment"
                     );
                     continue;
                 }
 
-                if current_temp < auto_threshold {
+                if hottest < auto_threshold {
                     if manual_mode {
                         trace!("temperature below auto threshold, setting fan policy to auto");
                         for fan in 0..fan_count {
@@ -274,12 +415,19 @@ impl NvidiaGpuController {
                     continue;
                 }
 
-                let target_pwm = curve.pwm_at_temp(Temperature {
-                    #[allow(clippy::cast_precision_loss)]
-                    current: Some(current_temp as f32),
-                    crit: None,
-                    crit_hyst: None,
-                });
+                let target_pwm = curves
+                    .iter()
+                    .zip(&current_temps)
+                    .filter_map(|((_, curve), temp)| {
+                        Some(curve.pwm_at_temp(Temperature {
+                            #[allow(clippy::cast_precision_loss)]
+                            current: Some((*temp)? as f32),
+                            crit: None,
+                            crit_hyst: None,
+                        }))
+                    })
+                    .max()
+                    .expect("at least one sensor was read");
                 let now = Instant::now();
 
                 if let (Some(previous_pwm), previous_timestamp) = last_pwm {
@@ -294,7 +442,11 @@ impl NvidiaGpuController {
                 }
 
                 last_pwm = (Some(target_pwm), now);
-                last_temp = current_temp;
+                for (last, current) in last_temps.iter_mut().zip(&current_temps) {
+                    if current.is_some() {
+                        *last = *current;
+                    }
+                }
 
                 trace!("fan control tick: setting pwm to {target_pwm}");
 
@@ -315,8 +467,8 @@ impl NvidiaGpuController {
         *notify_guard = Some((notify, handle));
 
         debug!(
-            "started fan control with interval {}ms",
-            settings.interval_ms
+            "started fan control with interval {}ms on sensors {:?}",
+            settings.interval_ms, curves_keys
         );
 
         Ok(())
@@ -917,73 +1069,31 @@ impl GpuController for NvidiaGpuController {
             let arch = device.architecture().ok();
 
             unsafe {
-                if let Some(thermals_info) = &self.nvapi_thermals_info
-                    && let Ok(thermals) =
-                        nvapi.therm_channel_get_status(*handle, thermals_info.mask())
-                {
-                    if let Some(hotspot) = nvapi.read_hotspot(
-                        &thermals,
-                        thermals_info.hotspot_channel(),
-                        *handle,
-                        arch.as_ref(),
-                    ) {
-                        temps.insert(
-                            "GPU Hotspot".to_owned(),
-                            TemperatureEntry {
-                                value: Temperature {
-                                    current: Some(hotspot as f32),
-                                    crit: None,
-                                    crit_hyst: None,
-                                },
-                                primary: true,
-                                display_only: true,
-                            },
-                        );
-                    }
-
+                if let Some(thermals_info) = &self.nvapi_thermals_info {
                     let vram_type = self
                         .driver_handle
                         .as_ref()
                         .and_then(|driver| driver.get_ram_type().ok());
-
-                    if let Some(vram) = thermals_info
-                        .vram_channel()
-                        .and_then(|channel| thermals.get_value(channel))
-                    {
+                    for (name, value, primary) in read_nvapi_temps(
+                        nvapi,
+                        *handle,
+                        thermals_info,
+                        arch.as_ref(),
+                        vram_type,
+                        true,
+                    ) {
                         temps.insert(
-                            "VRAM".to_owned(),
+                            name,
                             TemperatureEntry {
                                 value: Temperature {
-                                    current: Some(vram as f32),
+                                    current: Some(value),
                                     crit: None,
                                     crit_hyst: None,
                                 },
-                                primary: true,
+                                primary,
                                 display_only: true,
                             },
                         );
-                    }
-
-                    match nvapi.read_vram_temps(*handle, vram_type) {
-                        Ok(sensors) => {
-                            for (label, value) in sensors {
-                                temps.insert(
-                                    format!("VRAM Chip {label}"),
-                                    TemperatureEntry {
-                                        value: Temperature {
-                                            current: Some(value as f32),
-                                            crit: None,
-                                            crit_hyst: None,
-                                        },
-                                        primary: false,
-                                        display_only: true,
-                                    },
-                                );
-                            }
-                        }
-                        Err(err) => {
-                            warn!("could not read VRAM sensors: {err:#}");
-                        }
                     }
                 }
 
@@ -1061,6 +1171,15 @@ impl GpuController for NvidiaGpuController {
                 pwm_max: fan_range.map(|(_, max)| (f64::from(max) * 2.55).round() as u32),
                 pwm_min: fan_range.map(|(min, _)| (f64::from(min) * 2.55).round() as u32),
                 temperature_range: None,
+                sensor_curves: fan_settings
+                    .map(|settings| {
+                        settings
+                            .sensor_curves
+                            .iter()
+                            .map(|(key, curve)| (key.clone(), curve.0.clone()))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 pmfw_info: PmfwInfo::default(),
             },
             nvidia_thermal_info: self.get_nvidia_thermal_info(),
@@ -1108,6 +1227,16 @@ impl GpuController for NvidiaGpuController {
                     })
                     .collect()
             }),
+            throttle_time_ms: [
+                ("Power", PerformancePolicy::Power),
+                ("Thermal", PerformancePolicy::Thermal),
+            ]
+            .into_iter()
+            .filter_map(|(name, policy)| {
+                let time = device.violation_status(policy).ok()?;
+                Some((name.to_owned(), time.violation_time / 1_000_000))
+            })
+            .collect(),
             voltage: VoltageStats {
                 gpu: voltage,
                 ..Default::default()
@@ -1337,7 +1466,10 @@ impl GpuController for NvidiaGpuController {
                             .min_max_fan_speed()
                             .context("Could not get fan speed range")?;
 
-                        for point in settings.curve.0.values() {
+                        for point in std::iter::once(&settings.curve)
+                            .chain(settings.sensor_curves.values())
+                            .flat_map(|curve| curve.0.values())
+                        {
                             #[allow(clippy::cast_possible_truncation)]
                             if !(min_speed..=max_speed).contains(&((*point * 100.0) as u32)) {
                                 bail!(

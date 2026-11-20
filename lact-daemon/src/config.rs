@@ -569,6 +569,7 @@ mod tests {
                         spindown_delay_ms: Some(5000),
                         change_threshold: Some(3),
                         auto_threshold: Some(40),
+                        sensor_curves: Default::default(),
                     }),
                     ..Default::default()
                 },
