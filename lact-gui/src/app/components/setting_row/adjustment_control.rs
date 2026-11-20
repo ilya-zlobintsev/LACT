@@ -68,6 +68,7 @@ impl Component for AdjustmentControl {
                     set_adjustment: &model.adjustment,
                     set_valign: gtk::Align::Center,
                     add_controller = make_event_controller_no_scroll(),
+                    connect_changed => AdjustmentControlMsg::Changed @ text_change_signal,
                 },
             },
 
@@ -160,6 +161,7 @@ impl Component for AdjustmentControl {
             }
             AdjustmentControlMsg::SetValueRatio(ratio) => {
                 self.adjustment.block_signal(&widgets.value_change_signal);
+                widgets.spinbutton.block_signal(&widgets.text_change_signal);
                 self.set_value_ratio(ratio);
                 widgets
                     .lower_label
@@ -167,6 +169,9 @@ impl Component for AdjustmentControl {
                 widgets
                     .upper_label
                     .set_label(&fmt_value_with_unit(self.adjustment.upper(), &self.unit));
+                widgets
+                    .spinbutton
+                    .unblock_signal(&widgets.text_change_signal);
                 self.adjustment.unblock_signal(&widgets.value_change_signal);
             }
         }
