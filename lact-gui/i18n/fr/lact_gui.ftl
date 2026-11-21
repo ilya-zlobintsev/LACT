@@ -70,13 +70,9 @@ power-usage = Consommation électrique
 no-throttling = Aucune
 unknown-throttling = Inconnue
 performance-level-manual = Manuel
-min-gpu-clock = Fréquence d’horloge GPU minimale (MHz)
-enable-vram-locked-clocks = Activer VRAM Locked Clocks
-oc-warning = La modification de ces valeurs peut entraîner une instabilité du système et endommager votre matériel !
-pstates-manual-needed = Le niveau de performance doit être défini sur « manuel » pour basculer entre les états d’alimentation
-min-gpu-voltage = Tension GPU minimale (mV)
+pstates-manual-needed = Pour activer la configuration des états d’alimentation, le niveau de performance doit être défini sur « manuel ».
+min-gpu-voltage = Tension minimale
 pstate-list-description = <b>Les valeurs suivantes correspondent à l’ajustement des fréquences d’horloge pour chaque P-State, du plus élevé au plus faible.</b>
-min-vram-clock = Fréquence d’horloge VRAM minimale (MHz)
 amd-cache-desc =
     Cache L{ $level } { $types } de { $size } { $shared ->
         [1] local à chaque CU
@@ -85,49 +81,29 @@ amd-cache-desc =
 missing-stat = N/A
 performance-level-auto = Automatique
 performance-level-auto-description = Ajuster automatiquement les fréquences d’horloge GPU et VRAM. (Par défaut)
-power-profile-mode = Mode profil d’alimentation :
+power-profile-mode = Mode profil d’alimentation
 overclock-section = Fréquence d’horloge et tension
-nvidia-oc-info = Informations overclock
-show-all-pstates = Afficher tous les P-States
+show-all-pstates = Tous les P-States
 no-clocks-data = Aucune donnée de fréquence d’horloge disponible
-gpu-clock-offset = Décalage de la fréquence d’horloge GPU (MHz)
-gpu-voltage-offset = Décalage de la tension GPU (mV)
+gpu-clock-offset = Décalage de la fréquence d’horloge
+gpu-voltage-offset = Décalage de la tension
 pstates = États de puissance
-enable-pstate-config = Activer la configuration des états de puissance
+enable-pstate-config = Configuration des états de puissance
 settings-profile = Profil de paramètres
 import-profile = Importer un profil à partir d’un fichier
 reset-oc-tooltip = Avertissement : cette opération réinitialise tous les réglages de fréquence d’horloge aux valeurs par défaut !
-mem-pstate-clock-voltage = P-State VRAM { $pstate } Tension (mV)
-performance-level-high-description = Toujours utiliser les fréquences d’horloge les plus élevées pour le GPU et la VRAM.
+performance-level-high-description = Toujours utiliser les fréquences d’horloge les plus élevées pour le GPU et la VRAM
 manual-level-needed = Le niveau de performance doit être réglé sur « manuel » pour utiliser les états et modes d’alimentation
 performance-level-high = Fréquences d’horloge les plus élevées
 performance-level-low = Fréquences d’horloge les plus faibles
-performance-level-low-description = Toujours utiliser les fréquences d’horloge les plus faibles pour le GPU et la VRAM.
-performance-level-manual-description = Contrôle manuel des performances.
-max-gpu-clock = Fréquence d’horloge GPU maximale (MHz)
+performance-level-low-description = Toujours utiliser les fréquences d’horloge les plus faibles pour le GPU et la VRAM
+performance-level-manual-description = Contrôle manuel des performances
 add-profile = Ajouter un nouveau profil
-enable-gpu-locked-clocks = Activer GPU Locked Clocks
-max-vram-clock = Fréquence d’horloge VRAM maximale (MHz)
-max-gpu-voltage = Tension GPU maximale (mV)
-vram-pstate-clock-offset = P-State VRAM { $pstate } Décalage de fréquence d’horloge (MHz)
-gpu-pstate-clock = P-State GPU { $pstate } Fréquence d’horloge (MHz)
-mem-pstate-clock = P-State VRAM { $pstate } Fréquence d’horloge (MHz)
-gpu-pstate-clock-voltage = P-State GPU { $pstate } Tension (mV)
+max-gpu-voltage = Tension maximale
 gpu-pstates = États de puissance GPU
 vram-pstates = États de puissance VRAM
 show-historical-charts = Afficher les graphiques
 auto-switch-profiles = Basculer automatiquement
-nvidia-oc-description =
-    La fonctionnalité d’overclocking NVIDIA comprend le réglage des fréquences d’horloge GPU/VRAM et la limitation de la plage potentielle des fréquences d’horloge à l’aide de la fonctionnalité « locked clocks ».
-
-    Sur de nombreuses cartes, l’ajustement de la fréquence d’horloge VRAM n’affectera la fréquence d’horloge réelle de la mémoire que de la moitié de la valeur d’ajustement.
-    Par exemple, un ajustement VRAM de +1000 MHz augmente la fréquence VRAM mesurée de seulement 500 MHz.
-    Ce comportement est normal et est cohérent avec la manière dont NVIDIA gère les débits de données GDDR. Ajustez votre overclocking en conséquence.
-
-    Il est possible d’obtenir un pseudo-undervolt en combinant l’option « locked clocks » à un ajustement positif de la fréquence d’horloge.
-    Cela forcera le GPU à fonctionner à une tension limitée par le verrouillage d’horloges, tout en atteignant une fréquence d’horloge plus élevée grâce à l’ajustement.
-    Cela est susceptible de rendre le système instable si la valeur d’ajustement est trop élevée.
-gpu-pstate-clock-offset = P-State GPU { $pstate } Décalage de fréquence d’horloge (MHz)
 name = Nom
 create = Créer
 profile-copy-from = Copier les paramètres à partir de :
@@ -141,7 +117,6 @@ edit-rules = Modifier les règles
 remove-rule = Supprimer une règle
 profile-rules = Règles du profil
 export-to-file = Exporter vers un fichier
-move-down = Se déplacer vers le bas
 profile-activation = Activation
 profile-hooks = Hooks
 profile-hook-command = Exécuter une commande lorsque le profil "{ $cmd }" est :
@@ -154,7 +129,6 @@ profile-activation-desc = Activer le profil "{ $name }" lorsque :
 profile-hook-note = Remarque : Ces commandes sont exécutées en tant que root par le démon LACT, et n’ont pas accès à l’environnement de bureau. Par conséquent, elles ne peuvent pas être directement utilisées pour lancer des applications graphiques.
 all-rules-matched = Toutes les règles suivantes sont satisfaites :
 default-profile = Par défaut
-move-up = Se déplacer vers le haut
 edit-rule = Modifier la règle
 rename-profile-from = Renommer le profil <b>{ $old_name }</b> en :
 activation-auto-switching-disabled = Le changement de profil automatique est actuellement désactivé
@@ -234,7 +208,6 @@ theme-auto = Automatique
 vf-curve-editor = Éditeur de courbes VF
 nvidia-vf-curve-warning =
     L’éditeur de courbes voltage-fréquence dépend de fonctionnalités non documentées du pilote.
-    Il n'existe aucune garantie quant à son fonctionnement, sa sécurité ou sa disponibilité.
     <span weight = "heavy" underline = "single">À utiliser à vos risques et périls</span>.
 voltage = Voltage
 frequency = Fréquence
@@ -278,7 +251,7 @@ color-scheme = Palette de couleurs
 color-scheme-auto = Système
 gtt-usage = Utilisation du GTT :
 vf-curve-flatten-selection = Aplatir la selection
-gpu-voltage-boost = Augmentation de la tension du GPU (%)
+gpu-voltage-boost = Augmentation de la tension
 gpu-voltage-boost-tooltip = Détermine la part de la marge de tension supplémentaire définie par le pilote qui est disponible. Une valeur de 100 % correspond à la totalité de cette marge, et non à 100 % de la tension totale du GPU. Une marge plus importante peut permettre d'atteindre des fréquences d'horloge plus élevées, mais augmente la consommation électrique et la production de chaleur.
 service-explanation =
     La configuration des paramètres du GPU nécessite le service système LACT.
@@ -307,3 +280,30 @@ display-physical-size = Taille physique
 display-connection = Connexion
 display-manufacture-date = Date de fabrication
 displays-missing = Aucun écrans détectes
+language = Langue
+language-system-default = Valeur par défaut du système
+language-restart-notice = Redémarrez l'interface graphique de LACT pour appliquer les changements de langue.
+experimental-features = Fonctionnalités expérimentales
+detach-page = Détacher { $page }
+page-detached = Cette page est ouverte dans une autre fenêtre.
+reattach-page = Retour à la fenêtre principale
+show-page-window = Afficher la fenêtre
+igpu-section = Processeur graphique intégré
+uma-carveout-caption = Quantité de mémoire réservée en tant que VRAM dédiée. Un redémarrage est requis pour prendre effet.
+vram-section = VRAM
+vf-curve-editing-disabled = L'éditeur de courbes VF est désactivé sur la page OC
+mv = mV
+performance-level-profile-min-sclk-description = Force la fréquence d'horloge du GPU au niveau le plus bas
+core-section = Cœur
+performance-level-profile-min-mclk-description = Force la fréquence d'horloge de la VRAM au niveau le plus bas
+performance-level-profile-peak-description = Force les fréquences d'horloge du GPU et de la VRAM aux niveaux les plus hauts
+enable-locked-clocks = Fréquences d'horloge verrouillées
+extra-clocks = Fréquences d'horloge supplémentaires
+advanced-features = Fonctionnalités avancées
+enable-vf-curve = Courbe VF personnalisée
+max-clock = Fréquence d'horloge maximale
+min-clock = Fréquence d'horloge minimale
+pstate = État de puissance
+service-setup-title = Configuration du service
+setup-error = Erreur de configuration : { $error }
+uma-carveout = Partition de mémoire UMA
