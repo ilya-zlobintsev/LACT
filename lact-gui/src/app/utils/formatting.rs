@@ -132,7 +132,7 @@ pub fn fmt_timestamp_to_dt(timestamp_ms: &i64) -> String {
 
 fn fmt_timestamp_to_dt_with_tz(timestamp_ms: &i64, tz: jiff::tz::TimeZone) -> String {
     let date_time = jiff::Timestamp::from_millisecond(*timestamp_ms).unwrap();
-    jiff::Zoned::new(date_time, tz)
+    jiff::ZonedDateTime::new(date_time, tz)
         .strftime("%H:%M:%S")
         .to_string()
 }
