@@ -821,15 +821,10 @@ fn build_clock_domain_offsets(
     offsets
 }
 
-fn build_clock_domains_control(
-    info: &ClockClkDomainsInfoV4,
-    mut control: ClockClkDomainsControlV2,
+fn clock_domain_offsets(
     clocks: &ClocksConfiguration,
-) -> anyhow::Result<ClockClkDomainsControlV2> {
-    // SetControl's mask only selects modified entries, because fixed domains may reject SetControl
-    let mut set_mask = 0;
-
-    for (domain_id, freq_offset_mhz, voltage_offset_mv) in [
+) -> [(NvGpuClockDomainId, Option<i32>, Option<i32>); 2] {
+    [
         (
             NvGpuClockDomainId::Xbar,
             clocks.xbar_clock_offset,
@@ -840,7 +835,18 @@ fn build_clock_domains_control(
             clocks.sys_clock_offset,
             clocks.sys_voltage_offset,
         ),
-    ] {
+    ]
+}
+
+fn build_clock_domains_control(
+    info: &ClockClkDomainsInfoV4,
+    mut control: ClockClkDomainsControlV2,
+    clocks: &ClocksConfiguration,
+) -> anyhow::Result<ClockClkDomainsControlV2> {
+    // SetControl's mask only selects modified entries, because fixed domains may reject SetControl
+    let mut set_mask = 0;
+
+    for (domain_id, freq_offset_mhz, voltage_offset_mv) in clock_domain_offsets(clocks) {
         if freq_offset_mhz.is_none() && voltage_offset_mv.is_none() {
             continue;
         }
@@ -884,18 +890,7 @@ fn verify_clock_domains_control(
     actual: &ClockClkDomainsControlV2,
     clocks: &ClocksConfiguration,
 ) -> anyhow::Result<()> {
-    for (domain_id, freq_offset_mhz, voltage_offset_mv) in [
-        (
-            NvGpuClockDomainId::Xbar,
-            clocks.xbar_clock_offset,
-            clocks.xbar_voltage_offset,
-        ),
-        (
-            NvGpuClockDomainId::Sys,
-            clocks.sys_clock_offset,
-            clocks.sys_voltage_offset,
-        ),
-    ] {
+    for (domain_id, freq_offset_mhz, voltage_offset_mv) in clock_domain_offsets(clocks) {
         if freq_offset_mhz.is_none() && voltage_offset_mv.is_none() {
             continue;
         }
@@ -950,9 +945,6 @@ fn build_clock_domains_reset_control(
         let Some((index, domain)) = find_clock_domain(info, domain_id) else {
             continue;
         };
-        if domain.freq_offset_range_mhz().is_none() {
-            continue;
-        }
 
         if control.domains[index]
             .freq_offset_khz(domain.type_)
@@ -1636,10 +1628,9 @@ impl GpuController for NvidiaGpuController {
                     .context("Could not apply VF curve")?;
             }
 
-            if (clocks.xbar_clock_offset.is_some()
-                || clocks.sys_clock_offset.is_some()
-                || clocks.xbar_voltage_offset.is_some()
-                || clocks.sys_voltage_offset.is_some())
+            if clock_domain_offsets(clocks)
+                .into_iter()
+                .any(|(_, freq, voltage)| freq.is_some() || voltage.is_some())
                 && let Err(err) = self.apply_clock_domain_offsets(clocks)
             {
                 warn!("could not apply clock domain offsets: {err:#}");

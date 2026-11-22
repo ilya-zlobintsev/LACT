@@ -858,11 +858,17 @@ impl Default for ClockClkDomainInfoV4 {
 
 impl ClockClkDomainInfoV4 {
     pub fn freq_offset_range_mhz(&self) -> Option<(i32, i32)> {
-        let (range_offset, _, _) = clock_domain_layout(self.type_)?;
-        let offset = range_offset - 8;
-        let min = i16::from_le_bytes([self.data[offset], self.data[offset + 1]]);
-        let max = i16::from_le_bytes([self.data[offset + 2], self.data[offset + 3]]);
-        Some((i32::from(min), i32::from(max)))
+        let offset = clock_domain_layout(self.type_)?.0 - mem::offset_of!(Self, data);
+        Some((
+            i32::from(i16::from_ne_bytes([
+                self.data[offset],
+                self.data[offset + 1],
+            ])),
+            i32::from(i16::from_ne_bytes([
+                self.data[offset + 2],
+                self.data[offset + 3],
+            ])),
+        ))
     }
 }
 
@@ -904,20 +910,20 @@ impl Default for ClockClkDomainControlV2 {
 impl ClockClkDomainControlV2 {
     pub fn freq_offset_khz(&self, domain_type: NvU32) -> Option<i32> {
         let (_, freq_offset, _) = clock_domain_layout(domain_type)?;
-        Some(i32::from_le_bytes(
+        Some(i32::from_ne_bytes(
             self.data[freq_offset..freq_offset + 4].try_into().unwrap(),
         ))
     }
 
     pub fn set_freq_offset_khz(&mut self, domain_type: NvU32, value: i32) {
         if let Some((_, freq_offset, _)) = clock_domain_layout(domain_type) {
-            self.data[freq_offset..freq_offset + 4].copy_from_slice(&value.to_le_bytes());
+            self.data[freq_offset..freq_offset + 4].copy_from_slice(&value.to_ne_bytes());
         }
     }
 
     pub fn rail1_voltage_offset_uv(&self, domain_type: NvU32) -> Option<i32> {
         let (_, _, voltage_offset) = clock_domain_layout(domain_type)?;
-        Some(i32::from_le_bytes(
+        Some(i32::from_ne_bytes(
             self.data[voltage_offset..voltage_offset + 4]
                 .try_into()
                 .unwrap(),
@@ -926,7 +932,7 @@ impl ClockClkDomainControlV2 {
 
     pub fn set_rail1_voltage_offset_uv(&mut self, domain_type: NvU32, value: i32) {
         if let Some((_, _, voltage_offset)) = clock_domain_layout(domain_type) {
-            self.data[voltage_offset..voltage_offset + 4].copy_from_slice(&value.to_le_bytes());
+            self.data[voltage_offset..voltage_offset + 4].copy_from_slice(&value.to_ne_bytes());
         }
     }
 }
