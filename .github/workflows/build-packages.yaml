@@ -99,7 +99,7 @@ jobs:
   build-flatpak:
     runs-on: ubuntu-latest
     container:
-      image: bilelmoussaoui/flatpak-github-actions:gnome-47
+      image: bilelmoussaoui/flatpak-github-actions:gnome-47@sha256:1bcc94399a82b7102820ac91037971fa61577c1cda1ffac0145ad12ce606e8c4
       options: --privileged
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
