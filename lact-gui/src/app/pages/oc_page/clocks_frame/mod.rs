@@ -85,6 +85,7 @@ impl Default for SizeGroups {
 #[derive(Default)]
 struct ClocksData {
     current: i32,
+    default: Option<i32>,
     min: i32,
     max: i32,
     custom_title: Option<String>,
@@ -549,7 +550,10 @@ impl ClocksFrame {
                 control: AdjustmentInit {
                     unit: clock_unit(clock_type),
                     value: f64::from(data.current),
-                    default_value: clock_default(clock_type),
+                    default_value: data
+                        .default
+                        .map(f64::from)
+                        .or_else(|| clock_default(clock_type)),
                     lower: f64::from(data.min),
                     upper: f64::from(data.max),
                     step_increment: get_row_step(clock_type),
@@ -863,6 +867,7 @@ impl ClocksFrame {
                 ClockspeedType::VoltageBoost,
                 ClocksData {
                     current: voltage_boost.current,
+                    default: Some(voltage_boost.default),
                     min: voltage_boost.min,
                     max: voltage_boost.max,
                     ..Default::default()
@@ -933,6 +938,7 @@ fn nvidia_clock_offset_to_data(
 ) -> ClocksData {
     ClocksData {
         current: clock_info.current,
+        default: Some(clock_info.default),
         min: clock_info.min,
         max: clock_info.max,
         is_secondary_p_state,

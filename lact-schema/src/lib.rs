@@ -533,6 +533,8 @@ pub struct NvidiaClocksTable {
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
 pub struct NvidiaVoltageBoost {
     pub current: i32,
+    #[serde(default)]
+    pub default: i32,
     pub min: i32,
     pub max: i32,
 }

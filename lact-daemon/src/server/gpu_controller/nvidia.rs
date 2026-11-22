@@ -489,6 +489,7 @@ impl NvidiaGpuController {
 
         Ok(NvidiaVoltageBoost {
             current: current.into(),
+            default: 0,
             min: *VOLTAGE_BOOST_RANGE.start(),
             max: *VOLTAGE_BOOST_RANGE.end(),
         })
