@@ -13,9 +13,7 @@ use tempfile::tempdir;
 fn init_tracing() {
     static TRACING_LOCK: OnceLock<()> = OnceLock::new();
     TRACING_LOCK.get_or_init(|| {
-        tracing_subscriber::fmt()
-            .with_env_filter("easy_fuser=warn,info")
-            .init();
+        tracing_subscriber::fmt().with_env_filter("info").init();
     });
 }
 
@@ -90,13 +88,9 @@ async fn apply_settings() {
                     let mock_fs = MockSysfs::new(device_dir.path());
                     let writes = mock_fs.writes.clone();
 
-                    let mount = easy_fuser::fuse_parallel::spawn_mount(
-                        mock_fs,
-                        mock_fs_dir.path(),
-                        &[],
-                        Some(1),
-                    )
-                    .expect("Could not mount mock fs");
+                    let mount =
+                        fuser::spawn_mount(mock_fs, mock_fs_dir.path(), &fuser::Config::default())
+                            .expect("Could not mount mock fs");
 
                     let handler = Handler::with_base_path(
                         mock_fs_dir.path(),
@@ -118,14 +112,20 @@ async fn apply_settings() {
 
                     handler.apply_current_config().await.unwrap();
 
-                    mount.join();
+                    mount.umount_and_join().unwrap();
                     mock_fs_dir.close().unwrap();
 
                     let write_commands = writes
                         .lock()
                         .unwrap()
                         .iter()
-                        .map(|(name, contents)| format!("{}: {contents}", name.to_str().unwrap()))
+                        .map(|entry| {
+                            format!(
+                                "{}: {}",
+                                entry.path.to_string_lossy(),
+                                String::from_utf8_lossy(&entry.contents)
+                            )
+                        })
                         .collect::<Vec<String>>();
                     assert_debug_snapshot!(test_key, write_commands);
                 }
