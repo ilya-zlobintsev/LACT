@@ -1596,11 +1596,17 @@ fn add_path_to_archive(
     Ok(())
 }
 
+#[cfg(feature = "mock")]
 fn drm_base_path() -> PathBuf {
     match env::var("_LACT_DRM_SYSFS_PATH") {
-        Ok(custom_path) => PathBuf::from(custom_path),
+        Ok(custom_path) => super::mock::spawn_mock_fs(PathBuf::from(custom_path)),
         Err(_) => PathBuf::from("/sys/class/drm"),
     }
+}
+
+#[cfg(not(feature = "mock"))]
+fn drm_base_path() -> PathBuf {
+    PathBuf::from("/sys/class/drm")
 }
 
 async fn run_hook_command(command: &str) -> anyhow::Result<()> {
