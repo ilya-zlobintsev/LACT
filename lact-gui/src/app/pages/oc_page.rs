@@ -3,6 +3,7 @@ mod clocks_frame;
 mod power_frame;
 mod power_profile_mode;
 mod power_states;
+mod secondary_clocks_frame;
 mod vf_curve;
 
 use crate::app::components::gpu_stats_section::{
@@ -24,6 +25,7 @@ use power_frame::{PowerFrame, PowerFrameMsg, PowerFrameSerialized};
 use power_states::power_states_dialog::{PowerStatesDialog, PowerStatesDialogMsg};
 use relm4::binding::BoolBinding;
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmWidgetExt};
+use secondary_clocks_frame::{SecondaryClocksFrame, SecondaryClocksFrameMsg};
 use std::collections::HashSet;
 use std::sync::Arc;
 use vf_curve::{VfCurveEditor, VfCurveEditorInit, VfCurveEditorMsg};
@@ -35,6 +37,7 @@ pub struct OcPage {
     power_states_dialog: relm4::Controller<PowerStatesDialog>,
     gpu_clocks_frame: relm4::Controller<ClocksFrame>,
     vram_clocks_frame: relm4::Controller<ClocksFrame>,
+    secondary_clocks_frame: relm4::Controller<SecondaryClocksFrame>,
 
     vf_curve_editor: relm4::Controller<VfCurveEditor>,
 }
@@ -88,9 +91,10 @@ impl relm4::Component for OcPage {
 
             gtk::Box {
                 set_layout_manager: Some(CardLayout::new([
-                    ColumnBias::Left,    // Core
-                    ColumnBias::Right,   // VRAM
-                    ColumnBias::Left,    // Power
+                    ColumnBias::Left,  // Core
+                    ColumnBias::Right, // VRAM
+                    ColumnBias::Left,  // Power
+                    ColumnBias::Right, // Secondary Clocks
                 ])),
                 set_valign: gtk::Align::Start,
 
@@ -103,6 +107,10 @@ impl relm4::Component for OcPage {
                 },
 
                 model.power_frame.widget() {
+                    add_css_class: "oc-page-section",
+                },
+
+                model.secondary_clocks_frame.widget() {
                     add_css_class: "oc-page-section",
                 },
             },
@@ -158,6 +166,7 @@ impl relm4::Component for OcPage {
             power_states_dialog,
             gpu_clocks_frame,
             vram_clocks_frame,
+            secondary_clocks_frame: SecondaryClocksFrame::detach_default(),
             vf_curve_editor,
         };
 
@@ -225,8 +234,9 @@ impl relm4::Component for OcPage {
                     table: table.clone(),
                     vf_curve_is_configured,
                 });
-                self.vf_curve_editor
-                    .emit(VfCurveEditorMsg::Clocks(table.clone()));
+                self.secondary_clocks_frame
+                    .emit(SecondaryClocksFrameMsg::Clocks(table.clone()));
+                self.vf_curve_editor.emit(VfCurveEditorMsg::Clocks(table));
             }
             OcPageMsg::ProfileModesTable(modes_table) => {
                 self.power_frame
@@ -310,6 +320,13 @@ impl OcPage {
                 .serialize(stored_config.clocks_configuration.clone())
                 .clocks_configuration,
         );
+
+        let secondary_clocks = self.secondary_clocks_frame.model().serialize();
+        clocks.clocks_configuration.xbar_clock_offset = secondary_clocks.xbar_clock_offset;
+        clocks.clocks_configuration.sys_clock_offset = secondary_clocks.sys_clock_offset;
+        clocks.clocks_configuration.xbar_voltage_offset = secondary_clocks.xbar_voltage_offset;
+        clocks.clocks_configuration.sys_voltage_offset = secondary_clocks.sys_voltage_offset;
+
         if !self.vf_curve_editor.model().is_empty() {
             clocks.clocks_configuration.nvidia_gpu_vf_curve =
                 self.vf_curve_editor.model().get_configured_curve();

@@ -574,6 +574,8 @@ pub struct IntelClocksTable {
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NvidiaClockOffset {
     pub current: i32,
+    #[serde(default)]
+    pub default: i32,
     pub min: i32,
     pub max: i32,
 }

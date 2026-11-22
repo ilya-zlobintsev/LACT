@@ -792,6 +792,7 @@ fn build_clock_domain_offsets(
 
         let clock_offset = NvidiaClockOffset {
             current: freq_offset_khz / 1000,
+            default: 0,
             min: min_mhz,
             max: max_mhz,
         };
@@ -1463,6 +1464,7 @@ impl GpuController for NvidiaGpuController {
                 if let Ok(offset) = device.clock_offset(*clock_type, *pstate) {
                     let mut offset = NvidiaClockOffset {
                         current: offset.clock_offset_mhz,
+                        default: 0,
                         min: offset.min_clock_offset_mhz,
                         max: offset.max_clock_offset_mhz,
                     };
