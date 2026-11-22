@@ -43,7 +43,6 @@ pub struct AdjustmentControl {
 #[derive(Debug)]
 pub enum AdjustmentControlMsg {
     Changed,
-    #[expect(dead_code, reason = "setting-row-migration")]
     SetValueRatio(f64),
 }
 
