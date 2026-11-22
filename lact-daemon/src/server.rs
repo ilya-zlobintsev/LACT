@@ -3,6 +3,8 @@ mod display;
 pub mod gpu_controller;
 pub mod handler;
 mod metrics;
+#[cfg(feature = "mock")]
+pub(crate) mod mock;
 mod opencl;
 mod profiles;
 mod vulkan;

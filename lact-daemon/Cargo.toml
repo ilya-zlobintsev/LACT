@@ -8,7 +8,7 @@ default = ["nvidia", "display-info"]
 bench = ["dep:divan"]
 nvidia = []
 display-info = ["dep:libdisplay-info"]
-mock = []
+mock = ["dep:fuser", "dep:tempfile"]
 
 [dependencies]
 lact-schema = { path = "../lact-schema" }
@@ -52,14 +52,15 @@ notify = { version = "8.2.2", default-features = false }
 libcopes = "1.0.0"
 libloading = "0.9.1"
 
+fuser = { version = "0.19.0", optional = true }
+tempfile = { version = "3.27.0", optional = true }
+
 ureq = { version = "3.5.2", features = ["json", "rustls"] }
 libdisplay-info = { version= "0.3.0", optional = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta = { version = "1.49.0", features = ["json", "yaml"] }
-fuser = "0.19.0"
-tempfile = "3.27.0"
 lact-daemon = { path = ".", features= ["mock"] }
 
 [build-dependencies]

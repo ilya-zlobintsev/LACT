@@ -11,6 +11,21 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
+use tempfile::{TempDir, tempdir};
+
+static GLOBAL_MOCK_MOUNT: Mutex<Option<(fuser::BackgroundSession, TempDir)>> = Mutex::new(None);
+
+pub fn spawn_mock_fs(source_path: PathBuf) -> PathBuf {
+    let mock_fs_dir = tempdir().unwrap();
+    let mock_fs_path = mock_fs_dir.path().to_path_buf();
+
+    let mock_fs = MockSysfs::new(source_path);
+    let handle = fuser::spawn_mount(mock_fs, &mock_fs_path, &fuser::Config::default()).unwrap();
+
+    *GLOBAL_MOCK_MOUNT.lock().unwrap() = Some((handle, mock_fs_dir));
+
+    mock_fs_path
+}
 
 /// Files which are writeable as-is (reads will return last write's content)
 const WRITEABLE_FILES: &[&str] = &["power_dpm_force_performance_level"];
@@ -21,9 +36,9 @@ pub struct MockSysfs {
     pub writes: Arc<Mutex<Vec<WrittenEntry>>>,
 }
 
-pub(super) struct WrittenEntry {
-    pub(super) path: PathBuf,
-    pub(super) contents: Vec<u8>,
+pub struct WrittenEntry {
+    pub path: PathBuf,
+    pub contents: Vec<u8>,
 }
 
 impl MockSysfs {

@@ -1,12 +1,12 @@
-mod mock_fs;
-
 use crate::{
     config::Config,
-    server::handler::{Handler, read_pci_db},
+    server::{
+        handler::{Handler, read_pci_db},
+        mock::MockSysfs,
+    },
 };
 use insta::{assert_debug_snapshot, assert_json_snapshot};
 use lact_schema::config::GpuConfig;
-use mock_fs::MockSysfs;
 use std::{fs, path::PathBuf, sync::OnceLock};
 use tempfile::tempdir;
 
