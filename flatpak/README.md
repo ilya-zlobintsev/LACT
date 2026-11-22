@@ -43,3 +43,18 @@ sudo rm -f /usr/share/polkit-1/actions/io.github.ilya_zlobintsev.LACT.policy
 The service uses [flatbox](https://github.com/ilya-zlobintsev/flatbox) in order to create a flatpak-like environment for the service that still has the permissions it needs to function (such as write access to various sysfs paths). Flatbox itself is shipped as a static binary with the flatpak and is executed on the host, which then discovers flatpak application/runtime/extension paths and sets them up for the service.
 
 This approach allows the service to avoid any dependence on system libraries and commands for its functionality. The only exception are distro-specific commands for AMD overdrive setup.
+
+## Local build
+
+The flatpak build needs `./flatpak/generated-sources.json`, which is generated from `Cargo.lock` in CI. It is not committed to the repo.
+
+To build locally, generate it with [flatpak-cargo-generator](https://pypi.org/project/flatpak-cargo-generator/) from flatpak-builder-tools:
+```
+pip install flatpak-cargo-generator
+flatpak-cargo-generator -o flatpak/generated-sources.json Cargo.lock
+```
+
+Then, you can use flatpak-builder to build and install LACT:
+```
+flatpak-builder --install-deps-from=flathub build/ flatpak/io.github.ilya_zlobintsev.LACT.yaml --force-clean
+```

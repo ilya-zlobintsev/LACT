@@ -69,10 +69,3 @@ And then use an interactive UI to review if the changes are desirable or not.
 # Dependencies
 
 It is generally preferable to avoid adding new dependencies as much as possible.
-
-If the `Cargo.lock` file changes in any way, you will also need to update the `./flatpak/generated-sources.json` file, otherwise the flatpak build will fail.
-
-You can regenerate it with [this script](https://github.com/flatpak/flatpak-builder-tools/blob/master/cargo/flatpak-cargo-generator.py) from flatpak-builder-tools:
-```
-flatpak-cargo-generator.py -o flatpak/generated-sources.json Cargo.lock
-```
