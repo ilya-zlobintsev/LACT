@@ -47,6 +47,7 @@ pub struct OcPageSerialized {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum OcPageMsg {
     Update {
         update: PageUpdate,

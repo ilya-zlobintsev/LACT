@@ -508,6 +508,14 @@ pub struct NvidiaClocksTable {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub mem_offsets: IndexMap<u32, NvidiaClockOffset>,
     #[serde(default)]
+    pub xbar_clock_offset: Option<NvidiaClockOffset>,
+    #[serde(default)]
+    pub sys_clock_offset: Option<NvidiaClockOffset>,
+    #[serde(default)]
+    pub xbar_voltage_offset: Option<NvidiaVoltageOffset>,
+    #[serde(default)]
+    pub sys_voltage_offset: Option<NvidiaVoltageOffset>,
+    #[serde(default)]
     pub gpu_locked_clocks: Option<(u32, u32)>,
     #[serde(default)]
     pub vram_locked_clocks: Option<(u32, u32)>,
@@ -525,6 +533,16 @@ pub struct NvidiaClocksTable {
 #[derive(Serialize, Deserialize, Default, Debug, Clone, Copy)]
 pub struct NvidiaVoltageBoost {
     pub current: i32,
+    pub min: i32,
+    pub max: i32,
+}
+
+/// Nvidia clock domain voltage offset, in mV
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NvidiaVoltageOffset {
+    pub current: i32,
+    #[serde(default)]
+    pub default: i32,
     pub min: i32,
     pub max: i32,
 }
@@ -553,7 +571,7 @@ pub struct IntelClocksTable {
     pub rp0_freq: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NvidiaClockOffset {
     pub current: i32,
     pub min: i32,

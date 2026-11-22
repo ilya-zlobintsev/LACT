@@ -9,7 +9,8 @@ use crate::{
         nvidia::nvapi::{
             CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG, ClockClientClkVfPointInfoV1,
             ClockClientClkVfPointsControlV1, ClockClientClkVfPointsInfoV1,
-            ClockClientClkVfPointsStatusV3, NvApiThermChannelInfo, NvGpuClockDomainId,
+            ClockClientClkVfPointsStatusV3, ClockClkDomainInfoV4, ClockClkDomainsControlV2,
+            ClockClkDomainsInfoV4, NvApiThermChannelInfo, NvGpuClockDomainId,
         },
     },
 };
@@ -25,16 +26,17 @@ use lact_schema::{
     ActivePowerStates, CacheInfo, ClocksInfo, ClocksTable, ClockspeedStats, DeviceApiInfo,
     DeviceFlag, DeviceInfo, DeviceStats, DeviceType, DrmInfo, DrmMemoryInfo, FanControlMode,
     FanStats, IntelDrmInfo, LinkInfo, NvidiaClockOffset, NvidiaClocksTable, NvidiaThermalInfo,
-    NvidiaVfPoint, NvidiaVoltageBoost, PmfwInfo, PowerState, PowerStates, PowerStats, ProcessInfo,
-    ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry, VoltageStats, VramStats,
-    config::{FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
+    NvidiaVfPoint, NvidiaVoltageBoost, NvidiaVoltageOffset, PmfwInfo, PowerState, PowerStates,
+    PowerStats, ProcessInfo, ProcessList, ProcessType, ProcessUtilizationType, TemperatureEntry,
+    VoltageStats, VramStats,
+    config::{ClocksConfiguration, FanControlSettings, FanCurve, GpuConfig, NvidiaCurvePoint},
 };
 use nvapi::NvApi;
 use nvml_wrapper::{
     Device, Nvml,
     bitmasks::device::{PowerMizerModes, ThrottleReasons},
     enum_wrappers::device::{Clock, PerformanceState, TemperatureSensor, TemperatureThreshold},
-    enums::device::{GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
+    enums::device::{DeviceArchitecture, GpuLockedClocksSetting, PowerMizerMode, UsedGpuMemory},
     error::NvmlError,
 };
 use std::{
@@ -57,6 +59,8 @@ const SUPPORTED_UTIL_TYPES: &[ProcessUtilizationType] = &[
 ];
 
 const VOLTAGE_BOOST_RANGE: RangeInclusive<i32> = 0..=100;
+// the driver doesn't report an allowed voltage offset range, should be more than enough
+const DOMAIN_VOLTAGE_OFFSET_RANGE_MV: RangeInclusive<i32> = -250..=250;
 
 pub struct NvidiaGpuController {
     nvml: Rc<Nvml>,
@@ -76,6 +80,7 @@ pub struct NvidiaGpuController {
     // Check if reset is needed to avoid unnecessarily going to nvapi
     vf_curve_written: Cell<bool>,
     voltage_boost_written: Cell<bool>,
+    clock_domain_offsets_written: Cell<bool>,
 }
 
 impl NvidiaGpuController {
@@ -156,6 +161,7 @@ impl NvidiaGpuController {
             last_applied_vram_locked_clocks: RefCell::new(None),
             vf_curve_written: Cell::new(false),
             voltage_boost_written: Cell::new(false),
+            clock_domain_offsets_written: Cell::new(false),
         })
     }
 
@@ -524,6 +530,96 @@ impl NvidiaGpuController {
         Ok(())
     }
 
+    fn get_clock_domain_offsets(&self) -> anyhow::Result<NvidiaClockDomainOffsets> {
+        let Ok(arch) = self.device().architecture() else {
+            return Ok(NvidiaClockDomainOffsets::default());
+        };
+        if arch.as_c() < DeviceArchitecture::Ampere.as_c() {
+            return Ok(NvidiaClockDomainOffsets::default());
+        }
+
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+        let info = unsafe { nvapi.clock_clk_domains_get_info(*handle)? };
+
+        Ok(build_clock_domain_offsets(
+            &info,
+            &unsafe { nvapi.clock_clk_domains_get_control(*handle, info.domain_mask)? },
+            arch.as_c() >= DeviceArchitecture::Blackwell.as_c(),
+        ))
+    }
+
+    fn apply_clock_domain_offsets(&self, clocks: &ClocksConfiguration) -> anyhow::Result<()> {
+        let arch = self.device().architecture().ok();
+        ensure!(
+            arch.as_ref()
+                .is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Ampere.as_c()),
+            "XBAR/SYS clock domain offsets require Ampere or newer GPU"
+        );
+        if clocks.xbar_voltage_offset.is_some() || clocks.sys_voltage_offset.is_some() {
+            ensure!(
+                arch.as_ref()
+                    .is_some_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()),
+                "XBAR/SYS MSVDD voltage offsets require Blackwell or newer GPU"
+            );
+        }
+
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+        let info = unsafe { nvapi.clock_clk_domains_get_info(*handle)? };
+
+        let request = build_clock_domains_control(
+            &info,
+            unsafe { nvapi.clock_clk_domains_get_control(*handle, info.domain_mask)? },
+            clocks,
+        )?;
+
+        debug!(
+            "applying clock domain offsets (mask {:#x}): xbar_clock={:?}, xbar_voltage={:?}, sys_clock={:?}, sys_voltage={:?}",
+            request.domain_mask,
+            clocks.xbar_clock_offset,
+            clocks.xbar_voltage_offset,
+            clocks.sys_clock_offset,
+            clocks.sys_voltage_offset,
+        );
+
+        unsafe {
+            nvapi.clock_clk_domains_set_control(*handle, request)?;
+        }
+        self.clock_domain_offsets_written.set(true);
+
+        verify_clock_domains_control(
+            &info,
+            &unsafe { nvapi.clock_clk_domains_get_control(*handle, info.domain_mask) }
+                .context("Could not verify clock domain offsets")?,
+            clocks,
+        )?;
+
+        Ok(())
+    }
+
+    fn reset_clock_domain_offsets(&self) -> anyhow::Result<()> {
+        let (nvapi, handle) = self.nvapi.as_ref().context("NvAPI not available")?;
+        let info = unsafe { nvapi.clock_clk_domains_get_info(*handle)? };
+
+        if let Some(request) = build_clock_domains_reset_control(
+            &info,
+            unsafe { nvapi.clock_clk_domains_get_control(*handle, info.domain_mask)? },
+            self.device()
+                .architecture()
+                .is_ok_and(|arch| arch.as_c() >= DeviceArchitecture::Blackwell.as_c()),
+        ) {
+            debug!(
+                "resetting clock domain offsets (mask {:#x})",
+                request.domain_mask
+            );
+            unsafe {
+                nvapi.clock_clk_domains_set_control(*handle, request)?;
+            }
+        }
+        self.clock_domain_offsets_written.set(false);
+
+        Ok(())
+    }
+
     fn reset_target_temp(&self) -> anyhow::Result<()> {
         if let Some(initial) = self.initial_target_temp {
             let device = self.device();
@@ -647,6 +743,239 @@ fn point_count_from_mask(mask: [u32; 8]) -> usize {
     let count: usize = mask.iter().map(|i| i.count_ones() as usize).sum();
     assert!(u8::try_from(count).is_ok());
     count
+}
+
+#[derive(Default)]
+struct NvidiaClockDomainOffsets {
+    xbar_clock: Option<NvidiaClockOffset>,
+    sys_clock: Option<NvidiaClockOffset>,
+    xbar_voltage: Option<NvidiaVoltageOffset>,
+    sys_voltage: Option<NvidiaVoltageOffset>,
+}
+
+fn find_clock_domain(
+    info: &ClockClkDomainsInfoV4,
+    domain_id: NvGpuClockDomainId,
+) -> Option<(usize, &ClockClkDomainInfoV4)> {
+    (0..32).find_map(|index| {
+        if info.domain_mask & (1 << index) == 0 {
+            return None;
+        }
+        let domain = &info.domains[index];
+        (domain.domain_id == domain_id as u32).then_some((index, domain))
+    })
+}
+
+fn build_clock_domain_offsets(
+    info: &ClockClkDomainsInfoV4,
+    control: &ClockClkDomainsControlV2,
+    include_msvdd: bool,
+) -> NvidiaClockDomainOffsets {
+    let mut offsets = NvidiaClockDomainOffsets::default();
+
+    for domain_id in [NvGpuClockDomainId::Xbar, NvGpuClockDomainId::Sys] {
+        let Some((index, domain)) = find_clock_domain(info, domain_id) else {
+            continue;
+        };
+
+        let Some((min_mhz, max_mhz)) = domain.freq_offset_range_mhz() else {
+            debug!(
+                "unsupported {domain_id} clock domain type {:#x}",
+                domain.type_
+            );
+            continue;
+        };
+
+        let Some(freq_offset_khz) = control.domains[index].freq_offset_khz(domain.type_) else {
+            continue;
+        };
+
+        let clock_offset = NvidiaClockOffset {
+            current: freq_offset_khz / 1000,
+            min: min_mhz,
+            max: max_mhz,
+        };
+        let voltage_offset = include_msvdd
+            .then(|| control.domains[index].rail1_voltage_offset_uv(domain.type_))
+            .flatten()
+            .map(|voltage_offset_uv| NvidiaVoltageOffset {
+                current: voltage_offset_uv / 1000,
+                default: 0,
+                min: *DOMAIN_VOLTAGE_OFFSET_RANGE_MV.start(),
+                max: *DOMAIN_VOLTAGE_OFFSET_RANGE_MV.end(),
+            });
+
+        match domain_id {
+            NvGpuClockDomainId::Xbar => {
+                offsets.xbar_clock = Some(clock_offset);
+                offsets.xbar_voltage = voltage_offset;
+            }
+            NvGpuClockDomainId::Sys => {
+                offsets.sys_clock = Some(clock_offset);
+                offsets.sys_voltage = voltage_offset;
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    offsets
+}
+
+fn build_clock_domains_control(
+    info: &ClockClkDomainsInfoV4,
+    mut control: ClockClkDomainsControlV2,
+    clocks: &ClocksConfiguration,
+) -> anyhow::Result<ClockClkDomainsControlV2> {
+    // SetControl's mask only selects modified entries, because fixed domains may reject SetControl
+    let mut set_mask = 0;
+
+    for (domain_id, freq_offset_mhz, voltage_offset_mv) in [
+        (
+            NvGpuClockDomainId::Xbar,
+            clocks.xbar_clock_offset,
+            clocks.xbar_voltage_offset,
+        ),
+        (
+            NvGpuClockDomainId::Sys,
+            clocks.sys_clock_offset,
+            clocks.sys_voltage_offset,
+        ),
+    ] {
+        if freq_offset_mhz.is_none() && voltage_offset_mv.is_none() {
+            continue;
+        }
+
+        let (index, domain) = find_clock_domain(info, domain_id)
+            .ok_or_else(|| anyhow!("{domain_id} clock domain is not available on this GPU"))?;
+        let (min_mhz, max_mhz) = domain.freq_offset_range_mhz().ok_or_else(|| {
+            anyhow!(
+                "Unsupported {domain_id} clock domain type {:#x}",
+                domain.type_
+            )
+        })?;
+
+        if let Some(freq_mhz) = freq_offset_mhz {
+            ensure!(
+                (min_mhz..=max_mhz).contains(&freq_mhz),
+                "Configured {domain_id} clock offset {freq_mhz}MHz is outside of the allowed range {min_mhz}..={max_mhz}"
+            );
+            control.domains[index].set_freq_offset_khz(domain.type_, freq_mhz * 1000);
+        }
+
+        if let Some(voltage_mv) = voltage_offset_mv {
+            ensure!(
+                DOMAIN_VOLTAGE_OFFSET_RANGE_MV.contains(&voltage_mv),
+                "Configured {domain_id} voltage offset {voltage_mv}mV is outside of the allowed range {}..={}",
+                DOMAIN_VOLTAGE_OFFSET_RANGE_MV.start(),
+                DOMAIN_VOLTAGE_OFFSET_RANGE_MV.end(),
+            );
+            control.domains[index].set_rail1_voltage_offset_uv(domain.type_, voltage_mv * 1000);
+        }
+
+        set_mask |= 1 << index;
+    }
+
+    control.domain_mask = set_mask;
+    Ok(control)
+}
+
+fn verify_clock_domains_control(
+    info: &ClockClkDomainsInfoV4,
+    actual: &ClockClkDomainsControlV2,
+    clocks: &ClocksConfiguration,
+) -> anyhow::Result<()> {
+    for (domain_id, freq_offset_mhz, voltage_offset_mv) in [
+        (
+            NvGpuClockDomainId::Xbar,
+            clocks.xbar_clock_offset,
+            clocks.xbar_voltage_offset,
+        ),
+        (
+            NvGpuClockDomainId::Sys,
+            clocks.sys_clock_offset,
+            clocks.sys_voltage_offset,
+        ),
+    ] {
+        if freq_offset_mhz.is_none() && voltage_offset_mv.is_none() {
+            continue;
+        }
+
+        let (index, domain) = find_clock_domain(info, domain_id)
+            .ok_or_else(|| anyhow!("{domain_id} clock domain is not available on this GPU"))?;
+
+        if let Some(freq_mhz) = freq_offset_mhz {
+            let actual_khz = actual.domains[index]
+                .freq_offset_khz(domain.type_)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Unsupported {domain_id} clock domain type {:#x}",
+                        domain.type_
+                    )
+                })?;
+            ensure!(
+                actual_khz == freq_mhz * 1000,
+                "{domain_id} clock offset was not applied: requested {freq_mhz}MHz, driver reports {}MHz",
+                actual_khz / 1000
+            );
+        }
+
+        if let Some(voltage_mv) = voltage_offset_mv {
+            let actual_uv = actual.domains[index]
+                .rail1_voltage_offset_uv(domain.type_)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Unsupported {domain_id} clock domain type {:#x}",
+                        domain.type_
+                    )
+                })?;
+            ensure!(
+                actual_uv == voltage_mv * 1000,
+                "{domain_id} voltage offset was not applied: requested {voltage_mv}mV, driver reports {}mV",
+                actual_uv / 1000
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn build_clock_domains_reset_control(
+    info: &ClockClkDomainsInfoV4,
+    mut control: ClockClkDomainsControlV2,
+    reset_msvdd: bool,
+) -> Option<ClockClkDomainsControlV2> {
+    let mut set_mask = 0;
+
+    for domain_id in [NvGpuClockDomainId::Xbar, NvGpuClockDomainId::Sys] {
+        let Some((index, domain)) = find_clock_domain(info, domain_id) else {
+            continue;
+        };
+        if domain.freq_offset_range_mhz().is_none() {
+            continue;
+        }
+
+        if control.domains[index]
+            .freq_offset_khz(domain.type_)
+            .is_some_and(|freq| freq != 0)
+            || (reset_msvdd
+                && control.domains[index]
+                    .rail1_voltage_offset_uv(domain.type_)
+                    .is_some_and(|voltage| voltage != 0))
+        {
+            control.domains[index].set_freq_offset_khz(domain.type_, 0);
+            if reset_msvdd {
+                control.domains[index].set_rail1_voltage_offset_uv(domain.type_, 0);
+            }
+            set_mask |= 1 << index;
+        }
+    }
+
+    if set_mask == 0 {
+        None
+    } else {
+        control.domain_mask = set_mask;
+        Some(control)
+    }
 }
 
 fn average_fan_value<E>(
@@ -1186,9 +1515,18 @@ impl GpuController for NvidiaGpuController {
             .inspect_err(|err| warn!("could not get voltage boost: {err:#}"))
             .ok();
 
+        let domain_offsets = self
+            .get_clock_domain_offsets()
+            .inspect_err(|err| warn!("could not get clock domain offsets: {err:#}"))
+            .unwrap_or_default();
+
         let table = NvidiaClocksTable {
             gpu_offsets,
             mem_offsets,
+            xbar_clock_offset: domain_offsets.xbar_clock,
+            sys_clock_offset: domain_offsets.sys_clock,
+            xbar_voltage_offset: domain_offsets.xbar_voltage,
+            sys_voltage_offset: domain_offsets.sys_voltage,
             gpu_locked_clocks: *self.last_applied_gpu_locked_clocks.borrow(),
             vram_locked_clocks: *self.last_applied_vram_locked_clocks.borrow(),
             gpu_clock_range,
@@ -1296,6 +1634,21 @@ impl GpuController for NvidiaGpuController {
             if !clocks.nvidia_gpu_vf_curve.is_empty() {
                 self.apply_vf_curve(&clocks.nvidia_gpu_vf_curve)
                     .context("Could not apply VF curve")?;
+            }
+
+            if (clocks.xbar_clock_offset.is_some()
+                || clocks.sys_clock_offset.is_some()
+                || clocks.xbar_voltage_offset.is_some()
+                || clocks.sys_voltage_offset.is_some())
+                && let Err(err) = self.apply_clock_domain_offsets(clocks)
+            {
+                warn!("could not apply clock domain offsets: {err:#}");
+
+                if self.clock_domain_offsets_written.get()
+                    && let Err(err) = self.reset_clock_domain_offsets()
+                {
+                    warn!("could not reset clock domain offsets: {err:#}");
+                }
             }
 
             if let Some(percent) = clocks.voltage_boost
@@ -1432,6 +1785,11 @@ impl GpuController for NvidiaGpuController {
         if self.voltage_boost_written.get() {
             self.reset_voltage_boost()
                 .context("Could not reset voltage boost")?;
+        }
+
+        if self.clock_domain_offsets_written.get() {
+            self.reset_clock_domain_offsets()
+                .context("Could not reset clock domain offsets")?;
         }
 
         Ok(())

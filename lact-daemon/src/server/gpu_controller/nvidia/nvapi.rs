@@ -36,12 +36,17 @@ const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_STATUS: u32 = 0x21537ad4;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_INFO: u32 = 0x507b4b59;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL: u32 = 0x733e009;
 const QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_GET_CONTROL: u32 = 0x23f1b133;
+const QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_GET_INFO: u32 = 0x57b5a5df;
+const QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_GET_CONTROL: u32 = 0xf58938f5;
+const QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_SET_CONTROL: u32 = 0xd14b69cf;
 const QUERY_NVAPI_GPU_REGISTER_OP: u32 = 0x2eb3c140;
 const QUERY_NVAPI_GPU_GET_ALL_CLOCKS: u32 = 0x1bd69f49;
 
 const REG_OFFSET_BLACKWELL_HOTSPOT_AGGREGATED: u32 = 0xad0aa0;
 
 pub const CLOCK_CLIENT_CLK_VF_POINT_TYPE_PROG: NvU32 = 0;
+const CLOCK_CLK_DOMAIN_TYPE_PROG_A: NvU32 = 0xA;
+const CLOCK_CLK_DOMAIN_TYPE_PROG_F: NvU32 = 0xF;
 
 pub struct NvApi {
     lib: libloading::Library,
@@ -240,6 +245,54 @@ impl NvApi {
             handle,
             &mut control,
             QUERY_NVAPI_GPU_CLOCK_CLIENT_CLK_VF_POINTS_SET_CONTROL,
+        )?;
+
+        Ok(())
+    }
+
+    pub unsafe fn clock_clk_domains_get_info(
+        &self,
+        handle: NvPhysicalGpuHandle,
+    ) -> anyhow::Result<ClockClkDomainsInfoV4> {
+        let mut data = ClockClkDomainsInfoV4::default();
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_GET_INFO,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_clk_domains_get_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        domain_mask: NvU32,
+    ) -> anyhow::Result<ClockClkDomainsControlV2> {
+        let mut data = ClockClkDomainsControlV2 {
+            domain_mask,
+            ..Default::default()
+        };
+
+        self.physical_gpu_query(
+            handle,
+            &mut data,
+            QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_GET_CONTROL,
+        )?;
+
+        Ok(data)
+    }
+
+    pub unsafe fn clock_clk_domains_set_control(
+        &self,
+        handle: NvPhysicalGpuHandle,
+        mut control: ClockClkDomainsControlV2,
+    ) -> anyhow::Result<()> {
+        self.physical_gpu_query(
+            handle,
+            &mut control,
+            QUERY_NVAPI_GPU_CLOCK_CLK_DOMAINS_SET_CONTROL,
         )?;
 
         Ok(())
@@ -751,6 +804,131 @@ impl Default for ClockClientClkVfPointControlDataV1 {
 #[derive(Debug, Copy, Clone)]
 pub struct ClockClientClkVfPointControlProgV1 {
     pub freq_offset_khz: NvS32,
+}
+
+// Byte offsets inside each ClockClkDomainInfoV4 / ClockClkDomainControlV2 entry:
+// (info min/max MHz i16 pair, control freq offset kHz i32, control rail 1 voltage offset uV i32)
+fn clock_domain_layout(domain_type: NvU32) -> Option<(usize, usize, usize)> {
+    match domain_type {
+        CLOCK_CLK_DOMAIN_TYPE_PROG_A => Some((0x3E, 0x10C, 0x114)),
+        CLOCK_CLK_DOMAIN_TYPE_PROG_F => Some((0x40, 0x114, 0x11C)),
+        _ => None,
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClkDomainsInfoV4 {
+    pub version: NvU32,
+    rsvd0: NvU32,
+    pub domain_mask: NvU32,
+    rsvd1: [NvU8; 160],
+    pub domains: [ClockClkDomainInfoV4; 32],
+}
+
+impl Default for ClockClkDomainsInfoV4 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(4),
+            rsvd0: 0,
+            domain_mask: 0,
+            rsvd1: [0; 160],
+            domains: [ClockClkDomainInfoV4::default(); 32],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClkDomainInfoV4 {
+    pub type_: NvU32,
+    pub domain_id: NvU32,
+    data: [NvU8; 0x428],
+}
+
+impl Default for ClockClkDomainInfoV4 {
+    fn default() -> Self {
+        Self {
+            type_: 0,
+            domain_id: 0,
+            data: [0; 0x428],
+        }
+    }
+}
+
+impl ClockClkDomainInfoV4 {
+    pub fn freq_offset_range_mhz(&self) -> Option<(i32, i32)> {
+        let (range_offset, _, _) = clock_domain_layout(self.type_)?;
+        let offset = range_offset - 8;
+        let min = i16::from_le_bytes([self.data[offset], self.data[offset + 1]]);
+        let max = i16::from_le_bytes([self.data[offset + 2], self.data[offset + 3]]);
+        Some((i32::from(min), i32::from(max)))
+    }
+}
+
+// Control V1 skips domain types 0xA and 0xF (RM 0xB and 0x10), so V2 is required
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClkDomainsControlV2 {
+    pub version: NvU32,
+    rsvd0: NvU32,
+    pub domain_mask: NvU32,
+    rsvd1: [NvU8; 280],
+    pub domains: [ClockClkDomainControlV2; 32],
+}
+
+impl Default for ClockClkDomainsControlV2 {
+    fn default() -> Self {
+        Self {
+            version: make_version::<Self>(2),
+            rsvd0: 0,
+            domain_mask: 0,
+            rsvd1: [0; 280],
+            domains: [ClockClkDomainControlV2::default(); 32],
+        }
+    }
+}
+
+#[repr(C, align(4))]
+#[derive(Copy, Clone, Debug)]
+pub struct ClockClkDomainControlV2 {
+    data: [NvU8; 0x304],
+}
+
+impl Default for ClockClkDomainControlV2 {
+    fn default() -> Self {
+        Self { data: [0; 0x304] }
+    }
+}
+
+impl ClockClkDomainControlV2 {
+    pub fn freq_offset_khz(&self, domain_type: NvU32) -> Option<i32> {
+        let (_, freq_offset, _) = clock_domain_layout(domain_type)?;
+        Some(i32::from_le_bytes(
+            self.data[freq_offset..freq_offset + 4].try_into().unwrap(),
+        ))
+    }
+
+    pub fn set_freq_offset_khz(&mut self, domain_type: NvU32, value: i32) {
+        if let Some((_, freq_offset, _)) = clock_domain_layout(domain_type) {
+            self.data[freq_offset..freq_offset + 4].copy_from_slice(&value.to_le_bytes());
+        }
+    }
+
+    pub fn rail1_voltage_offset_uv(&self, domain_type: NvU32) -> Option<i32> {
+        let (_, _, voltage_offset) = clock_domain_layout(domain_type)?;
+        Some(i32::from_le_bytes(
+            self.data[voltage_offset..voltage_offset + 4]
+                .try_into()
+                .unwrap(),
+        ))
+    }
+
+    pub fn set_rail1_voltage_offset_uv(&mut self, domain_type: NvU32, value: i32) {
+        if let Some((_, _, voltage_offset)) = clock_domain_layout(domain_type) {
+            self.data[voltage_offset..voltage_offset + 4].copy_from_slice(&value.to_le_bytes());
+        }
+    }
 }
 
 const REG_OP_FLAG_READ: c_uint = 1;
