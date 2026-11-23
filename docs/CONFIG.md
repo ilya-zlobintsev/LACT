@@ -119,6 +119,9 @@ gpus:
     nvidia_thermal_options:
       # Target temperature for the GPU in degrees.
       target_temperature: 83
+      # Experimental GPU slowdown temperature through private NvAPI policies.
+      # This is separate from the NVML acoustic/fan target above.
+      # throttle_temperature: 93
     # Power limit in watts.
     power_cap: 320.0
     # Performance level option for AMD GPUs.
@@ -246,3 +249,18 @@ current_profile: vkcube
 # If profiles should be switched between automatically based on their configured rules.
 auto_switch_profiles: true
 ```
+
+### Experimental NVIDIA slowdown temperature
+
+`nvidia_thermal_options.throttle_temperature` uses private NvAPI client thermal
+policies. It is separate from the NVML acoustic target and is only available in
+the configuration file. It shifts the GPU slowdown policies together, preserving
+their hysteresis, modes and relative offsets. Memory and other thermal policies
+are not changed. Removing the setting restores the thresholds saved before the
+first override in the current daemon instance.
+
+This interface has been tested on an RTX 5070 Ti Laptop with NVIDIA 615.71.09.
+The driver's policy info can still report the original temperature as its maximum;
+this setting overrides that range, but keeps all shifted thresholds below the
+NVML hardware slowdown temperature. Other drivers or policy layouts may reject
+it. Successful write/readback does not establish thermal or workload stability.
