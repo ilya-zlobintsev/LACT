@@ -216,6 +216,10 @@ pub struct FanControlSettings {
     pub temperature_key: String,
     pub interval_ms: u64,
     pub curve: FanCurve,
+    /// Additional curves keyed by sensor name. The fan runs at the highest speed
+    /// requested by `curve` (on `temperature_key`) and every curve here.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub sensor_curves: IndexMap<String, FanCurve>,
     pub spindown_delay_ms: Option<u64>,
     pub change_threshold: Option<u64>,
     pub auto_threshold: Option<u64>,
@@ -229,6 +233,7 @@ impl Default for FanControlSettings {
             temperature_key: "edge".to_owned(),
             interval_ms: 500,
             curve: FanCurve(default_fan_curve()),
+            sensor_curves: IndexMap::new(),
             spindown_delay_ms: None,
             change_threshold: None,
             auto_threshold: None,
@@ -256,5 +261,24 @@ mod tests {
                 .get(&0)
                 .unwrap()
         );
+        assert!(
+            config
+                .fan_control_settings
+                .unwrap()
+                .sensor_curves
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn sensor_curves_round_trip() {
+        let data = r#"{"fan_control_enabled":true,"fan_control_settings":{"mode":"curve","temperature_key":"GPU","interval_ms":500,"curve":{"40":0.3,"80":1.0},"sensor_curves":{"VRAM":{"50":0.4,"90":1.0}}}}"#;
+        let config: GpuConfig = serde_json::from_str(data).unwrap();
+        let settings = config.fan_control_settings.as_ref().unwrap();
+        assert_eq!(settings.sensor_curves["VRAM"].0[&90], 1.0);
+
+        let serialized = serde_json::to_string(&config).unwrap();
+        let reparsed: GpuConfig = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(config, reparsed);
     }
 }
