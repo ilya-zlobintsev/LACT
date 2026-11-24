@@ -154,7 +154,6 @@ missing-stat = N/A
 vram-usage = VRAM Usage:
 gtt-usage = GTT Usage:
 
-igpu-section = Integrated Graphics
 uma-carveout = UMA Carveout Size
 uma-carveout-caption = Amount of memory reserved as dedicated VRAM. Requires a reboot to take effect.
 

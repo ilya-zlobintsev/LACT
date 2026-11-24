@@ -12,8 +12,6 @@ pub struct AdjustmentRow<Key> {
     unit: String,
     _key: PhantomData<Key>,
     adjustment: AdjustmentValue,
-    value_ratio: f64,
-    size_group_widgets: Vec<(gtk::SizeGroup, gtk::Widget)>,
 }
 
 pub struct AdjustmentRowInit {
@@ -46,11 +44,8 @@ impl Default for AdjustmentRowInit {
 
 #[derive(Debug)]
 pub enum AdjustmentRowMsg {
-    /// Change display units and reset the edit state.
-    ValueRatio(f64),
     /// Set a value as an edit, for example when the user presses Reset.
     SetValue(f64),
-    SetVisible(bool),
     AddSizeGroup {
         label_group: gtk::SizeGroup,
         input_group: gtk::SizeGroup,
@@ -71,7 +66,6 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
     view! {
         #[root]
-        #[name = "root_row"]
         gtk::ListBoxRow {
             set_activatable: false,
             set_selectable: false,
@@ -194,8 +188,6 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 init.step_increment,
                 init.page_increment,
             ),
-            value_ratio: 1.0,
-            size_group_widgets: Vec::new(),
         }
     }
 
@@ -219,46 +211,8 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
         _sender: FactorySender<Self>,
     ) {
         match msg {
-            AdjustmentRowMsg::ValueRatio(ratio) => {
-                // Changing display units must not emit an edit notification.
-                self.adjustment.block_signal(&widgets.value_change_signal);
-                widgets.spinbutton.block_signal(&widgets.text_change_signal);
-
-                let raw_current = self.adjustment.value() / self.value_ratio;
-                let raw_min = self.adjustment.lower() / self.value_ratio;
-                let raw_max = self.adjustment.upper() / self.value_ratio;
-
-                self.adjustment.set_lower(raw_min * ratio);
-                self.adjustment.set_upper(raw_max * ratio);
-                self.adjustment.set_initial_value(raw_current * ratio);
-
-                self.value_ratio = ratio;
-                widgets
-                    .lower_label
-                    .set_label(&fmt_value_with_unit(self.adjustment.lower(), &self.unit));
-                widgets
-                    .upper_label
-                    .set_label(&fmt_value_with_unit(self.adjustment.upper(), &self.unit));
-
-                widgets
-                    .spinbutton
-                    .unblock_signal(&widgets.text_change_signal);
-                self.adjustment.unblock_signal(&widgets.value_change_signal);
-            }
             AdjustmentRowMsg::SetValue(value) => {
-                self.adjustment.set_value(value * self.value_ratio);
-            }
-            AdjustmentRowMsg::SetVisible(visible) => {
-                if widgets.root_row.get_visible() != visible {
-                    for (group, widget) in &self.size_group_widgets {
-                        if visible {
-                            group.add_widget(widget);
-                        } else {
-                            group.remove_widget(widget);
-                        }
-                    }
-                    widgets.root_row.set_visible(visible);
-                }
+                self.adjustment.set_value(value);
             }
             AdjustmentRowMsg::AddSizeGroup {
                 label_group,
@@ -266,17 +220,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
                 lower_label_group,
                 upper_label_group,
             } => {
-                for (group, widget) in [
-                    (label_group, widgets.title_box.clone().upcast()),
-                    (input_group, widgets.spinbutton.clone().upcast()),
-                    (lower_label_group, widgets.lower_label.clone().upcast()),
-                    (upper_label_group, widgets.upper_label.clone().upcast()),
-                ] {
-                    if widgets.root_row.get_visible() {
-                        group.add_widget(&widget);
-                    }
-                    self.size_group_widgets.push((group, widget));
-                }
+                label_group.add_widget(&widgets.title_box);
+                input_group.add_widget(&widgets.spinbutton);
+                lower_label_group.add_widget(&widgets.lower_label);
+                upper_label_group.add_widget(&widgets.upper_label);
             }
         }
     }
@@ -284,12 +231,10 @@ impl<Key: 'static> FactoryComponent for AdjustmentRow<Key> {
 
 impl<Key> AdjustmentRow<Key> {
     pub fn get_value(&self) -> f64 {
-        self.adjustment.value() / self.value_ratio
+        self.adjustment.value()
     }
 
     pub fn get_changed_value(&self) -> Option<f64> {
-        self.adjustment
-            .get_changed_value(false)
-            .map(|value| value / self.value_ratio)
+        self.adjustment.get_changed_value(false)
     }
 }

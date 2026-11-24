@@ -14,7 +14,7 @@ edition = "2024"
 
 [workspace.dependencies]
 amdgpu-sysfs = { version = "0.22.0", features = ["serde"] }
-nvml-wrapper = { git = "https://github.com/rust-nvml/nvml-wrapper.git", rev = "eb47417eede43443f139053479618e96ad32893d" }
+nvml-wrapper = "0.13.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_with = { version = "3.24.0", default-features = false, features = [
     "macros",
@@ -28,8 +28,8 @@ futures = { version = "0.3.34", features = [
     "async-await",
 ], default-features = false }
 tokio = { version = "1.54.1", default-features = false }
-nix = { version = "0.31.3", default-features = false }
-jiff = "0.2"
+nix = { version = "0.32.0", default-features = false }
+jiff = "1.0"
 indexmap = { version = "2.14.2", features = ["serde"] }
 pretty_assertions = "1.4.1"
 divan = "0.1"
@@ -39,8 +39,8 @@ i18n-embed = { version = "0.16.0", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.10.1"
-rust-embed = { version = "8.13.0", features = ["debug-embed"] }
-zbus = { version = "6.1.0", default-features = false, features = ["tokio"] }
+rust-embed = { version = "8.14.0", features = ["debug-embed"] }
+zbus = { version = "6.3.0", default-features = false, features = ["tokio"] }
 
 [profile.release]
 strip = "symbols"

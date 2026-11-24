@@ -9,4 +9,9 @@ FLATPAK_USER_DIR=/home/${FLATPAK_INSTALL_USER}/.local/share/flatpak
 export LACT_DAEMON_SOCKET_PATH="/run/host/root/run/lactd.sock"
 export LACT_DAEMON_CONFIG_DIR="/run/host/root/etc/lact"
 
+# This has to run outside of the sandbox for restorecon
+if [ ! -d /run/polkit-1/actions ]; then
+    mkdir -p /run/polkit-1/actions && { restorecon -R /run/polkit-1 || true; }
+fi
+
 exec $FLATBOX_BIN run --flatpak-install-path $FLATPAK_USER_DIR --app io.github.ilya_zlobintsev.LACT --apparmor-unconfined lact daemon

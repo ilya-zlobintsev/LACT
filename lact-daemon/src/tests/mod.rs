@@ -39,9 +39,11 @@ async fn snapshot_everything() {
                 device_dir.file_name().to_string_lossy()
             );
 
-            let handler = Handler::with_base_path(&device_dir.path(), Config::default(), &pci_db)
-                .await
-                .unwrap();
+            let handler =
+                Handler::with_base_path(&device_dir.path(), Config::default(), &pci_db, None)
+                    .await
+                    .unwrap();
+
             let device_info = handler
                 .generate_snapshot_device_info()
                 .await
@@ -96,10 +98,14 @@ async fn apply_settings() {
                     )
                     .expect("Could not mount mock fs");
 
-                    let handler =
-                        Handler::with_base_path(mock_fs_dir.path(), Config::default(), &pci_db)
-                            .await
-                            .unwrap();
+                    let handler = Handler::with_base_path(
+                        mock_fs_dir.path(),
+                        Config::default(),
+                        &pci_db,
+                        None,
+                    )
+                    .await
+                    .unwrap();
                     let gpu_id = &handler.list_devices().await[0].id;
 
                     handler

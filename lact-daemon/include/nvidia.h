@@ -3,6 +3,7 @@
 #include "nvidia/src/common/sdk/nvidia/inc/class/cl0073.h"
 #include "nvidia/src/common/sdk/nvidia/inc/class/cl0080.h"
 #include "nvidia/src/common/sdk/nvidia/inc/class/cl2080.h"
+#include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl0000/ctrl0000gpu.h"
 #include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dp.h"
 #include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073system.h"
 #include "nvidia/src/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fb.h"

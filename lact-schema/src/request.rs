@@ -149,6 +149,7 @@ pub struct SetClocksCommand {
 }
 
 impl SetClocksCommand {
+    #[must_use]
     pub fn reset() -> Self {
         Self {
             r#type: ClockspeedType::Reset,

@@ -7,7 +7,6 @@ use crate::{CONFIG, I18N};
 use anyhow::Context;
 use gtk::prelude::*;
 use i18n_embed_fl::fl;
-use jiff::Zoned;
 use lact_schema::DeviceStats;
 use plot_component::{PlotComponent, PlotComponentConfig, PlotComponentMsg};
 use relm4::{
@@ -295,7 +294,7 @@ impl relm4::Component for GraphsWindow {
                 let save_dialog = SaveDialog::builder().launch(settings);
                 save_dialog.emit(SaveDialogMsg::SaveAs(format!(
                     "LACT-stats-{}.csv",
-                    Zoned::now().strftime("%Y%m%d-%H%M%S")
+                    jiff::ZonedDateTime::now().strftime("%Y%m%d-%H%M%S")
                 )));
                 let save_dialog_stream = save_dialog.into_stream();
 
