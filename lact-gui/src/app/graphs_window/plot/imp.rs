@@ -4,7 +4,7 @@ use crate::app::graphs_window::stat::StatType;
 use crate::app::graphs_window::stat::StatsData;
 use glib::Properties;
 use gtk::gdk::MemoryTexture;
-use gtk::{glib, prelude::*, subclass::prelude::*};
+use gtk::{glib, pango, prelude::*, subclass::prelude::*};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -51,27 +51,29 @@ impl WidgetImpl for Plot {
         let height = self.obj().height() as u32;
         let scale_factor = self.obj().scale_factor();
 
-        let colors = PlotColorScheme::current();
-
         if width == 0 || height == 0 {
             return;
         }
 
+        let effective_size = (width * scale_factor as u32, height * scale_factor as u32);
+
         let last_texture = self.get_last_texture();
         let size_changed = last_texture
             .as_ref()
-            .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
+            .map(|texture| (texture.width() as u32, texture.height() as u32) != effective_size)
             .unwrap_or(true);
 
         if self.dirty.replace(false) || size_changed {
+            let colors = PlotColorScheme::current();
+
             self.render_thread.replace_render_request(RenderRequest {
                 data: self.data.borrow().clone(),
                 stats: self.stats.borrow().clone(),
                 width,
                 height,
                 scale_factor,
+                base_font_size: self.font_size(),
                 colors,
-                title: self.title.borrow().clone(),
                 print_extra_info: self.print_extra_info.get(),
                 time_period_seconds: self.time_period_seconds.get(),
             });
@@ -89,6 +91,22 @@ impl WidgetImpl for Plot {
 impl Plot {
     pub fn get_last_texture(&self) -> Option<MemoryTexture> {
         self.render_thread.get_last_texture()
+    }
+
+    /// Font size of the UI, in pixels.
+    fn font_size(&self) -> f64 {
+        let description = self
+            .obj()
+            .create_pango_context()
+            .font_description()
+            .unwrap_or_default();
+        let size = f64::from(description.size()) / f64::from(pango::SCALE);
+
+        if description.is_size_absolute() {
+            size
+        } else {
+            size * 96.0 / 72.0
+        }
     }
 }
 #[cfg(feature = "bench")]
@@ -119,18 +137,19 @@ mod benches {
     #[divan::bench(sample_size = 10)]
     fn render_plot(bencher: Bencher) {
         let last_texture = &Mutex::new(None);
+        let labels = &Mutex::new(Vec::new());
 
         bencher
             .with_inputs(sample_plot_data)
             .input_counter(|_| ItemsCount::new(1usize))
             .bench_values(|data| {
                 let request = RenderRequest {
-                    title: "bench render".into(),
                     colors: PlotColorScheme::default(),
                     data,
                     width: 1920,
                     height: 1080,
                     scale_factor: 1,
+                    base_font_size: 13.0,
                     time_period_seconds: 60,
                     print_extra_info: false,
                     stats: vec![
@@ -141,7 +160,7 @@ mod benches {
                     ],
                 };
 
-                process_request(request, last_texture)
+                process_request(request, last_texture, labels)
             });
     }
 

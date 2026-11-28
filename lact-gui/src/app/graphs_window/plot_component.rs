@@ -1,3 +1,5 @@
+mod legend_entry;
+
 use super::{
     GraphsWindowMsg,
     plot::Plot,
@@ -14,6 +16,7 @@ use gtk::{
     },
 };
 use i18n_embed_fl::fl;
+use legend_entry::{LegendEntry, LegendEntryMsg};
 use relm4::{
     RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
@@ -30,6 +33,7 @@ pub struct PlotComponent {
     edit_mode: BoolBinding,
     print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
+    legend: FactoryVecDeque<LegendEntry>,
 }
 
 pub struct PlotComponentConfig {
@@ -59,8 +63,11 @@ impl relm4::factory::FactoryComponent for PlotComponent {
     view! {
         gtk::Frame {
             gtk::Overlay {
-                #[name = "plot"]
-                Plot {
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+
+                    #[name = "plot"]
+                    Plot {
                     set_data: self.data.clone(),
                     set_margin_all: 5,
 
@@ -72,8 +79,28 @@ impl relm4::factory::FactoryComponent for PlotComponent {
 
                     set_stats: self.selected_stats(),
 
-                    connect_frame_rendered[sender] => move || {
-                        sender.input(PlotComponentMsg::FrameRendered);
+                        connect_frame_rendered[sender] => move || {
+                            sender.input(PlotComponentMsg::FrameRendered);
+                        },
+                    },
+
+                    gtk::ScrolledWindow {
+                        set_hscrollbar_policy: gtk::PolicyType::Never,
+                        set_vscrollbar_policy: gtk::PolicyType::Never,
+                        set_propagate_natural_width: false,
+                        set_propagate_natural_height: true,
+                        set_has_frame: false,
+
+                        self.legend.widget() {
+                            set_selection_mode: gtk::SelectionMode::None,
+                            set_homogeneous: false,
+                            set_column_spacing: 16,
+                            set_row_spacing: 4,
+                            set_margin_all: 6,
+                            set_margin_bottom: 8,
+                            set_max_children_per_line: 6,
+                            set_halign: gtk::Align::Center,
+                        },
                     },
                 },
 
@@ -207,6 +234,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             edit_mode: init.edit_mode,
             print_extra_info,
             time_period: init.time_period,
+            legend: FactoryVecDeque::builder().launch_default().detach(),
         }
     }
 
@@ -223,6 +251,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             }
             PlotComponentMsg::FrameRendered => {
                 widgets.plot.queue_draw();
+                self.update_legend(widgets);
             }
             PlotComponentMsg::UpdatedSelection => {
                 widgets.plot.set_stats(self.selected_stats());
@@ -248,6 +277,23 @@ impl relm4::factory::Position<GridPosition, DynamicIndex> for PlotComponent {
 }
 
 impl PlotComponent {
+    fn update_legend(&mut self, widgets: &PlotComponentWidgets) {
+        let labels = widgets.plot.labels();
+        let mut legend = self.legend.guard();
+
+        while legend.len() > labels.len() {
+            legend.pop_back();
+        }
+
+        for (i, label) in labels.into_iter().enumerate() {
+            if i >= legend.len() {
+                legend.push_back(label);
+            } else if !legend[i].matches(&label) {
+                legend.send(i, LegendEntryMsg::SetLabel(label));
+            }
+        }
+    }
+
     fn get_cursor(&self) -> Option<gdk::Cursor> {
         if self.edit_mode.value() {
             gdk::Cursor::from_name("move", None)
