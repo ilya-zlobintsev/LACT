@@ -315,12 +315,9 @@ impl RenderRequest {
 
         // The surface is transparent, so the card background and its rounded
         // corners show through it.
-        // Scale the fonts with the size of the widget, otherwise the labels take
-        // up most of the chart when it is rendered in a small window.
-        // Follow the font of the UI, capped so that the labels always fit in the chart.
-        let (_, chart_height) = root.dim_in_pixel();
-        let max_font_size = f64::from((chart_height / 12).max(10));
-        let axis_font_size = (self.base_font_size * 0.8).clamp(8.0, max_font_size) as u32;
+        // Follow the font of the UI, within bounds that keep the labels readable
+        // and leave enough room for the chart.
+        let axis_font_size = (self.base_font_size * 0.8).clamp(8.0, 20.0) as u32;
 
         let y_label_style = TextStyle {
             font: ("sans-serif", axis_font_size).into(),
@@ -402,7 +399,7 @@ impl RenderRequest {
             .context("Failed to draw mesh")?;
 
         // Clip the series to the plotting area, otherwise points which are out of
-        // the axis range are drawn over the axis labels and the chart title.
+        // the axis range are drawn over the axis labels.
         let (x_range, y_range) = chart.plotting_area().get_pixel_range();
         cairo_context.save()?;
         cairo_context.rectangle(
