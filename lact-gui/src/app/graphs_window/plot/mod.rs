@@ -3,6 +3,7 @@ mod imp;
 mod render_thread;
 mod to_texture_ext;
 
+use relm4::tokio::sync::broadcast::error::RecvError;
 pub use render_thread::LegendLabel;
 
 use super::stat::{StatType, StatsData};
@@ -39,7 +40,7 @@ impl Plot {
     pub fn connect_frame_rendered<F: Fn() + 'static>(&self, f: F) {
         let mut rx = self.imp().render_thread.render_notifier();
         relm4::spawn_local(async move {
-            while let Ok(()) = rx.recv().await {
+            while let Ok(()) | Err(RecvError::Lagged(_)) = rx.recv().await {
                 f();
             }
         });
