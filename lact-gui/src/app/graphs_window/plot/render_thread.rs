@@ -45,7 +45,7 @@ pub struct RenderRequest {
 /// displayed with GTK widgets.
 #[derive(Debug, Clone)]
 pub struct LegendLabel {
-    pub text: String,
+    pub text: Arc<str>,
     pub color: RGBAColor,
 }
 
@@ -246,11 +246,6 @@ fn interpolate_series(data: &[(i64, f64)]) -> Vec<(i64, f64)> {
         .collect()
 }
 
-struct LegendEntry {
-    label: String,
-    color: RGBAColor,
-}
-
 /// Format a legend label.
 fn stat_label(stat: &StatType, values: (f64, f64, f64), print_extra_info: bool) -> String {
     let precision = stat.precision();
@@ -354,8 +349,8 @@ impl RenderRequest {
                     .unwrap_or_default();
                 let avg = points.iter().map(|(_, value)| *value).sum::<f64>() / points.len() as f64;
 
-                LegendEntry {
-                    label: stat_label(stat_type, (current, peak, avg), self.print_extra_info),
+                LegendLabel {
+                    text: stat_label(stat_type, (current, peak, avg), self.print_extra_info).into(),
                     color: Palette99::pick(idx).to_rgba(),
                 }
             })
@@ -374,12 +369,13 @@ impl RenderRequest {
                 .map(|value| value.as_str())
                 .collect();
 
-            let label = format!(
+            let text = format!(
                 "Throttling: {}",
                 names.into_iter().collect::<Vec<_>>().join(",")
-            );
-            legend_entries.push(LegendEntry {
-                label,
+            )
+            .into();
+            legend_entries.push(LegendLabel {
+                text,
                 color: throttling_color,
             });
         }
@@ -461,13 +457,7 @@ impl RenderRequest {
 
         root.present()?; // Present the final image.
 
-        Ok(legend_entries
-            .into_iter()
-            .map(|entry| LegendLabel {
-                text: entry.label,
-                color: entry.color,
-            })
-            .collect())
+        Ok(legend_entries)
     }
 }
 

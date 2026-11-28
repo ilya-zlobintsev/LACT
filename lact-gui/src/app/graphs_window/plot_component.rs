@@ -32,7 +32,7 @@ pub struct PlotComponent {
     print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
     /// Text of the legend entries of the last rendered frame.
-    legend_texts: Vec<String>,
+    legend_texts: Vec<Arc<str>>,
     legend_labels: Vec<gtk::Label>,
 }
 
@@ -295,7 +295,7 @@ impl PlotComponent {
 
         if labels.len() == self.legend_labels.len() {
             for (label_widget, label) in self.legend_labels.iter().zip(&labels) {
-                if label_widget.text() != label.text {
+                if label_widget.text() != label.text.as_ref() {
                     label_widget.set_text(&label.text);
                 }
             }
