@@ -1,3 +1,5 @@
+mod legend_entry;
+
 use super::{
     GraphsWindowMsg,
     plot::Plot,
@@ -5,16 +7,16 @@ use super::{
 };
 use crate::I18N;
 use crate::app::utils::dnd::DynamicIndexValue;
-use crate::app::utils::ext::FlowBoxExt;
 use gtk::{
     gdk,
     glib::{subclass::types::ObjectSubclassIsExt, types::StaticType, value::ToValue},
     prelude::{
-        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, DrawingAreaExt, DrawingAreaExtManual,
-        ObjectExt, OrientableExt, PopoverExt, WidgetExt,
+        AdjustmentExt, BoxExt, ButtonExt, CheckButtonExt, ObjectExt, OrientableExt, PopoverExt,
+        WidgetExt,
     },
 };
 use i18n_embed_fl::fl;
+use legend_entry::{LegendEntry, LegendEntryMsg};
 use relm4::{
     RelmObjectExt, RelmWidgetExt,
     binding::{BoolBinding, ConnectBinding, F64Binding},
@@ -31,9 +33,7 @@ pub struct PlotComponent {
     edit_mode: BoolBinding,
     print_extra_info: BoolBinding,
     time_period: gtk::Adjustment,
-    /// Text of the legend entries of the last rendered frame.
-    legend_texts: Vec<Arc<str>>,
-    legend_labels: Vec<gtk::Label>,
+    legend: FactoryVecDeque<LegendEntry>,
 }
 
 pub struct PlotComponentConfig {
@@ -91,8 +91,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
                         set_propagate_natural_height: true,
                         set_has_frame: false,
 
-                        #[name = "legend"]
-                        gtk::FlowBox {
+                        self.legend.widget() {
                             set_selection_mode: gtk::SelectionMode::None,
                             set_homogeneous: false,
                             set_column_spacing: 16,
@@ -235,8 +234,7 @@ impl relm4::factory::FactoryComponent for PlotComponent {
             edit_mode: init.edit_mode,
             print_extra_info,
             time_period: init.time_period,
-            legend_texts: Vec::new(),
-            legend_labels: Vec::new(),
+            legend: FactoryVecDeque::builder().launch_default().detach(),
         }
     }
 
@@ -279,63 +277,20 @@ impl relm4::factory::Position<GridPosition, DynamicIndex> for PlotComponent {
 }
 
 impl PlotComponent {
-    /// Rebuild the GTK legend below the plot when the labels change.
     fn update_legend(&mut self, widgets: &PlotComponentWidgets) {
         let labels = widgets.plot.labels();
-        let texts = labels
-            .iter()
-            .map(|label| label.text.clone())
-            .collect::<Vec<_>>();
+        let mut legend = self.legend.guard();
 
-        if texts == self.legend_texts {
-            return;
+        while legend.len() > labels.len() {
+            legend.pop_back();
         }
 
-        self.legend_texts = texts;
-
-        if labels.len() == self.legend_labels.len() {
-            for (label_widget, label) in self.legend_labels.iter().zip(&labels) {
-                if label_widget.text() != label.text.as_ref() {
-                    label_widget.set_text(&label.text);
-                }
+        for (i, label) in labels.into_iter().enumerate() {
+            if i >= legend.len() {
+                legend.push_back(label);
+            } else if !legend[i].matches(&label) {
+                legend.send(i, LegendEntryMsg::SetLabel(label));
             }
-
-            return;
-        }
-
-        while let Some(child) = widgets.legend.first_child() {
-            widgets.legend.remove(&child);
-        }
-
-        self.legend_labels.clear();
-
-        for label in &labels {
-            let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-
-            let swatch = gtk::DrawingArea::new();
-            swatch.set_content_width(10);
-            swatch.set_content_height(10);
-            swatch.set_valign(gtk::Align::Center);
-
-            let color = label.color;
-            swatch.set_draw_func(move |_, cr, width, height| {
-                cr.set_source_rgba(
-                    f64::from(color.0) / 255.0,
-                    f64::from(color.1) / 255.0,
-                    f64::from(color.2) / 255.0,
-                    color.3,
-                );
-                cr.rectangle(0.0, 0.0, f64::from(width), f64::from(height));
-                cr.fill().ok();
-            });
-
-            row.append(&swatch);
-            let text = gtk::Label::new(Some(&label.text));
-            text.set_ellipsize(gtk::pango::EllipsizeMode::End);
-            text.add_css_class("caption");
-            row.append(&text);
-            widgets.legend.append_child(&row);
-            self.legend_labels.push(text);
         }
     }
 

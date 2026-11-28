@@ -3,6 +3,8 @@ mod imp;
 mod render_thread;
 mod to_texture_ext;
 
+pub use render_thread::LegendLabel;
+
 use super::stat::{StatType, StatsData};
 use gtk::glib::{self, Object, subclass::types::ObjectSubclassIsExt};
 use plotters::style::RGBAColor;
@@ -26,7 +28,7 @@ impl Plot {
     }
 
     /// Legend entries of the last rendered frame.
-    pub fn labels(&self) -> Vec<render_thread::LegendLabel> {
+    pub fn labels(&self) -> Vec<LegendLabel> {
         self.imp().render_thread.get_labels()
     }
 
