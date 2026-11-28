@@ -77,6 +77,8 @@ pub struct ClocksConfiguration {
         deserialize_with = "int_map::deserialize"
     )]
     pub mem_clock_offsets: IndexMap<u32, i32>,
+    pub xbar_clock_offset: Option<i32>,
+    pub sys_clock_offset: Option<i32>,
     #[serde(
         default,
         skip_serializing_if = "IndexMap::is_empty",
@@ -97,6 +99,8 @@ pub struct ClocksConfiguration {
     pub nvidia_gpu_vf_curve: IndexMap<u8, NvidiaCurvePoint>,
     pub voltage_offset: Option<i32>,
     pub voltage_boost: Option<i32>,
+    pub xbar_voltage_offset: Option<i32>,
+    pub sys_voltage_offset: Option<i32>,
 }
 
 impl ClocksConfiguration {

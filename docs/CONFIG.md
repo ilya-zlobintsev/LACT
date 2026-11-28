@@ -190,6 +190,9 @@ gpus:
     voltage_offset: 0
     # Nvidia core voltage boost, in percent (0-100) of available boost, not total voltage
     voltage_boost: 0
+    # Nvidia XBAR/SYS MSVDD (rail 1) voltage offsets in mV (Blackwell and newer).
+    xbar_voltage_offset: 0
+    sys_voltage_offset: 0
 
     # GPU V/F curve with voltage and frequency points per each power state.
     # Applicable only to AMD GCN and RDNA1 GPUs. Overrides the values of min/max clock/voltage fields.
@@ -212,6 +215,9 @@ gpus:
       0: -100
     mem_clock_offsets:
       0: 200
+    # Nvidia XBAR/SYS clockspeed offsets in MHz (Ampere and newer).
+    xbar_clock_offset: 0
+    sys_clock_offset: 0
 
     # Index of the UMA (dedicated VRAM) configuration that should be used.
     # Needs a reboot to actually take effect. Applicable to certain AMD iGPUs.
