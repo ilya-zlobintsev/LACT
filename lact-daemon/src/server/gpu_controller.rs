@@ -38,6 +38,12 @@ use tracing::{error, warn};
 pub type DynGpuController = Box<dyn GpuController>;
 type FanControlHandle = (Rc<Notify>, JoinHandle<()>);
 
+pub enum ControllerRetainedState {
+    Amd(Box<amd::AmdRetainedState>),
+    Nvidia { initial_target_temp: Option<u32> },
+    Intel { initial_power_cap: Option<f64> },
+}
+
 pub trait GpuController {
     fn controller_type(&self) -> &'static str;
 
@@ -83,6 +89,12 @@ pub trait GpuController {
     fn get_power_states(&self, gpu_config: Option<&GpuConfig>) -> PowerStates;
 
     fn reset_pmfw_settings(&self) {}
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        None
+    }
+
+    fn restore_retained_state(&mut self, _state: ControllerRetainedState) {}
 
     fn cleanup(&self) -> LocalBoxFuture<'_, ()> {
         async {}.boxed_local()

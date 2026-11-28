@@ -1,7 +1,7 @@
 mod driver;
 pub mod nvapi;
 
-use super::{CommonControllerInfo, FanControlHandle, GpuController};
+use super::{CommonControllerInfo, ControllerRetainedState, FanControlHandle, GpuController};
 use crate::{
     bindings::nvidia::NvPhysicalGpuHandle,
     server::gpu_controller::{
@@ -1212,6 +1212,21 @@ impl GpuController for NvidiaGpuController {
 
     fn get_power_profile_modes(&self) -> anyhow::Result<PowerProfileModesTable> {
         Err(anyhow!("Not supported on Nvidia"))
+    }
+
+    fn retained_state(&self) -> Option<ControllerRetainedState> {
+        Some(ControllerRetainedState::Nvidia {
+            initial_target_temp: self.initial_target_temp,
+        })
+    }
+
+    fn restore_retained_state(&mut self, state: ControllerRetainedState) {
+        if let ControllerRetainedState::Nvidia {
+            initial_target_temp,
+        } = state
+        {
+            self.initial_target_temp = initial_target_temp;
+        }
     }
 
     fn vbios_dump(&self) -> anyhow::Result<Vec<u8>> {
