@@ -55,10 +55,12 @@ impl WidgetImpl for Plot {
             return;
         }
 
+        let effective_size = (width * scale_factor as u32, height * scale_factor as u32);
+
         let last_texture = self.get_last_texture();
         let size_changed = last_texture
             .as_ref()
-            .map(|texture| (texture.width() as u32, texture.height() as u32) != (width, height))
+            .map(|texture| (texture.width() as u32, texture.height() as u32) != effective_size)
             .unwrap_or(true);
 
         if self.dirty.replace(false) || size_changed {
