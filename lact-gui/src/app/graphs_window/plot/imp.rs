@@ -72,7 +72,6 @@ impl WidgetImpl for Plot {
                 scale_factor,
                 base_font_size: self.font_size(),
                 colors,
-                title: self.title.borrow().clone(),
                 print_extra_info: self.print_extra_info.get(),
                 time_period_seconds: self.time_period_seconds.get(),
             });
@@ -143,7 +142,6 @@ mod benches {
             .input_counter(|_| ItemsCount::new(1usize))
             .bench_values(|data| {
                 let request = RenderRequest {
-                    title: "bench render".into(),
                     colors: PlotColorScheme::default(),
                     data,
                     width: 1920,

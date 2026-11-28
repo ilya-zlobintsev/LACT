@@ -25,8 +25,6 @@ enum Request {
 }
 
 pub struct RenderRequest {
-    pub title: String,
-
     pub print_extra_info: bool,
     pub data: Arc<RwLock<StatsData>>,
     pub stats: Vec<StatType>,
@@ -323,7 +321,6 @@ impl RenderRequest {
         let (_, chart_height) = root.dim_in_pixel();
         let max_font_size = f64::from((chart_height / 12).max(10));
         let axis_font_size = (self.base_font_size * 0.8).clamp(8.0, max_font_size) as u32;
-        let title_font_size = (self.base_font_size * 1.2).clamp(9.0, max_font_size) as u32;
 
         let y_label_style = TextStyle {
             font: ("sans-serif", axis_font_size).into(),
@@ -386,10 +383,6 @@ impl RenderRequest {
             .y_label_area_size(y_label_area_size)
             .margin(10)
             .margin_top(20)
-            .caption(
-                self.title.as_str(),
-                ("sans-serif", title_font_size, &self.colors.text),
-            )
             .build_cartesian_2d(
                 start_date..max(end_date, start_date + self.time_period_seconds * 1000),
                 0f64..maximum_value,
